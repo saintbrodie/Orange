@@ -206,6 +206,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const queueStatus = document.getElementById('queue-status');
         const progressContainer = document.getElementById('progress-container');
         
+        const spinner = document.getElementById('loading-spinner');
+        const previewContainer = document.getElementById('live-preview-container');
+        const previewImage = document.getElementById('live-preview-image');
+        if (spinner) spinner.classList.remove('hidden');
+        if (previewContainer) {
+            previewContainer.classList.add('hidden');
+            previewContainer.classList.remove('opacity-100');
+        }
+        if (previewImage) previewImage.src = '';
+        
         progressContainer.classList.add('hidden');
         queueStatus.classList.remove('hidden');
         generatingTitle.innerText = "Initializing connection...";
@@ -253,6 +263,19 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (data.status === 'generating') {
                 generatingTitle.innerText = "Setting things up...";
                 queueStatus.innerText = `Getting ready`;
+            } else if (data.status === 'preview') {
+                const spinner = document.getElementById('loading-spinner');
+                const previewContainer = document.getElementById('live-preview-container');
+                const previewImage = document.getElementById('live-preview-image');
+                
+                if (spinner) spinner.classList.add('hidden');
+                if (previewContainer) {
+                    previewContainer.classList.remove('hidden');
+                    setTimeout(() => previewContainer.classList.add('opacity-100'), 10);
+                }
+                if (previewImage) {
+                    previewImage.src = 'data:image/jpeg;base64,' + data.image;
+                }
             } else if (data.status === 'progress') {
                 progressContainer.classList.remove('hidden');
                 queueStatus.classList.add('hidden');

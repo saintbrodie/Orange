@@ -6,6 +6,7 @@ import httpx
 import websockets
 import uuid
 import time
+import base64
 from typing import Dict
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
@@ -179,7 +180,13 @@ async def status_generator(request: Request, prompt_id: str, client_id: str):
                     if await request.is_disconnected():
                         break
                     msg = await websocket.recv()
-                    if isinstance(msg, str):
+                    if isinstance(msg, bytes):
+                        # Binary message: likely a preview image.
+                        # ComfyUI prepends an 8-byte header to its binary messages.
+                        image_data = msg[8:]
+                        b64_img = base64.b64encode(image_data).decode('utf-8')
+                        await q.put({"status": "preview", "image": b64_img})
+                    elif isinstance(msg, str):
                         data = json.loads(msg)
                         t = data.get("type")
                         if t == "executing" and data.get("data", {}).get("node") is None:
