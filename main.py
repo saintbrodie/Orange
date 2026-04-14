@@ -42,6 +42,17 @@ def get_workflows():
         "aspectRatios": current_config.get("aspectRatios", {})
     }
 
+@app.get("/api/health")
+async def get_health():
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            res = await client.get(f"{COMFY_URL}/system_stats")
+            if res.status_code == 200:
+                return {"status": "ready"}
+    except Exception:
+        pass
+    return JSONResponse(status_code=503, content={"status": "offline"})
+
 @app.post("/api/generate")
 async def generate(
     request: Request,

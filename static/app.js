@@ -328,11 +328,41 @@ document.addEventListener("DOMContentLoaded", () => {
         resultLayer.classList.remove('flex');
         uiContainer.classList.remove('hidden');
         generateBtn.disabled = false;
-        
         // Reset progress visually
         document.getElementById('progress-bar-fill').style.width = '0%';
         document.getElementById('progress-percentage').innerText = '0%';
         document.getElementById('progress-steps').innerText = '0 / 0';
     });
 
+    // AI Status Polling
+    const aiStatusDot = document.getElementById('ai-status-dot');
+    const aiStatusText = document.getElementById('ai-status-text');
+
+    async function checkAiStatus() {
+        try {
+            const res = await fetch('/api/health');
+            if(res.ok) {
+                aiStatusDot.className = 'w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
+                aiStatusText.innerText = 'AI Ready';
+                generateBtn.disabled = false;
+                generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                aiStatusDot.className = 'w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse';
+                aiStatusText.innerText = 'AI Offline';
+                generateBtn.disabled = true;
+                generateBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        } catch(e) {
+            aiStatusDot.className = 'w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse';
+            aiStatusText.innerText = 'AI Offline';
+            generateBtn.disabled = true;
+            generateBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+    }
+
+    // Check immediately and then every 10 seconds
+    if (aiStatusDot && aiStatusText) {
+        checkAiStatus();
+        setInterval(checkAiStatus, 10000);
+    }
 });
