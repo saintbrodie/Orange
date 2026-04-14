@@ -138,12 +138,44 @@ async def generate(
     return {"prompt_id": data.get("prompt_id"), "client_id": client_id}
 
 
-async def status_generator(request: Request, prompt_id: str, client_id: str):
+async def status_generator(request: Request, prompt_id: str, client_id: str, tool_id: str = None):
     """
     Generator yielding SSE messages. Uses Websockets for precise progress mapping
     and regular HTTP polling for Queue assignment.
     """
     q = asyncio.Queue()
+
+    node_map = {}
+    if tool_id:
+        tool = get_tool_settings(tool_id)
+        if tool and tool.get("workflowFile"):
+            try:
+                wf = get_base_workflow(tool["workflowFile"])
+                for nid, ndata in wf.items():
+                    if isinstance(ndata, dict):
+                        node_map[str(nid)] = ndata.get("class_type", "")
+            except Exception:
+                pass
+
+    FRIENDLY_NAMES = {
+        "CheckpointLoaderSimple": "Loading AI Models...",
+        "UNETLoader": "Loading AI Models...",
+        "LoraLoader": "Loading AI Models...",
+        "CLIPTextEncode": "Understanding your prompt...",
+        "KSampler": "Generating Image...",
+        "KSamplerAdvanced": "Generating Image...",
+        "SamplerCustom": "Generating Image...",
+        "VAEEncode": "Finalizing Image...",
+        "VAEDecode": "Finalizing Image...",
+        "ImageScale": "Increasing resolution...",
+        "ImageScaleBy": "Increasing resolution...",
+        "ImageUpscaleWithModel": "Increasing resolution...",
+        "LatentUpscale": "Increasing resolution...",
+        "LatentUpscaleBy": "Increasing resolution...",
+        "FaceDetailer": "Enhancing faces...",
+        "Reactor": "Enhancing faces...",
+        "SaveImage": "Wrapping up..."
+    }
 
     # Immediate history check
     async with httpx.AsyncClient() as client:
@@ -189,9 +221,16 @@ async def status_generator(request: Request, prompt_id: str, client_id: str):
                     elif isinstance(msg, str):
                         data = json.loads(msg)
                         t = data.get("type")
-                        if t == "executing" and data.get("data", {}).get("node") is None:
-                            await q.put({"status": "completed"})
-                            break
+                        if t == "executing":
+                            node_id = data.get("data", {}).get("node")
+                            if node_id is None:
+                                await q.put({"status": "completed"})
+                                break
+                            else:
+                                c_type = node_map.get(str(node_id))
+                                friendly = FRIENDLY_NAMES.get(c_type)
+                                if friendly:
+                                    await q.put({"status": "executing", "message": friendly})
                         elif t == "progress":
                             val = data["data"]["value"]
                             m = data["data"]["max"]
@@ -221,8 +260,8 @@ async def status_generator(request: Request, prompt_id: str, client_id: str):
 
 
 @app.get("/api/status")
-async def get_status(request: Request, prompt_id: str, client_id: str):
-    return EventSourceResponse(status_generator(request, prompt_id, client_id))
+async def get_status(request: Request, prompt_id: str, client_id: str, tool_id: str = None):
+    return EventSourceResponse(status_generator(request, prompt_id, client_id, tool_id))
 
 
 @app.get("/api/image")

@@ -238,15 +238,15 @@ document.addEventListener("DOMContentLoaded", () => {
             const clientId = data.client_id;
             
             // Start SSE listening
-            listenToQueue(promptId, clientId);
+            listenToQueue(promptId, clientId, selectedToolId);
 
         } catch (e) {
             showGenerationError(e.message);
         }
     });
 
-    function listenToQueue(promptId, clientId) {
-        const evtSource = new EventSource(`/api/status?prompt_id=${promptId}&client_id=${clientId}`);
+    function listenToQueue(promptId, clientId, toolId) {
+        const evtSource = new EventSource(`/api/status?prompt_id=${promptId}&client_id=${clientId}&tool_id=${toolId}`);
         
         const progressBarFill = document.getElementById('progress-bar-fill');
         const progressContainer = document.getElementById('progress-container');
@@ -263,6 +263,9 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (data.status === 'generating') {
                 generatingTitle.innerText = "Setting things up...";
                 queueStatus.innerText = `Getting ready`;
+            } else if (data.status === 'executing') {
+                // Update the title to the friendly node mapping string
+                generatingTitle.innerText = data.message;
             } else if (data.status === 'preview') {
                 const spinner = document.getElementById('loading-spinner');
                 const previewContainer = document.getElementById('live-preview-container');
