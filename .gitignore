@@ -1,0 +1,33 @@
+# Environments
+venv/
+env/
+.env
+
+# Python caching
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Downloaded/Generated Media (Optional - uncomment if you want to prevent pushing final creations)
+# output/
+
+# Workflows (Ignore all raw ComfyUI JSONs but track the main configuration)
+#workflows/*
+#!workflows/workflows-config.json
+

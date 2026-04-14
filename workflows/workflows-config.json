@@ -1,0 +1,117 @@
+{
+  "comfyServerUrl": "http://127.0.0.1:8188",
+  "aspectRatios": {
+    "1:1": {
+      "width": 1024,
+      "height": 1024
+    },
+    "9:16": {
+      "width": 576,
+      "height": 1024
+    },
+    "16:9": {
+      "width": 1024,
+      "height": 576
+    }
+  },
+  "tools": [
+    {
+      "id": "z-image",
+      "name": "Fast Generate",
+      "workflowFile": "image_z_image_turbo.json",
+      "nodeMapping": {
+        "prompt": {
+          "nodeId": "67",
+          "field": "text"
+        },
+        "width": {
+          "nodeId": "68",
+          "field": "width"
+        },
+        "height": {
+          "nodeId": "68",
+          "field": "height"
+        },
+        "seed": {
+          "nodeId": "70",
+          "field": "seed",
+          "generateRandom": true
+        }
+      }
+    },
+    {
+      "id": "qwen-2512",
+      "name": "Detailed Generate",
+      "workflowFile": "Qwen Image 2512.json",
+      "aspectRatios": {
+        "1:1": {
+          "width": 1328,
+          "height": 1328
+        },
+        "9:16": {
+          "width": 928,
+          "height": 1664
+        },
+        "16:9": {
+          "width": 1664,
+          "height": 928
+        }
+      },
+      "nodeMapping": {
+        "prompt": {
+          "nodeId": "253",
+          "field": "text"
+        },
+        "width": {
+          "nodeId": "254",
+          "field": "width"
+        },
+        "height": {
+          "nodeId": "254",
+          "field": "height"
+        },
+        "seed": {
+          "nodeId": "267",
+          "field": "seed",
+          "generateRandom": true
+        }
+      }
+    },
+    {
+      "id": "klein-edit",
+      "name": "Modify Image",
+      "workflowFile": "Klein Edit.json",
+      "nodeMapping": {
+        "image": {
+          "nodeId": "734",
+          "field": "image"
+        },
+        "prompt": {
+          "nodeId": "756",
+          "field": "text"
+        },
+        "seed": {
+          "nodeId": "748",
+          "field": "noise_seed",
+          "generateRandom": true
+        }
+      }
+    },
+    {
+      "id": "seedvr2-upscale",
+      "name": "Upscale Image",
+      "workflowFile": "SeedVR2 Image Upscale.json",
+      "nodeMapping": {
+        "image": {
+          "nodeId": "16",
+          "field": "image"
+        },
+        "seed": {
+          "nodeId": "21:10",
+          "field": "seed",
+          "generateRandom": true
+        }
+      }
+    }
+  ]
+}

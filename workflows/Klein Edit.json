@@ -1,0 +1,283 @@
+{
+  "734": {
+    "inputs": {
+      "image": "temp-4aaa9f23-9eea-4cf3-98cd-10a0726075d5.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "738": {
+    "inputs": {
+      "filename_prefix": "Flux2-Klein",
+      "images": [
+        "747",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "745": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "746": {
+    "inputs": {
+      "noise": [
+        "748",
+        0
+      ],
+      "guider": [
+        "752",
+        0
+      ],
+      "sampler": [
+        "745",
+        0
+      ],
+      "sigmas": [
+        "753",
+        0
+      ],
+      "latent_image": [
+        "751",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    }
+  },
+  "747": {
+    "inputs": {
+      "samples": [
+        "746",
+        0
+      ],
+      "vae": [
+        "750",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "748": {
+    "inputs": {
+      "noise_seed": 584863432287659
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "749": {
+    "inputs": {
+      "clip_name": "qwen_3_8b_fp8mixed.safetensors",
+      "type": "flux2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "750": {
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "751": {
+    "inputs": {
+      "width": [
+        "754",
+        0
+      ],
+      "height": [
+        "754",
+        1
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyFlux2LatentImage",
+    "_meta": {
+      "title": "Empty Flux 2 Latent"
+    }
+  },
+  "752": {
+    "inputs": {
+      "cfg": 1,
+      "model": [
+        "761",
+        0
+      ],
+      "positive": [
+        "757",
+        0
+      ],
+      "negative": [
+        "758",
+        0
+      ]
+    },
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFGGuider"
+    }
+  },
+  "753": {
+    "inputs": {
+      "steps": 4,
+      "width": [
+        "754",
+        0
+      ],
+      "height": [
+        "754",
+        1
+      ]
+    },
+    "class_type": "Flux2Scheduler",
+    "_meta": {
+      "title": "Flux2Scheduler"
+    }
+  },
+  "754": {
+    "inputs": {
+      "image": [
+        "762",
+        0
+      ]
+    },
+    "class_type": "GetImageSize",
+    "_meta": {
+      "title": "Get Image Size"
+    }
+  },
+  "755": {
+    "inputs": {
+      "conditioning": [
+        "756",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "ConditioningZeroOut"
+    }
+  },
+  "756": {
+    "inputs": {
+      "text": "change her waist to be slightly wider",
+      "clip": [
+        "749",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Positive Prompt)"
+    }
+  },
+  "757": {
+    "inputs": {
+      "conditioning": [
+        "756",
+        0
+      ],
+      "latent": [
+        "759",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent"
+    }
+  },
+  "758": {
+    "inputs": {
+      "conditioning": [
+        "755",
+        0
+      ],
+      "latent": [
+        "759",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent"
+    }
+  },
+  "759": {
+    "inputs": {
+      "pixels": [
+        "762",
+        0
+      ],
+      "vae": [
+        "750",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode"
+    }
+  },
+  "760": {
+    "inputs": {
+      "unet_name": "flux-2-klein-9b-kv-fp8.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "761": {
+    "inputs": {
+      "model": [
+        "760",
+        0
+      ]
+    },
+    "class_type": "FluxKVCache",
+    "_meta": {
+      "title": "Flux KV Cache"
+    }
+  },
+  "762": {
+    "inputs": {
+      "upscale_method": "nearest-exact",
+      "megapixels": 2,
+      "resolution_steps": 1,
+      "image": [
+        "734",
+        0
+      ]
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": "ImageScaleToTotalPixels"
+    }
+  }
+}
