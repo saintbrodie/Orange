@@ -368,10 +368,20 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const res = await fetch('/api/health');
             if(res.ok) {
+                const resData = await res.json();
                 aiStatusDot.className = 'w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
                 aiStatusText.innerText = 'AI Ready';
                 generateBtn.disabled = false;
                 generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                
+                const vramWarning = document.getElementById('vram-warning');
+                if (vramWarning) {
+                    if (resData.vram_warning) {
+                        vramWarning.classList.remove('hidden');
+                    } else {
+                        vramWarning.classList.add('hidden');
+                    }
+                }
             } else {
                 aiStatusDot.className = 'w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse';
                 aiStatusText.innerText = 'AI Offline';

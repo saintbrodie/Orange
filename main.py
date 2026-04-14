@@ -49,7 +49,16 @@ async def get_health():
         async with httpx.AsyncClient(timeout=2.0) as client:
             res = await client.get(f"{COMFY_URL}/system_stats")
             if res.status_code == 200:
-                return {"status": "ready"}
+                data = res.json()
+                vram_warning = False
+                devices = data.get("devices", [])
+                if devices:
+                    device = devices[0]
+                    vram_free = device.get("vram_free", 1)
+                    vram_total = device.get("vram_total", 1)
+                    if vram_total > 0 and (vram_free / vram_total) < 0.05:
+                        vram_warning = True
+                return {"status": "ready", "vram_warning": vram_warning}
     except Exception:
         pass
     return JSONResponse(status_code=503, content={"status": "offline"})
