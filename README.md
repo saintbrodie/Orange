@@ -1,5 +1,7 @@
 # Orange 🍊
 
+![Orange UI Screenshot](Screenshot.png)
+
 Orange is a minimalist, dynamic web frontend wrapper around **ComfyUI**. It replaces the complex node-graph interface with a user-friendly, responsive experience that allows anyone to generate, edit, and upscale media via your local ComfyUI instance without knowing the node-spaghetti underneath.
 
 ## Features
