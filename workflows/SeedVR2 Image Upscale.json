@@ -33,7 +33,7 @@
       "prepend_frames": 0,
       "input_noise_scale": 0,
       "latent_noise_scale": 0,
-      "offload_device": "cuda:1",
+      "offload_device": "cuda:0",
       "enable_debug": false,
       "image": [
         "16",
