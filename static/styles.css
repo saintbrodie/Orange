@@ -1,5 +1,91 @@
-/* Basic Tailwind tweaks if needed */
-/* The animate-in classes can be mimicked or we can use Tailwind CDN's default if it supports it */
+/* Futuristic Grainy Mesh Background */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+body {
+    background-color: #030302;
+    color: #f4f4f5;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mesh-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -2;
+    overflow: hidden;
+    background: #030302;
+}
+
+.mesh-blob {
+    position: absolute;
+    width: 80vw;
+    height: 80vw;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.22;
+    animation: blob-float 40s infinite alternate ease-in-out;
+}
+
+.mesh-1 {
+    background: radial-gradient(circle, #ff5f00, transparent 70%);
+    top: -20%;
+    left: -10%;
+}
+
+.mesh-2 {
+    background: radial-gradient(circle, #5b21b6, transparent 70%);
+    bottom: -20%;
+    right: -10%;
+    animation-delay: -15s;
+}
+
+.mesh-3 {
+    background: radial-gradient(circle, #be185d, transparent 70%);
+    top: 40%;
+    left: 30%;
+    width: 60vw;
+    height: 60vw;
+    opacity: 0.12;
+    animation-delay: -30s;
+}
+
+.mesh-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.14;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+    z-index: 10;
+}
+
+@keyframes blob-float {
+    0% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(10vw, 5vh) scale(1.1); }
+    100% { transform: translate(-5vw, 15vh) scale(0.9); }
+}
+
+/* Base tweaks - High Quality Glass */
+.max-w-6xl {
+    background: rgba(18, 18, 18, 0.7) !important;
+    backdrop-blur: 40px !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+#ai-status-text, label, h2 {
+    text-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -18,11 +104,27 @@
     animation: slideUp 0.5s ease-out forwards;
 }
 
-/* Hide scrollbar but allow scrolling */
+/* Scrollbar */
 ::-webkit-scrollbar {
-    display: none;
+    width: 6px;
+    display: block;
 }
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Hide default mobile scrollbars */
 * {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }

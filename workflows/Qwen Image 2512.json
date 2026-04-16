@@ -38,7 +38,7 @@
   },
   "252": {
     "inputs": {
-      "unet_name": "qwen_image_2512_fp8_e4m3fn.safetensors",
+      "unet_name": "qwen_image_2512_bf16.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
@@ -130,7 +130,7 @@
   },
   "260": {
     "inputs": {
-      "lora_name": "Qwen\\Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors",
+      "lora_name": "Qwen\\Qwen-Image-2512-Lightning-8steps-V1.0-fp32.safetensors",
       "strength_model": 1,
       "model": [
         "252",

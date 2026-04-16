@@ -7,9 +7,9 @@
     <link rel="icon" href="/static/orange-head.svg" type="image/svg+xml">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/styles.css?v=8">
 </head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen flex items-center justify-center p-4 font-sans selection:bg-zinc-800">
+<body class="bg-zinc-950 text-zinc-100 min-h-screen flex items-center justify-center p-4 font-sans selection:bg-orange-950 selection:text-orange-200">
     <div class="max-w-6xl w-full flex bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 min-h-[600px] h-[80vh]">
         
         <!-- Sidebar -->
@@ -29,7 +29,7 @@
             </div>
             
             <!-- VRAM Warning -->
-            <div id="vram-warning" class="hidden w-full bg-orange-950/60 border border-orange-600/50 rounded-xl p-3 mb-4 mt-4 flex items-center justify-between text-orange-500 shadow-[0_0_15px_rgba(234,88,12,0.3)]">
+            <div id="vram-warning" class="hidden w-full bg-orange-950/60 border border-orange-600/50 rounded-xl p-3 mb-4 mt-4 flex items-center justify-between text-orange-500 shadow-[0_0_15px_rgba(234,88,12,0.2)]">
                 <i data-lucide="flame" class="w-5 h-5 shrink-0 animate-pulse"></i>
                 <div class="text-[11px] leading-tight font-medium text-center px-2">Server under heavy load.<br>Generations may be slow.</div>
                 <i data-lucide="flame" class="w-5 h-5 shrink-0 animate-pulse"></i>
@@ -148,8 +148,14 @@
                 </div>
             </div>
             
-        </div>
+    <!-- Futuristic Mesh Background -->
+    <div class="mesh-container">
+        <div class="mesh-blob mesh-1"></div>
+        <div class="mesh-blob mesh-2"></div>
+        <div class="mesh-blob mesh-3"></div>
+        <div class="mesh-overlay"></div>
     </div>
-    <script src="/static/app.js?v=2"></script>
+
+    <script src="/static/app.js?v=8"></script>
 </body>
 </html>

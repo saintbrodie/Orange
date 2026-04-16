@@ -17,7 +17,7 @@
   "tools": [
     {
       "id": "z-image",
-      "name": "Fast Generate",
+      "name": "Realistic Generate",
       "workflowFile": "image_z_image_turbo.json",
       "nodeMapping": {
         "prompt": {
