@@ -25,6 +25,13 @@ Orange is a minimalist, dynamic web frontend wrapper around **ComfyUI**. It repl
 ## Configuration
 See the [Adding Workflows](docs/adding_workflows.md) guide to learn how to export your own ComfyUI node graphs and use them as new generation tools in Orange.
 
+## Default Workflows
+Out of the box, Orange is configured with these high-performance workflows:
+- **Realistic Generate**: [Z-Image Turbo](workflows/image_z_image_turbo.json) (ComfyUI Default)
+- **Detailed Generate**: [Qwen 2512](workflows/Qwen%20Image%202512.json) (ComfyUI Default)
+- **Modify Image**: [Klein KV](workflows/Klein%20Edit.json) (ComfyUI Default)
+- **Upscale Image**: [SeedVR2 4k](workflows/SeedVR2%20Image%20Upscale.json) (From the [Seed2VR Extension](https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler))
+
 ## To Do
 - [ ] LTX Video Support
 - [ ] ACE Step Support

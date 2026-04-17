@@ -98,7 +98,7 @@
     "inputs": {
       "shift": 3,
       "model": [
-        "71",
+        "66",
         0
       ]
     },
@@ -135,20 +135,6 @@
     "class_type": "KSampler",
     "_meta": {
       "title": "KSampler"
-    }
-  },
-  "71": {
-    "inputs": {
-      "lora_name": "Z-Image_Turbo\\NiceGirls_UltraReal_-_v1-0_Z-Image_Turbo.safetensors",
-      "strength_model": 0.6,
-      "model": [
-        "66",
-        0
-      ]
-    },
-    "class_type": "LoraLoaderModelOnly",
-    "_meta": {
-      "title": "Load LoRA"
     }
   }
 }

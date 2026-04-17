@@ -1,9 +1,9 @@
 {
-  "249": {
+  "60": {
     "inputs": {
-      "filename_prefix": "ComfyUI",
+      "filename_prefix": "Qwen-Image-2512",
       "images": [
-        "266",
+        "270",
         0
       ]
     },
@@ -12,7 +12,7 @@
       "title": "Save Image"
     }
   },
-  "250": {
+  "264": {
     "inputs": {
       "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
       "type": "qwen_image",
@@ -23,11 +23,20 @@
       "title": "Load CLIP"
     }
   },
-  "251": {
+  "265": {
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "266": {
     "inputs": {
       "shift": 3.1000000000000005,
       "model": [
-        "261",
+        "278",
         0
       ]
     },
@@ -36,9 +45,9 @@
       "title": "ModelSamplingAuraFlow"
     }
   },
-  "252": {
+  "267": {
     "inputs": {
-      "unet_name": "qwen_image_2512_bf16.safetensors",
+      "unet_name": "qwen_image_2512_fp8_e4m3fn.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
@@ -46,11 +55,11 @@
       "title": "Load Diffusion Model"
     }
   },
-  "253": {
+  "268": {
     "inputs": {
-      "text": "A brightly colored cartoon scene depicting a United Nations General Assembly meeting. Numerous human delegates, showcasing diverse ethnicities (Valentina Ruiz, a 22-year-old Colombian-Lebanese student from Medellín; Aaryan D'Souza, a 24-year-old Goan-Brazilian filmmaker based in São Paulo; Giulia Benali, a 23-year-old Italian-Tunisian journalism graduate from Bari; Riccardo Fabbri, a 54-year-old media veteran and longtime Serie C analyst from Modena; Catherine Hollenberg, a 47-year-old public health policy advisor from Munich; Claire Hemmings, an 18-year-old honors graduate from Des Moines, Iowa), are seated at desks. Most delegates exhibit neutral or slightly concerned expressions. Centrally positioned are a brown bear in a tailored suit, portraying Russia, scowling and shaking its paw in a \"no\" vote, with a large “NO” sign positioned directly in front of it. A large, highly visible Russian flag is draped over the bear's shoulders. Immediately beside the bear, a Winnie the Pooh character in a formal suit, representing China, looks stern and shakes its paw in a \"no\" vote, with a large “NO” sign positioned directly in front of it. A large, highly visible Chinese flag is draped over Winnie the Pooh's shoulders. The background features a simplified, colorful rendering of the UN headquarters building. The overall aesthetic is cartoonish with flat colors and bold outlines.",
+      "text": "Urban alleyway at dusk. Tall, statuesque high-fashion model striding elegantly, mid distant full body shot from an angular perspective, cinematic/editorial with bold contrasts and tactile materials. They wear a rose-gold metallic trench coat with deconstructed elements over a black long-sleeved turtleneck with subtle texture; paired with forest-green pleated pants with raw hems and a soft texture. Long braided dark hair, medium complexion. They carry a vibrant yellow designer handbag with geometric details and a structured silhouette. White architectural sneakers with bold geometric cutouts. Bold, high-contrast, tactile, urban-grit meets high-fashion impact, extreme clarity, extreme layering, post-processing with transparent light-transmitting ultra-smooth high-definition film effect, removing all noise and grain, removing all blur, removing all vintage feel, removing all roughness, drawn with 32K pixel precision, unparalleled fine line drawing of every single detail, the entire image like a brand new photograph, photorealistic\n",
       "clip": [
-        "250",
+        "264",
         0
       ]
     },
@@ -59,141 +68,11 @@
       "title": "CLIP Text Encode (Positive Prompt)"
     }
   },
-  "254": {
-    "inputs": {
-      "width": 928,
-      "height": 1664,
-      "batch_size": 1
-    },
-    "class_type": "EmptySD3LatentImage",
-    "_meta": {
-      "title": "EmptySD3LatentImage"
-    }
-  },
-  "255": {
-    "inputs": {
-      "value": 50
-    },
-    "class_type": "PrimitiveInt",
-    "_meta": {
-      "title": "Steps"
-    }
-  },
-  "256": {
-    "inputs": {
-      "value": 4
-    },
-    "class_type": "PrimitiveFloat",
-    "_meta": {
-      "title": "CFG"
-    }
-  },
-  "258": {
-    "inputs": {
-      "switch": [
-        "262",
-        0
-      ],
-      "on_false": [
-        "255",
-        0
-      ],
-      "on_true": [
-        "263",
-        0
-      ]
-    },
-    "class_type": "ComfySwitchNode",
-    "_meta": {
-      "title": "Switch (steps)"
-    }
-  },
-  "259": {
-    "inputs": {
-      "switch": [
-        "262",
-        0
-      ],
-      "on_false": [
-        "256",
-        0
-      ],
-      "on_true": [
-        "264",
-        0
-      ]
-    },
-    "class_type": "ComfySwitchNode",
-    "_meta": {
-      "title": "Switch (cfg)"
-    }
-  },
-  "260": {
-    "inputs": {
-      "lora_name": "Qwen\\Qwen-Image-2512-Lightning-8steps-V1.0-fp32.safetensors",
-      "strength_model": 1,
-      "model": [
-        "252",
-        0
-      ]
-    },
-    "class_type": "LoraLoaderModelOnly",
-    "_meta": {
-      "title": "Load LoRA"
-    }
-  },
-  "261": {
-    "inputs": {
-      "switch": [
-        "262",
-        0
-      ],
-      "on_false": [
-        "252",
-        0
-      ],
-      "on_true": [
-        "260",
-        0
-      ]
-    },
-    "class_type": "ComfySwitchNode",
-    "_meta": {
-      "title": "Switch (model)"
-    }
-  },
-  "262": {
-    "inputs": {
-      "value": true
-    },
-    "class_type": "PrimitiveBoolean",
-    "_meta": {
-      "title": "Enable 4 Steps LoRA?"
-    }
-  },
-  "263": {
-    "inputs": {
-      "value": 4
-    },
-    "class_type": "PrimitiveInt",
-    "_meta": {
-      "title": "Steps"
-    }
-  },
-  "264": {
-    "inputs": {
-      "value": 1
-    },
-    "class_type": "PrimitiveFloat",
-    "_meta": {
-      "title": "CFG"
-    }
-  },
-  "265": {
+  "269": {
     "inputs": {
       "text": "低分辨率，低画质，肢体畸形，手指畸形，画面过饱和，蜡像感，人脸无细节，过度光滑，画面具有AI感。构图混乱。文字模糊，扭曲",
       "clip": [
-        "250",
+        "264",
         0
       ]
     },
@@ -202,14 +81,14 @@
       "title": "CLIP Text Encode (Negative Prompt)"
     }
   },
-  "266": {
+  "270": {
     "inputs": {
       "samples": [
-        "267",
+        "272",
         0
       ],
       "vae": [
-        "268",
+        "265",
         0
       ]
     },
@@ -218,37 +97,39 @@
       "title": "VAE Decode"
     }
   },
-  "267": {
+  "271": {
     "inputs": {
-      "seed": [
-        "263",
-        0
-      ],
-      "steps": [
-        "258",
-        0
-      ],
-      "cfg": [
-        "259",
-        0
-      ],
+      "width": 1328,
+      "height": 1328,
+      "batch_size": 1
+    },
+    "class_type": "EmptySD3LatentImage",
+    "_meta": {
+      "title": "EmptySD3LatentImage"
+    }
+  },
+  "272": {
+    "inputs": {
+      "seed": 464857551335368,
+      "steps": 4,
+      "cfg": 1,
       "sampler_name": "euler",
       "scheduler": "simple",
       "denoise": 1,
       "model": [
-        "251",
+        "266",
         0
       ],
       "positive": [
-        "253",
+        "268",
         0
       ],
       "negative": [
-        "265",
+        "269",
         0
       ],
       "latent_image": [
-        "254",
+        "271",
         0
       ]
     },
@@ -257,13 +138,18 @@
       "title": "KSampler"
     }
   },
-  "268": {
+  "278": {
     "inputs": {
-      "vae_name": "qwen_image_vae.safetensors"
+      "lora_name": "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors",
+      "strength_model": 1,
+      "model": [
+        "267",
+        0
+      ]
     },
-    "class_type": "VAELoader",
+    "class_type": "LoraLoaderModelOnly",
     "_meta": {
-      "title": "Load VAE"
+      "title": "Load LoRA"
     }
   }
 }
