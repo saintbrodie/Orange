@@ -1,4 +1,4 @@
-# Orange 🍊
+# Orange 😼
 
 ![Orange UI Screenshot](docs/Screenshot.png)
 
@@ -10,6 +10,7 @@ Orange is a minimalist, dynamic web frontend wrapper around **ComfyUI**. It repl
 - **Real-Time Feedback**: Progress bars, queue positions, and system status directly inherited from ComfyUI websockets.
 - **Extensible**: Simply drop in ComfyUI API workflows to add new generation paths.
 - **Auto-Installer**: Simple `run.bat` and `run.sh` scripts manage the environment on Windows/Mac/Linux.
+- **Admin Tracking**: Secure built-in dashboard to monitor platform usage metrics, IPs, and tool popularity.
 
 ## Requirements
 - Python 3
@@ -24,6 +25,11 @@ Orange is a minimalist, dynamic web frontend wrapper around **ComfyUI**. It repl
 
 ## Configuration
 See the [Adding Workflows](docs/adding_workflows.md) guide to learn how to export your own ComfyUI node graphs and use them as new generation tools in Orange.
+
+## Admin Dashboard
+Orange features a secure analytics dashboard that allows administrators to track usage metrics and activity automatically.
+1. Navigate to `http://localhost:7070/admin`.
+2. Login using the `adminKey` defined in your `workflows-config.json` (defaults to `orangeadmin`).
 
 ## Default Workflows
 Out of the box, Orange is configured with these high-performance workflows:

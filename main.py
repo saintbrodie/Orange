@@ -7,6 +7,7 @@ import websockets
 import uuid
 import time
 import base64
+import sqlite3
 from typing import Dict
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
@@ -18,6 +19,34 @@ from configManager import load_config, get_tool_settings, get_base_workflow
 from imageUtils import strip_metadata
 
 app = FastAPI(title="ComfyUI Minimal Frontend")
+
+# Initialize the SQLite database for logging usage
+def init_db():
+    conn = sqlite3.connect("usage_logs.db")
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            client_ip TEXT,
+            tool_id TEXT,
+            prompt TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def log_usage(client_ip: str, tool_id: str, prompt: str = None):
+    try:
+        conn = sqlite3.connect("usage_logs.db")
+        c = conn.cursor()
+        c.execute("INSERT INTO usage (client_ip, tool_id, prompt) VALUES (?, ?, ?)", (client_ip, tool_id, prompt))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error logging usage: {e}")
 
 # Rate Limiting State
 last_generate_time: Dict[str, float] = {}
@@ -144,6 +173,9 @@ async def generate(
     except httpx.RequestError:
         raise HTTPException(status_code=503, detail=f"Could not connect to ComfyUI server at {COMFY_URL}. Is it running?")
         
+    # Log successful generation request
+    log_usage(client_ip, tool_id, prompt)
+    
     return {"prompt_id": data.get("prompt_id"), "client_id": client_id}
 
 
@@ -305,3 +337,49 @@ async def get_image(prompt_id: str):
         clean_bytes = strip_metadata(raw_bytes)
         
         return StreamingResponse(io.BytesIO(clean_bytes), media_type="image/png")
+
+@app.get("/admin")
+def serve_admin():
+    with open("static/admin.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+@app.get("/api/admin/usage")
+def get_admin_usage(key: str = None, period: str = "all"):
+    current_config = get_current_config()
+    expected_key = current_config.get("adminKey", "orangeadmin")
+    if key != expected_key:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin key")
+    
+    date_filter = ""
+    if period == "weekly":
+        date_filter = "WHERE timestamp >= datetime('now', '-7 days')"
+    elif period == "monthly":
+        date_filter = "WHERE timestamp >= datetime('now', '-1 month')"
+    elif period == "quarterly":
+        date_filter = "WHERE timestamp >= datetime('now', '-3 months')"
+    elif period == "yearly":
+        date_filter = "WHERE timestamp >= datetime('now', '-1 year')"
+
+    try:
+        conn = sqlite3.connect("usage_logs.db")
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute(f"SELECT * FROM usage {date_filter} ORDER BY timestamp DESC LIMIT 500")
+        rows = c.fetchall()
+        
+        # Summary stats
+        c.execute(f"SELECT tool_id, COUNT(*) as count FROM usage {date_filter} GROUP BY tool_id")
+        tools_summary = [dict(row) for row in c.fetchall()]
+        
+        c.execute(f"SELECT client_ip, COUNT(*) as count FROM usage {date_filter} GROUP BY client_ip")
+        ip_summary = [dict(row) for row in c.fetchall()]
+        
+        conn.close()
+        
+        return {
+            "logs": [dict(row) for row in rows],
+            "tools_summary": tools_summary,
+            "ip_summary": ip_summary
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

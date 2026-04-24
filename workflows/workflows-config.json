@@ -1,5 +1,6 @@
 {
   "comfyServerUrl": "http://127.0.0.1:8188",
+  "adminKey": "orangeadmin",
   "aspectRatios": {
     "1:1": {
       "width": 1024,

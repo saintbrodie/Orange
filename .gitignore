@@ -24,6 +24,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Databases
+*.db
+
 # Downloaded/Generated Media (Optional - uncomment if you want to prevent pushing final creations)
 # output/
 
