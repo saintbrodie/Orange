@@ -1,3 +1,4 @@
+import os
 import json
 import random
 import io
@@ -15,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
-from configManager import load_config, get_tool_settings, get_base_workflow
+from configManager import load_config, save_config, get_tool_settings, get_base_workflow
 from imageUtils import strip_metadata
 
 app = FastAPI(title="ComfyUI Minimal Frontend")
@@ -383,3 +384,90 @@ def get_admin_usage(key: str = None, period: str = "all"):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/admin/config")
+def get_admin_config(key: str = None):
+    current_config = get_current_config()
+    expected_key = current_config.get("adminKey", "orangeadmin")
+    if key != expected_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return current_config
+
+@app.post("/api/admin/config")
+async def update_admin_config(request: Request, key: str = None):
+    current_config = get_current_config()
+    expected_key = current_config.get("adminKey", "orangeadmin")
+    if key != expected_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        new_config = await request.json()
+        save_config(new_config)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/admin/workflows")
+def list_admin_workflows(key: str = None):
+    current_config = get_current_config()
+    expected_key = current_config.get("adminKey", "orangeadmin")
+    if key != expected_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    workflows_dir = os.path.join(os.path.dirname(__file__), "workflows")
+    files = [f for f in os.listdir(workflows_dir) if f.endswith(".json") and f != "workflows-config.json"]
+    return {"files": files}
+
+@app.get("/api/admin/workflows/{filename}")
+def get_admin_workflow(filename: str, key: str = None):
+    current_config = get_current_config()
+    expected_key = current_config.get("adminKey", "orangeadmin")
+    if key != expected_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+        
+    safe_name = os.path.basename(filename)
+    path = os.path.join(os.path.dirname(__file__), "workflows", safe_name)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+@app.delete("/api/admin/workflows/{filename}")
+def delete_admin_workflow(filename: str, key: str = None):
+    current_config = get_current_config()
+    expected_key = current_config.get("adminKey", "orangeadmin")
+    if key != expected_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+        
+    safe_name = os.path.basename(filename)
+    if safe_name == "workflows-config.json":
+        raise HTTPException(status_code=400, detail="Cannot delete config")
+        
+    path = os.path.join(os.path.dirname(__file__), "workflows", safe_name)
+    if os.path.exists(path):
+        os.remove(path)
+        return {"status": "success"}
+    raise HTTPException(status_code=404, detail="File not found")
+
+@app.post("/api/admin/workflows/upload")
+async def upload_admin_workflow(file: UploadFile = File(...), key: str = Form(...)):
+    current_config = get_current_config()
+    expected_key = current_config.get("adminKey", "orangeadmin")
+    if key != expected_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+        
+    if not file.filename.endswith(".json"):
+        raise HTTPException(status_code=400, detail="Only .json files are allowed")
+        
+    safe_name = os.path.basename(file.filename)
+    if safe_name == "workflows-config.json":
+        raise HTTPException(status_code=400, detail="Cannot overwrite config file")
+        
+    path = os.path.join(os.path.dirname(__file__), "workflows", safe_name)
+    content = await file.read()
+    try:
+        json.loads(content)
+        with open(path, "wb") as f:
+            f.write(content)
+        return {"status": "success", "filename": safe_name}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON file: {e}")
