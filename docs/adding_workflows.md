@@ -11,19 +11,34 @@ By default, saving a workflow in ComfyUI saves the GUI structure (node positions
 3. Check the box for **"Enable Dev mode Options"**.
 4. Close the settings. You will now see a new button on the control panel called **"Save (API format)"**.
 5. Build and test your workflow. Once working, click **"Save (API format)"**. 
-6. Move the resulting `.json` file into the `Orange/workflows/` directory.
+6. Keep the resulting `.json` file handy.
 
-## Step 2: Mapping Nodes to the Orange UI
+## Step 2: Adding the Workflow via Tool Editor (Recommended)
 
-Now that Orange has the workflow file, you need to tell it which nodes represent the text prompt, the output dimensions, the random seed, and reference images.
+The easiest way to add your workflow to Orange is by using the built-in Admin Dashboard Tool Editor.
 
-Open `workflows/workflows-config.json` in a text editor.
+1. Navigate to `http://localhost:7070/admin` in your browser.
+2. Log in using your `adminKey` (default is `orangeadmin`).
+3. Click on the **Tools** tab.
+4. Click the **Upload Workflow** button or drag-and-drop your exported `.json` file onto the button.
+5. Orange will automatically upload the file, parse your workflow, and attempt to automatically map the common inputs (Prompt, Image, Resolution, Seed).
 
-You will see an array of `tools`. To add yours, create a new object in the `tools` array.
+### Configuring Node Mappings
 
-### Tool Object Structure
+Orange UI dynamically renders input fields based on the mappings you provide in the Tool Editor. If you map `prompt`, a text box will appear on the frontend. If you map `image`, a file uploader will appear.
 
-Here is a basic example of adding a new "Enhance Image" tool:
+*   **Prompt**: Connects to a string/text input (e.g., `CLIPTextEncode`).
+*   **Image**: Connects to a `LoadImage` node. The Orange backend will automatically upload the user's file to ComfyUI and swap the filename into this node.
+*   **Resolution**: Connects to the width and height integers (e.g., in `EmptyLatentImage`). You can also configure tool-specific custom aspect ratios here using the "Override Default Aspect Ratios" checkbox.
+*   **Seed**: Connects to the random seed generator (e.g., in `KSampler` or `KSamplerAdvanced`). Make sure "Generate Random" is checked so Orange injects a new seed each time.
+
+You can verify and adjust these mappings, as well as the tool's Display Name and ID, directly in the Tool Editor interface. Click "Save Tool Configuration" when finished.
+
+## Advanced: Manual JSON Configuration
+
+If you prefer configuring tools manually or need to edit the raw data, you can edit `workflows/workflows-config.json` in a text editor.
+
+You will see an array of `tools`. To add yours, create a new object in the `tools` array. The structure looks like this:
 
 ```json
 {
@@ -56,38 +71,8 @@ Here is a basic example of adding a new "Enhance Image" tool:
 }
 ```
 
-### Finding Your Node IDs
-
-If you open your API workflow `.json` file (e.g., `my_exported_api_workflow.json`) in a text editor, you'll see a series of numbered keys (like `"3"`, `"6"`, `"10"`). These are your **Node IDs**. 
-
-For example, if your node `"6"` is a `CLIPTextEncode` node, it will look like this:
-```json
-"6": {
-  "inputs": {
-    "text": "Your prompt goes here",
-    "clip": [ "4", 1 ]
-  },
-  "class_type": "CLIPTextEncode"
-}
-```
-In `workflows-config.json`, you map Orange's `prompt` input to this text node by declaring:
-```json
-"prompt": {
-  "nodeId": "6",
-  "field": "text"
-}
-```
-
-### Supported Mappings
-
-Orange UI dynamically renders input fields based on the mappings you provide. If you map `prompt`, a text box will appear. If you map `image`, a file uploader will appear.
-
-*   `prompt`: Connects to a string/text input (e.g., `CLIPTextEncode`).
-*   `width`: Connects to the width integer (e.g., in `EmptyLatentImage`).
-*   `height`: Connects to the height integer (e.g., in `EmptyLatentImage`).
-*   `seed` or `noise_seed` (or whatever the target field is named): Connects to the random seed generator (e.g., in `KSampler`). Ensure `"generateRandom": true` is included so Orange generates a new seed each time.
-*   `image`: Connects to a `LoadImage` node. The Orange backend will automatically upload the user's file to ComfyUI and swap the filename into this node.
+*Note: If you modify `workflows-config.json` manually, make sure to move your exported `.json` file into the `workflows/` directory first.*
 
 ## Step 3: Enjoy!
 
-Whenever you modify `workflows-config.json`, you shouldn't need to restart the backend. Because the Orange server reads the config dynamically, simply **refresh your browser**. Your new tool will appear in the sidebar automatically!
+There is no need to restart the backend when creating or editing tools! Because the Orange server reads the config dynamically, simply **refresh your browser** at the main Orange URL. Your new tool will appear in the sidebar automatically!
