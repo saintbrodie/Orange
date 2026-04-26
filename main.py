@@ -11,7 +11,7 @@ import base64
 import sqlite3
 from typing import Dict
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
@@ -471,3 +471,34 @@ async def upload_admin_workflow(file: UploadFile = File(...), key: str = Form(..
         return {"status": "success", "filename": safe_name}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid JSON file: {e}")
+
+@app.get("/api/admin/db/backup")
+def backup_db(key: str = None):
+    current_config = get_current_config()
+    expected_key = current_config.get("adminKey", "orangeadmin")
+    if key != expected_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+        
+    db_path = os.path.join(os.path.dirname(__file__), "usage_logs.db")
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail="Database not found")
+        
+    return FileResponse(path=db_path, filename="usage_logs_backup.db", media_type="application/octet-stream")
+
+@app.post("/api/admin/db/restore")
+async def restore_db(file: UploadFile = File(...), key: str = Form(...)):
+    current_config = get_current_config()
+    expected_key = current_config.get("adminKey", "orangeadmin")
+    if key != expected_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+        
+    if not file.filename.endswith(".db"):
+        raise HTTPException(status_code=400, detail="Only .db files are allowed")
+        
+    db_path = os.path.join(os.path.dirname(__file__), "usage_logs.db")
+    content = await file.read()
+    
+    with open(db_path, "wb") as f:
+        f.write(content)
+        
+    return {"status": "success"}
