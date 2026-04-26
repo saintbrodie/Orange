@@ -5,602 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Orange - Admin Dashboard</title>
     <link rel="icon" href="/static/orange-head.svg" type="image/svg+xml">
-    <script src="https://cdn.tailwindcss.com">
-        // Added Tool Editor JS
-        const tabAnalytics = document.getElementById('tab-analytics');
-        const tabTools = document.getElementById('tab-tools');
-        const toolsContainer = document.getElementById('tools-container');
-        
-        let appConfig = null;
-        let availableWorkflowFiles = [];
-        let editingToolIndex = -1;
-        let parsedNodes = {}; // Cache of nodes from currently selected workflow json
-        const MAPPING_TYPES = ['prompt', 'image', 'width', 'height', 'seed'];
-
-        tabAnalytics.addEventListener('click', () => {
-            tabAnalytics.className = "admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition";
-            tabTools.className = "admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition";
-            dashboardContainer.classList.remove('hidden');
-            toolsContainer.classList.add('hidden');
-        });
-
-        tabTools.addEventListener('click', async () => {
-            tabTools.className = "admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition";
-            tabAnalytics.className = "admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition";
-            dashboardContainer.classList.add('hidden');
-            toolsContainer.classList.remove('hidden');
-            await loadEditorData();
-        });
-
-        async function loadEditorData() {
-            try {
-                // Config
-                const cRes = await fetch('/api/admin/config?key=' + currentKey);
-                if (cRes.ok) appConfig = await cRes.json();
-                
-                // Workflows
-                const wRes = await fetch('/api/admin/workflows?key=' + currentKey);
-                if (wRes.ok) {
-                    const data = await wRes.json();
-                    availableWorkflowFiles = data.files || [];
-                }
-                
-                renderToolsList();
-                updateWorkflowDropdown();
-            } catch (e) { console.error("Error loading tools data."); }
-        }
-
-        function renderToolsList() {
-            const list = document.getElementById('admin-tools-list');
-            list.innerHTML = '';
-            if (!appConfig || !appConfig.tools) return;
-
-            appConfig.tools.forEach((tool, index) => {
-                const isSelected = index === editingToolIndex;
-                const activeClass = isSelected ? 'bg-orange-600/20 border-orange-600/50 text-orange-200' : 'bg-zinc-800/40 border-zinc-700 text-zinc-300 hover:bg-zinc-800';
-                
-                list.innerHTML += `
-                    <div class="cursor-pointer p-3 rounded-xl border ${activeClass} transition flex items-center gap-3" onclick="selectTool(${index})">
-                        <i data-lucide="terminal" class="w-4 h-4 opacity-70"></i>
-                        <div class="flex flex-col">
-                            <span class="font-medium text-sm">${tool.name}</span>
-                            <span class="text-xs opacity-60 font-mono">${tool.id}</span>
-                        </div>
-                    </div>
-                `;
-            });
-            lucide.createIcons();
-        }
-
-        function updateWorkflowDropdown() {
-            const select = document.getElementById('edit-tool-file');
-            select.innerHTML = '<option value="">Select workflow...</option>';
-            availableWorkflowFiles.forEach(file => {
-                select.innerHTML += `<option value="${file}">${file}</option>`;
-            });
-        }
-
-        document.getElementById('edit-tool-file').addEventListener('change', async (e) => {
-            const filename = e.target.value;
-            if(!filename) { parsedNodes = {}; return; }
-            try {
-                const res = await fetch(`/api/admin/workflows/${filename}?key=${currentKey}`);
-                if(res.ok) {
-                    const data = await res.json();
-                    const datalist = document.getElementById('nodes-list');
-                    datalist.innerHTML = '';
-                    parsedNodes = data;
-                    Object.keys(data).forEach(nodeId => {
-                        const node = data[nodeId];
-                        if(node.class_type && node._meta && node._meta.title) {
-                             datalist.innerHTML += `<option value="${nodeId}">${nodeId} (${node._meta.title} - ${node.class_type})</option>`;
-                        } else {
-                             datalist.innerHTML += `<option value="${nodeId}">${nodeId} (${node.class_type})</option>`;
-                        }
-                    });
-                }
-            } catch(e) {}
-        });
-
-        async function selectTool(index) {
-            editingToolIndex = index;
-            renderToolsList();
-            document.getElementById('tool-editor-empty').classList.add('hidden');
-            document.getElementById('tool-editor-form').classList.remove('hidden');
-            document.getElementById('tool-editor-form').classList.add('flex');
-            document.getElementById('save-status').classList.add('hidden');
-
-            const tool = appConfig.tools[index];
-            document.getElementById('edit-tool-id').value = tool.id || '';
-            document.getElementById('edit-tool-name').value = tool.name || '';
-            document.getElementById('edit-tool-file').value = tool.workflowFile || '';
-            
-            // Trigger change to load nodes
-            if(tool.workflowFile) {
-                const ev = new Event('change');
-                document.getElementById('edit-tool-file').dispatchEvent(ev);
-            }
-
-            renderMappings(tool.nodeMapping || {});
-        }
-
-        window.toggleMapping = function(type) {
-            const cb = document.getElementById(`map-${type}-enable`);
-            const isEnabled = cb.checked;
-            const container = document.getElementById(`map-${type}-container`);
-            const nodeInput = document.getElementById(`map-${type}-node`);
-            const fieldInput = document.getElementById(`map-${type}-field`);
-            const dot = cb.nextElementSibling.nextElementSibling;
-            const seedRand = document.getElementById('map-seed-rand');
-            
-            if(isEnabled) {
-                container.classList.remove('opacity-50', 'grayscale');
-                nodeInput.disabled = false;
-                fieldInput.disabled = false;
-                dot.classList.add('translate-x-3');
-                dot.classList.replace('bg-white', 'bg-orange-500');
-                if(type === 'seed' && seedRand) seedRand.disabled = false;
-            } else {
-                container.classList.add('opacity-50', 'grayscale');
-                nodeInput.disabled = true;
-                fieldInput.disabled = true;
-                dot.classList.remove('translate-x-3');
-                dot.classList.replace('bg-orange-500', 'bg-white');
-                if(type === 'seed' && seedRand) seedRand.disabled = true;
-            }
-        };
-
-        function renderMappings(mappings) {
-            const container = document.getElementById('node-mappings-container');
-            container.innerHTML = '';
-            
-            MAPPING_TYPES.forEach(type => {
-                const mapData = mappings[type] || { nodeId: '', field: '' };
-                const isEnabled = !!mappings[type];
-                
-                const extraUI = type === 'seed' ? `<label class="flex items-center gap-2 mt-2 text-xs text-zinc-400"><input type="checkbox" id="map-seed-rand" ${mapData.generateRandom ? 'checked' : ''} class="rounded bg-zinc-900 border-zinc-700 text-orange-500 focus:ring-orange-500" ${!isEnabled ? 'disabled' : ''}> Generate Random</label>` : '';
-
-                container.innerHTML += `
-                    <div class="bg-zinc-800/40 border border-zinc-700/50 p-4 rounded-xl transition-all ${!isEnabled ? 'opacity-50 grayscale' : ''}" id="map-${type}-container">
-                        <div class="font-medium text-sm text-zinc-200 capitalize mb-3 flex justify-between items-center">
-                            <span class="flex items-center gap-2"><i data-lucide="link" class="w-3 h-3 text-orange-500"></i> ${type} Input</span>
-                            <label class="flex items-center cursor-pointer">
-                                <div class="relative">
-                                    <input type="checkbox" id="map-${type}-enable" class="sr-only" ${isEnabled ? 'checked' : ''} onchange="toggleMapping('${type}')">
-                                    <div class="block bg-zinc-700 w-8 h-5 rounded-full"></div>
-                                    <div class="dot absolute left-1 top-1 ${isEnabled ? 'bg-orange-500 translate-x-3' : 'bg-white'} w-3 h-3 rounded-full transition transform"></div>
-                                </div>
-                            </label>
-                        </div>
-                        <div class="flex gap-3">
-                            <div class="flex-1">
-                                <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Node ID</label>
-                                <input type="text" id="map-${type}-node" value="${mapData.nodeId || ''}" list="nodes-list" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" placeholder="Node ID" ${!isEnabled ? 'disabled' : ''}>
-                            </div>
-                            <div class="flex-1">
-                                <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Field Name</label>
-                                <input type="text" id="map-${type}-field" value="${mapData.field || ''}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" placeholder="Input param (e.g. text)" ${!isEnabled ? 'disabled' : ''}>
-                            </div>
-                        </div>
-                        ${extraUI}
-                    </div>
-                `;
-            });
-            lucide.createIcons();
-        }
-
-
-
-        document.getElementById('delete-tool-btn').addEventListener('click', () => {
-             if(editingToolIndex === -1) return;
-             if(confirm('Are you sure you want to remove this tool configuration? Note: The workflow file will NOT be deleted.')) {
-                 appConfig.tools.splice(editingToolIndex, 1);
-                 document.getElementById('tool-editor-empty').classList.remove('hidden');
-                 document.getElementById('tool-editor-form').classList.add('hidden');
-                 document.getElementById('tool-editor-form').classList.remove('flex');
-                 editingToolIndex = -1;
-                 saveConfigToBackend();
-             }
-        });
-
-        document.getElementById('save-tool-btn').addEventListener('click', () => {
-            if(editingToolIndex === -1) return;
-            const tool = appConfig.tools[editingToolIndex];
-            tool.id = document.getElementById('edit-tool-id').value.trim();
-            tool.name = document.getElementById('edit-tool-name').value.trim();
-            tool.workflowFile = document.getElementById('edit-tool-file').value;
-            
-            tool.nodeMapping = {};
-            MAPPING_TYPES.forEach(type => {
-                const isEnabled = document.getElementById(`map-${type}-enable`).checked;
-                const nodeVal = document.getElementById(`map-${type}-node`).value.trim();
-                const fieldVal = document.getElementById(`map-${type}-field`).value.trim();
-                
-                if(isEnabled && nodeVal && fieldVal) {
-                    tool.nodeMapping[type] = { nodeId: nodeVal, field: fieldVal };
-                    if(type === 'seed') {
-                        tool.nodeMapping[type].generateRandom = document.getElementById('map-seed-rand').checked;
-                    }
-                }
-            });
-
-            saveConfigToBackend();
-        });
-
-        async function saveConfigToBackend() {
-            try {
-                const originalText = document.getElementById('save-tool-btn').innerHTML;
-                document.getElementById('save-tool-btn').innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
-                const res = await fetch('/api/admin/config?key=' + currentKey, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(appConfig)
-                });
-                
-                if(res.ok) {
-                    renderToolsList();
-                    const st = document.getElementById('save-status');
-                    st.classList.remove('hidden');
-                    setTimeout(() => st.classList.add('hidden'), 3000);
-                } else {
-                    alert('Error saving config.');
-                }
-                document.getElementById('save-tool-btn').innerHTML = originalText;
-                lucide.createIcons();
-            } catch(e) {
-                alert('Save failed.');
-            }
-        }
-
-        // File Upload
-        document.getElementById('upload-workflow-btn').addEventListener('click', () => {
-            document.getElementById('workflow-upload-input').click();
-        });
-
-        document.getElementById('workflow-upload-input').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if(!file || !file.name.endsWith('.json')) return;
-            
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('key', currentKey);
-            
-            const btn = document.getElementById('upload-workflow-btn');
-            const origHTML = btn.innerHTML;
-            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Uploading...';
-            
-            try {
-                const res = await fetch('/api/admin/workflows/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await res.json();
-                if(res.ok) {
-                    if(!availableWorkflowFiles.includes(data.filename)) {
-                        availableWorkflowFiles.push(data.filename);
-                        updateWorkflowDropdown();
-                    }
-                    
-                    if(!appConfig) appConfig = { tools: [] };
-                    if(!appConfig.tools) appConfig.tools = [];
-                    
-                    const defaultName = data.filename.replace('.json', '');
-                    const defaultId = defaultName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-                    appConfig.tools.push({ id: defaultId, name: defaultName, workflowFile: data.filename, nodeMapping: {} });
-                    
-                    selectTool(appConfig.tools.length - 1);
-                    alert("Uploaded successfully! New tool auto-generated.");
-                } else {
-                    alert("Upload failed: " + data.detail);
-                }
-            } catch(err) {
-                alert("Upload failed.");
-            } finally {
-                btn.innerHTML = origHTML;
-                lucide.createIcons();
-                e.target.value = ''; // reset
-            }
-        });
-
-</script>
-    <script src="https://unpkg.com/lucide@latest">
-        // Added Tool Editor JS
-        const tabAnalytics = document.getElementById('tab-analytics');
-        const tabTools = document.getElementById('tab-tools');
-        const toolsContainer = document.getElementById('tools-container');
-        
-        let appConfig = null;
-        let availableWorkflowFiles = [];
-        let editingToolIndex = -1;
-        let parsedNodes = {}; // Cache of nodes from currently selected workflow json
-        const MAPPING_TYPES = ['prompt', 'image', 'width', 'height', 'seed'];
-
-        tabAnalytics.addEventListener('click', () => {
-            tabAnalytics.className = "admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition";
-            tabTools.className = "admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition";
-            dashboardContainer.classList.remove('hidden');
-            toolsContainer.classList.add('hidden');
-        });
-
-        tabTools.addEventListener('click', async () => {
-            tabTools.className = "admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition";
-            tabAnalytics.className = "admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition";
-            dashboardContainer.classList.add('hidden');
-            toolsContainer.classList.remove('hidden');
-            await loadEditorData();
-        });
-
-        async function loadEditorData() {
-            try {
-                // Config
-                const cRes = await fetch('/api/admin/config?key=' + currentKey);
-                if (cRes.ok) appConfig = await cRes.json();
-                
-                // Workflows
-                const wRes = await fetch('/api/admin/workflows?key=' + currentKey);
-                if (wRes.ok) {
-                    const data = await wRes.json();
-                    availableWorkflowFiles = data.files || [];
-                }
-                
-                renderToolsList();
-                updateWorkflowDropdown();
-            } catch (e) { console.error("Error loading tools data."); }
-        }
-
-        function renderToolsList() {
-            const list = document.getElementById('admin-tools-list');
-            list.innerHTML = '';
-            if (!appConfig || !appConfig.tools) return;
-
-            appConfig.tools.forEach((tool, index) => {
-                const isSelected = index === editingToolIndex;
-                const activeClass = isSelected ? 'bg-orange-600/20 border-orange-600/50 text-orange-200' : 'bg-zinc-800/40 border-zinc-700 text-zinc-300 hover:bg-zinc-800';
-                
-                list.innerHTML += `
-                    <div class="cursor-pointer p-3 rounded-xl border ${activeClass} transition flex items-center gap-3" onclick="selectTool(${index})">
-                        <i data-lucide="terminal" class="w-4 h-4 opacity-70"></i>
-                        <div class="flex flex-col">
-                            <span class="font-medium text-sm">${tool.name}</span>
-                            <span class="text-xs opacity-60 font-mono">${tool.id}</span>
-                        </div>
-                    </div>
-                `;
-            });
-            lucide.createIcons();
-        }
-
-        function updateWorkflowDropdown() {
-            const select = document.getElementById('edit-tool-file');
-            select.innerHTML = '<option value="">Select workflow...</option>';
-            availableWorkflowFiles.forEach(file => {
-                select.innerHTML += `<option value="${file}">${file}</option>`;
-            });
-        }
-
-        document.getElementById('edit-tool-file').addEventListener('change', async (e) => {
-            const filename = e.target.value;
-            if(!filename) { parsedNodes = {}; return; }
-            try {
-                const res = await fetch(`/api/admin/workflows/${filename}?key=${currentKey}`);
-                if(res.ok) {
-                    const data = await res.json();
-                    const datalist = document.getElementById('nodes-list');
-                    datalist.innerHTML = '';
-                    parsedNodes = data;
-                    Object.keys(data).forEach(nodeId => {
-                        const node = data[nodeId];
-                        if(node.class_type && node._meta && node._meta.title) {
-                             datalist.innerHTML += `<option value="${nodeId}">${nodeId} (${node._meta.title} - ${node.class_type})</option>`;
-                        } else {
-                             datalist.innerHTML += `<option value="${nodeId}">${nodeId} (${node.class_type})</option>`;
-                        }
-                    });
-                }
-            } catch(e) {}
-        });
-
-        async function selectTool(index) {
-            editingToolIndex = index;
-            renderToolsList();
-            document.getElementById('tool-editor-empty').classList.add('hidden');
-            document.getElementById('tool-editor-form').classList.remove('hidden');
-            document.getElementById('tool-editor-form').classList.add('flex');
-            document.getElementById('save-status').classList.add('hidden');
-
-            const tool = appConfig.tools[index];
-            document.getElementById('edit-tool-id').value = tool.id || '';
-            document.getElementById('edit-tool-name').value = tool.name || '';
-            document.getElementById('edit-tool-file').value = tool.workflowFile || '';
-            
-            // Trigger change to load nodes
-            if(tool.workflowFile) {
-                const ev = new Event('change');
-                document.getElementById('edit-tool-file').dispatchEvent(ev);
-            }
-
-            renderMappings(tool.nodeMapping || {});
-        }
-
-        window.toggleMapping = function(type) {
-            const cb = document.getElementById(`map-${type}-enable`);
-            const isEnabled = cb.checked;
-            const container = document.getElementById(`map-${type}-container`);
-            const nodeInput = document.getElementById(`map-${type}-node`);
-            const fieldInput = document.getElementById(`map-${type}-field`);
-            const dot = cb.nextElementSibling.nextElementSibling;
-            const seedRand = document.getElementById('map-seed-rand');
-            
-            if(isEnabled) {
-                container.classList.remove('opacity-50', 'grayscale');
-                nodeInput.disabled = false;
-                fieldInput.disabled = false;
-                dot.classList.add('translate-x-3');
-                dot.classList.replace('bg-white', 'bg-orange-500');
-                if(type === 'seed' && seedRand) seedRand.disabled = false;
-            } else {
-                container.classList.add('opacity-50', 'grayscale');
-                nodeInput.disabled = true;
-                fieldInput.disabled = true;
-                dot.classList.remove('translate-x-3');
-                dot.classList.replace('bg-orange-500', 'bg-white');
-                if(type === 'seed' && seedRand) seedRand.disabled = true;
-            }
-        };
-
-        function renderMappings(mappings) {
-            const container = document.getElementById('node-mappings-container');
-            container.innerHTML = '';
-            
-            MAPPING_TYPES.forEach(type => {
-                const mapData = mappings[type] || { nodeId: '', field: '' };
-                const isEnabled = !!mappings[type];
-                
-                const extraUI = type === 'seed' ? `<label class="flex items-center gap-2 mt-2 text-xs text-zinc-400"><input type="checkbox" id="map-seed-rand" ${mapData.generateRandom ? 'checked' : ''} class="rounded bg-zinc-900 border-zinc-700 text-orange-500 focus:ring-orange-500" ${!isEnabled ? 'disabled' : ''}> Generate Random</label>` : '';
-
-                container.innerHTML += `
-                    <div class="bg-zinc-800/40 border border-zinc-700/50 p-4 rounded-xl transition-all ${!isEnabled ? 'opacity-50 grayscale' : ''}" id="map-${type}-container">
-                        <div class="font-medium text-sm text-zinc-200 capitalize mb-3 flex justify-between items-center">
-                            <span class="flex items-center gap-2"><i data-lucide="link" class="w-3 h-3 text-orange-500"></i> ${type} Input</span>
-                            <label class="flex items-center cursor-pointer">
-                                <div class="relative">
-                                    <input type="checkbox" id="map-${type}-enable" class="sr-only" ${isEnabled ? 'checked' : ''} onchange="toggleMapping('${type}')">
-                                    <div class="block bg-zinc-700 w-8 h-5 rounded-full"></div>
-                                    <div class="dot absolute left-1 top-1 ${isEnabled ? 'bg-orange-500 translate-x-3' : 'bg-white'} w-3 h-3 rounded-full transition transform"></div>
-                                </div>
-                            </label>
-                        </div>
-                        <div class="flex gap-3">
-                            <div class="flex-1">
-                                <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Node ID</label>
-                                <input type="text" id="map-${type}-node" value="${mapData.nodeId || ''}" list="nodes-list" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" placeholder="Node ID" ${!isEnabled ? 'disabled' : ''}>
-                            </div>
-                            <div class="flex-1">
-                                <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Field Name</label>
-                                <input type="text" id="map-${type}-field" value="${mapData.field || ''}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" placeholder="Input param (e.g. text)" ${!isEnabled ? 'disabled' : ''}>
-                            </div>
-                        </div>
-                        ${extraUI}
-                    </div>
-                `;
-            });
-            lucide.createIcons();
-        }
-
-
-
-        document.getElementById('delete-tool-btn').addEventListener('click', () => {
-             if(editingToolIndex === -1) return;
-             if(confirm('Are you sure you want to remove this tool configuration? Note: The workflow file will NOT be deleted.')) {
-                 appConfig.tools.splice(editingToolIndex, 1);
-                 document.getElementById('tool-editor-empty').classList.remove('hidden');
-                 document.getElementById('tool-editor-form').classList.add('hidden');
-                 document.getElementById('tool-editor-form').classList.remove('flex');
-                 editingToolIndex = -1;
-                 saveConfigToBackend();
-             }
-        });
-
-        document.getElementById('save-tool-btn').addEventListener('click', () => {
-            if(editingToolIndex === -1) return;
-            const tool = appConfig.tools[editingToolIndex];
-            tool.id = document.getElementById('edit-tool-id').value.trim();
-            tool.name = document.getElementById('edit-tool-name').value.trim();
-            tool.workflowFile = document.getElementById('edit-tool-file').value;
-            
-            tool.nodeMapping = {};
-            MAPPING_TYPES.forEach(type => {
-                const isEnabled = document.getElementById(`map-${type}-enable`).checked;
-                const nodeVal = document.getElementById(`map-${type}-node`).value.trim();
-                const fieldVal = document.getElementById(`map-${type}-field`).value.trim();
-                
-                if(isEnabled && nodeVal && fieldVal) {
-                    tool.nodeMapping[type] = { nodeId: nodeVal, field: fieldVal };
-                    if(type === 'seed') {
-                        tool.nodeMapping[type].generateRandom = document.getElementById('map-seed-rand').checked;
-                    }
-                }
-            });
-
-            saveConfigToBackend();
-        });
-
-        async function saveConfigToBackend() {
-            try {
-                const originalText = document.getElementById('save-tool-btn').innerHTML;
-                document.getElementById('save-tool-btn').innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
-                const res = await fetch('/api/admin/config?key=' + currentKey, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(appConfig)
-                });
-                
-                if(res.ok) {
-                    renderToolsList();
-                    const st = document.getElementById('save-status');
-                    st.classList.remove('hidden');
-                    setTimeout(() => st.classList.add('hidden'), 3000);
-                } else {
-                    alert('Error saving config.');
-                }
-                document.getElementById('save-tool-btn').innerHTML = originalText;
-                lucide.createIcons();
-            } catch(e) {
-                alert('Save failed.');
-            }
-        }
-
-        // File Upload
-        document.getElementById('upload-workflow-btn').addEventListener('click', () => {
-            document.getElementById('workflow-upload-input').click();
-        });
-
-        document.getElementById('workflow-upload-input').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if(!file || !file.name.endsWith('.json')) return;
-            
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('key', currentKey);
-            
-            const btn = document.getElementById('upload-workflow-btn');
-            const origHTML = btn.innerHTML;
-            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Uploading...';
-            
-            try {
-                const res = await fetch('/api/admin/workflows/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await res.json();
-                if(res.ok) {
-                    if(!availableWorkflowFiles.includes(data.filename)) {
-                        availableWorkflowFiles.push(data.filename);
-                        updateWorkflowDropdown();
-                    }
-                    
-                    if(!appConfig) appConfig = { tools: [] };
-                    if(!appConfig.tools) appConfig.tools = [];
-                    
-                    const defaultName = data.filename.replace('.json', '');
-                    const defaultId = defaultName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-                    appConfig.tools.push({ id: defaultId, name: defaultName, workflowFile: data.filename, nodeMapping: {} });
-                    
-                    selectTool(appConfig.tools.length - 1);
-                    alert("Uploaded successfully! New tool auto-generated.");
-                } else {
-                    alert("Upload failed: " + data.detail);
-                }
-            } catch(err) {
-                alert("Upload failed.");
-            } finally {
-                btn.innerHTML = origHTML;
-                lucide.createIcons();
-                e.target.value = ''; // reset
-            }
-        });
-
-</script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="/static/styles.css?v=8">
     <style>
         /* Override styles.css fixed viewport rules to allow dashboard scrolling */
@@ -765,9 +171,7 @@
 
                     <div class="space-y-1">
                         <label class="text-xs font-medium text-zinc-400 uppercase">Workflow File (.json)</label>
-                        <select id="edit-tool-file" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm focus:border-orange-600 outline-none text-zinc-300">
-                            <option value="">Select a file...</option>
-                        </select>
+                        <input type="text" id="edit-tool-file" readonly class="w-full bg-zinc-950/50 border border-zinc-800 rounded-lg p-3 text-sm outline-none text-zinc-500 cursor-not-allowed">
                     </div>
 
                     <datalist id="nodes-list"></datalist>
@@ -941,7 +345,7 @@
         let availableWorkflowFiles = [];
         let editingToolIndex = -1;
         let parsedNodes = {}; // Cache of nodes from currently selected workflow json
-        const MAPPING_TYPES = ['prompt', 'image', 'width', 'height', 'seed'];
+        const MAPPING_TYPES = ['prompt', 'image', 'resolution', 'seed'];
 
         tabAnalytics.addEventListener('click', () => {
             tabAnalytics.className = "admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition";
@@ -1055,24 +459,52 @@
             const isEnabled = cb.checked;
             const container = document.getElementById(`map-${type}-container`);
             const nodeInput = document.getElementById(`map-${type}-node`);
-            const fieldInput = document.getElementById(`map-${type}-field`);
             const dot = cb.nextElementSibling.nextElementSibling;
-            const seedRand = document.getElementById('map-seed-rand');
             
             if(isEnabled) {
                 container.classList.remove('opacity-50', 'grayscale');
                 nodeInput.disabled = false;
-                fieldInput.disabled = false;
                 dot.classList.add('translate-x-3');
                 dot.classList.replace('bg-white', 'bg-orange-500');
-                if(type === 'seed' && seedRand) seedRand.disabled = false;
+                if (type === 'resolution') {
+                    document.getElementById('map-res-wfield').disabled = false;
+                    document.getElementById('map-res-hfield').disabled = false;
+                    const customArCheckbox = document.getElementById('map-res-custom-ar');
+                    if (customArCheckbox) customArCheckbox.disabled = false;
+                    ['1:1', '9:16', '16:9'].forEach(r => {
+                        const arw = document.getElementById(`ar-${r.replace(':','')}-w`);
+                        const arh = document.getElementById(`ar-${r.replace(':','')}-h`);
+                        if (arw) arw.disabled = false;
+                        if (arh) arh.disabled = false;
+                    });
+                } else {
+                    const fieldInput = document.getElementById(`map-${type}-field`);
+                    if(fieldInput) fieldInput.disabled = false;
+                    const seedRand = document.getElementById('map-seed-rand');
+                    if(type === 'seed' && seedRand) seedRand.disabled = false;
+                }
             } else {
                 container.classList.add('opacity-50', 'grayscale');
                 nodeInput.disabled = true;
-                fieldInput.disabled = true;
                 dot.classList.remove('translate-x-3');
                 dot.classList.replace('bg-orange-500', 'bg-white');
-                if(type === 'seed' && seedRand) seedRand.disabled = true;
+                if (type === 'resolution') {
+                    document.getElementById('map-res-wfield').disabled = true;
+                    document.getElementById('map-res-hfield').disabled = true;
+                    const customArCheckbox = document.getElementById('map-res-custom-ar');
+                    if (customArCheckbox) customArCheckbox.disabled = true;
+                    ['1:1', '9:16', '16:9'].forEach(r => {
+                        const arw = document.getElementById(`ar-${r.replace(':','')}-w`);
+                        const arh = document.getElementById(`ar-${r.replace(':','')}-h`);
+                        if (arw) arw.disabled = true;
+                        if (arh) arh.disabled = true;
+                    });
+                } else {
+                    const fieldInput = document.getElementById(`map-${type}-field`);
+                    if(fieldInput) fieldInput.disabled = true;
+                    const seedRand = document.getElementById('map-seed-rand');
+                    if(type === 'seed' && seedRand) seedRand.disabled = true;
+                }
             }
         };
 
@@ -1081,10 +513,61 @@
             container.innerHTML = '';
             
             MAPPING_TYPES.forEach(type => {
-                const mapData = mappings[type] || { nodeId: '', field: '' };
-                const isEnabled = !!mappings[type];
+                let mapData, isEnabled, fieldUI, extraUI = '';
                 
-                const extraUI = type === 'seed' ? `<label class="flex items-center gap-2 mt-2 text-xs text-zinc-400"><input type="checkbox" id="map-seed-rand" ${mapData.generateRandom ? 'checked' : ''} class="rounded bg-zinc-900 border-zinc-700 text-orange-500 focus:ring-orange-500" ${!isEnabled ? 'disabled' : ''}> Generate Random</label>` : '';
+                if (type === 'resolution') {
+                    mapData = { 
+                        nodeId: (mappings.width && mappings.width.nodeId) || (mappings.height && mappings.height.nodeId) || '',
+                        wField: (mappings.width && mappings.width.field) || 'width',
+                        hField: (mappings.height && mappings.height.field) || 'height'
+                    };
+                    isEnabled = !!(mappings.width || mappings.height);
+                    
+                    fieldUI = `
+                        <div class="flex-1">
+                            <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Width Field</label>
+                            <input type="text" id="map-res-wfield" value="${mapData.wField}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" ${!isEnabled ? 'disabled' : ''}>
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Height Field</label>
+                            <input type="text" id="map-res-hfield" value="${mapData.hField}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" ${!isEnabled ? 'disabled' : ''}>
+                        </div>
+                    `;
+                    
+                    const tool = appConfig.tools[editingToolIndex] || {};
+                    const ar = tool.aspectRatios || {};
+                    const hasCustomAR = !!tool.aspectRatios;
+                    
+                    extraUI = `
+                    <div class="mt-4 pt-3 border-t border-zinc-700/50">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-xs text-zinc-300 font-medium flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="map-res-custom-ar" ${hasCustomAR ? 'checked' : ''} class="rounded bg-zinc-900 border-zinc-700 text-orange-500 focus:ring-orange-500" ${!isEnabled ? 'disabled' : ''} onchange="document.getElementById('ar-inputs').classList.toggle('hidden');">
+                                Override Default Aspect Ratios
+                            </label>
+                        </div>
+                        <div id="ar-inputs" class="grid grid-cols-3 gap-2 ${(!hasCustomAR || !isEnabled) ? 'hidden' : ''}">
+                            ${['1:1', '9:16', '16:9'].map(r => `
+                                <div class="bg-zinc-900/50 p-2 rounded border border-zinc-800">
+                                    <div class="text-[10px] text-zinc-500 mb-1 text-center font-bold">${r}</div>
+                                    <input type="number" id="ar-${r.replace(':','')}-w" placeholder="W" value="${ar[r]?.width || ''}" class="w-full bg-zinc-950 border border-zinc-800 text-xs p-1 rounded text-center text-zinc-300 mb-1 outline-none focus:border-orange-500" ${!isEnabled ? 'disabled' : ''}>
+                                    <input type="number" id="ar-${r.replace(':','')}-h" placeholder="H" value="${ar[r]?.height || ''}" class="w-full bg-zinc-950 border border-zinc-800 text-xs p-1 rounded text-center text-zinc-300 outline-none focus:border-orange-500" ${!isEnabled ? 'disabled' : ''}>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    `;
+                } else {
+                    mapData = mappings[type] || { nodeId: '', field: '' };
+                    isEnabled = !!mappings[type];
+                    fieldUI = `
+                        <div class="flex-1">
+                            <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Field Name</label>
+                            <input type="text" id="map-${type}-field" value="${mapData.field || ''}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" placeholder="Input param" ${!isEnabled ? 'disabled' : ''}>
+                        </div>
+                    `;
+                    extraUI = type === 'seed' ? `<label class="flex items-center gap-2 mt-2 text-xs text-zinc-400"><input type="checkbox" id="map-seed-rand" ${mapData.generateRandom ? 'checked' : ''} class="rounded bg-zinc-900 border-zinc-700 text-orange-500 focus:ring-orange-500" ${!isEnabled ? 'disabled' : ''}> Generate Random</label>` : '';
+                }
 
                 container.innerHTML += `
                     <div class="bg-zinc-800/40 border border-zinc-700/50 p-4 rounded-xl transition-all ${!isEnabled ? 'opacity-50 grayscale' : ''}" id="map-${type}-container">
@@ -1103,10 +586,7 @@
                                 <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Node ID</label>
                                 <input type="text" id="map-${type}-node" value="${mapData.nodeId || ''}" list="nodes-list" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" placeholder="Node ID" ${!isEnabled ? 'disabled' : ''}>
                             </div>
-                            <div class="flex-1">
-                                <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Field Name</label>
-                                <input type="text" id="map-${type}-field" value="${mapData.field || ''}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" placeholder="Input param (e.g. text)" ${!isEnabled ? 'disabled' : ''}>
-                            </div>
+                            ${fieldUI}
                         </div>
                         ${extraUI}
                     </div>
@@ -1117,9 +597,15 @@
 
 
 
-        document.getElementById('delete-tool-btn').addEventListener('click', () => {
+        document.getElementById('delete-tool-btn').addEventListener('click', async () => {
              if(editingToolIndex === -1) return;
-             if(confirm('Are you sure you want to remove this tool configuration? Note: The workflow file will NOT be deleted.')) {
+             if(confirm('Are you sure you want to remove this tool configuration and permanently delete its workflow file?')) {
+                 const tool = appConfig.tools[editingToolIndex];
+                 if (tool.workflowFile) {
+                     try {
+                         await fetch(`/api/admin/workflows/${encodeURIComponent(tool.workflowFile)}?key=${currentKey}`, { method: 'DELETE' });
+                     } catch(e) { console.error("Error deleting workflow file", e); }
+                 }
                  appConfig.tools.splice(editingToolIndex, 1);
                  document.getElementById('tool-editor-empty').classList.remove('hidden');
                  document.getElementById('tool-editor-form').classList.add('hidden');
@@ -1134,18 +620,40 @@
             const tool = appConfig.tools[editingToolIndex];
             tool.id = document.getElementById('edit-tool-id').value.trim();
             tool.name = document.getElementById('edit-tool-name').value.trim();
-            tool.workflowFile = document.getElementById('edit-tool-file').value;
             
             tool.nodeMapping = {};
+            delete tool.aspectRatios;
+            
             MAPPING_TYPES.forEach(type => {
                 const isEnabled = document.getElementById(`map-${type}-enable`).checked;
                 const nodeVal = document.getElementById(`map-${type}-node`).value.trim();
-                const fieldVal = document.getElementById(`map-${type}-field`).value.trim();
                 
-                if(isEnabled && nodeVal && fieldVal) {
-                    tool.nodeMapping[type] = { nodeId: nodeVal, field: fieldVal };
-                    if(type === 'seed') {
-                        tool.nodeMapping[type].generateRandom = document.getElementById('map-seed-rand').checked;
+                if(isEnabled && nodeVal) {
+                    if (type === 'resolution') {
+                        const wField = document.getElementById('map-res-wfield').value.trim() || 'width';
+                        const hField = document.getElementById('map-res-hfield').value.trim() || 'height';
+                        tool.nodeMapping.width = { nodeId: nodeVal, field: wField };
+                        tool.nodeMapping.height = { nodeId: nodeVal, field: hField };
+                        
+                        if (document.getElementById('map-res-custom-ar').checked) {
+                            tool.aspectRatios = {};
+                            ['1:1', '9:16', '16:9'].forEach(r => {
+                                const idSuffix = r.replace(':','');
+                                const w = parseInt(document.getElementById(`ar-${idSuffix}-w`).value);
+                                const h = parseInt(document.getElementById(`ar-${idSuffix}-h`).value);
+                                if (!isNaN(w) && !isNaN(h)) {
+                                    tool.aspectRatios[r] = { width: w, height: h };
+                                }
+                            });
+                        }
+                    } else {
+                        const fieldVal = document.getElementById(`map-${type}-field`).value.trim();
+                        if (fieldVal) {
+                            tool.nodeMapping[type] = { nodeId: nodeVal, field: fieldVal };
+                            if(type === 'seed') {
+                                tool.nodeMapping[type].generateRandom = document.getElementById('map-seed-rand').checked;
+                            }
+                        }
                     }
                 }
             });
@@ -1179,8 +687,30 @@
         }
 
         // File Upload
-        document.getElementById('upload-workflow-btn').addEventListener('click', () => {
-            document.getElementById('workflow-upload-input').click();
+        const uploadBtn = document.getElementById('upload-workflow-btn');
+        const uploadInput = document.getElementById('workflow-upload-input');
+        
+        uploadBtn.addEventListener('click', () => {
+            uploadInput.click();
+        });
+
+        uploadBtn.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadBtn.classList.add('border-orange-500');
+        });
+
+        uploadBtn.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadBtn.classList.remove('border-orange-500');
+        });
+
+        uploadBtn.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadBtn.classList.remove('border-orange-500');
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                uploadInput.files = e.dataTransfer.files;
+                uploadInput.dispatchEvent(new Event('change'));
+            }
         });
 
         document.getElementById('workflow-upload-input').addEventListener('change', async (e) => {
@@ -1210,9 +740,33 @@
                     if(!appConfig) appConfig = { tools: [] };
                     if(!appConfig.tools) appConfig.tools = [];
                     
+                    let autoMapping = {};
+                    try {
+                        const text = await file.text();
+                        const parsedNodes = JSON.parse(text);
+                        if (parsedNodes) {
+                            for (const [nodeId, node] of Object.entries(parsedNodes)) {
+                                if (node.class_type === 'CLIPTextEncode' && !autoMapping.prompt) {
+                                    autoMapping.prompt = { nodeId, field: 'text' };
+                                } else if (node.class_type === 'LoadImage' && !autoMapping.image) {
+                                    autoMapping.image = { nodeId, field: 'image' };
+                                } else if (node.class_type === 'EmptyLatentImage' || node.class_type === 'EmptySD3LatentImage') {
+                                    if (!autoMapping.width) autoMapping.width = { nodeId, field: 'width' };
+                                    if (!autoMapping.height) autoMapping.height = { nodeId, field: 'height' };
+                                } else if (node.class_type === 'KSampler' && !autoMapping.seed) {
+                                    autoMapping.seed = { nodeId, field: 'seed', generateRandom: true };
+                                } else if (node.class_type === 'KSamplerAdvanced' && !autoMapping.seed) {
+                                    autoMapping.seed = { nodeId, field: 'noise_seed', generateRandom: true };
+                                }
+                            }
+                        }
+                    } catch(e) {
+                        console.error("Failed to parse node mappings automatically", e);
+                    }
+                    
                     const defaultName = data.filename.replace('.json', '');
                     const defaultId = defaultName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-                    appConfig.tools.push({ id: defaultId, name: defaultName, workflowFile: data.filename, nodeMapping: {} });
+                    appConfig.tools.push({ id: defaultId, name: defaultName, workflowFile: data.filename, nodeMapping: autoMapping });
                     
                     selectTool(appConfig.tools.length - 1);
                     alert("Uploaded successfully! New tool auto-generated.");
