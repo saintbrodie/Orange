@@ -9,6 +9,17 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="/static/styles.css?v=8">
     <style>
+        /* Hide number input arrows */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
         /* Override styles.css fixed viewport rules to allow dashboard scrolling */
         html, body {
             overflow-y: auto !important;
@@ -30,11 +41,14 @@
             
             <!-- Menu Tabs -->
             <div id="admin-menu" class="hidden items-center gap-2 border-l border-zinc-800 pl-6">
-                <button id="tab-analytics" class="admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition">
-                    <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Analytics
+                <button id="tab-general" class="admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition">
+                    <i data-lucide="settings" class="w-4 h-4"></i> General Settings
                 </button>
                 <button id="tab-tools" class="admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    <i data-lucide="settings-2" class="w-4 h-4"></i> Tool Editor
+                    <i data-lucide="wrench" class="w-4 h-4"></i> Tool Editor
+                </button>
+                <button id="tab-analytics" class="admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Analytics
                 </button>
             </div>
         </div>
@@ -127,6 +141,72 @@
             </div>
         </div>
     
+        <!-- General Settings UI -->
+        <div id="settings-container" class="hidden w-full max-w-3xl mx-auto animate-in fade-in duration-300 pb-8">
+            <div class="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-8 shadow-xl flex flex-col">
+                <h2 class="text-xl font-semibold text-zinc-100 flex items-center gap-2 mb-6">
+                    <i data-lucide="settings" class="w-5 h-5 text-orange-500"></i> General Settings
+                </h2>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="text-xs text-zinc-500 font-bold uppercase tracking-wider mb-2 block">ComfyUI Server URL</label>
+                        <input type="text" id="setting-comfy-url" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono">
+                    </div>
+                    <div>
+                        <label class="text-xs text-zinc-500 font-bold uppercase tracking-wider mb-2 block">Admin Key</label>
+                        <input type="text" id="setting-admin-key" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono">
+                    </div>
+                    
+                    <div class="pt-4 border-t border-zinc-800/50">
+                        <h3 class="text-sm font-semibold text-zinc-300 mb-4">Default Aspect Ratios</h3>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="bg-zinc-950 p-3 rounded border border-zinc-800">
+                                <div class="text-xs text-zinc-500 mb-2 font-bold text-center">1:1</div>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="text-xs text-zinc-500 font-medium w-4 text-center">H</span>
+                                    <input type="number" id="setting-ar-11-h" class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs text-zinc-500 font-medium w-4 text-center">W</span>
+                                    <input type="number" id="setting-ar-11-w" class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                </div>
+                            </div>
+                            <div class="bg-zinc-950 p-3 rounded border border-zinc-800">
+                                <div class="text-xs text-zinc-500 mb-2 font-bold text-center">9:16</div>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="text-xs text-zinc-500 font-medium w-4 text-center">H</span>
+                                    <input type="number" id="setting-ar-916-h" class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs text-zinc-500 font-medium w-4 text-center">W</span>
+                                    <input type="number" id="setting-ar-916-w" class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                </div>
+                            </div>
+                            <div class="bg-zinc-950 p-3 rounded border border-zinc-800">
+                                <div class="text-xs text-zinc-500 mb-2 font-bold text-center">16:9</div>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="text-xs text-zinc-500 font-medium w-4 text-center">H</span>
+                                    <input type="number" id="setting-ar-169-h" class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs text-zinc-500 font-medium w-4 text-center">W</span>
+                                    <input type="number" id="setting-ar-169-w" class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-8 flex justify-end items-center gap-4">
+                    <span id="settings-save-status" class="hidden text-sm text-green-500 flex items-center gap-1"><i data-lucide="check-circle-2" class="w-4 h-4"></i> Saved</span>
+                    <button id="save-settings-btn" class="bg-orange-600 hover:bg-orange-500 text-white px-6 py-2.5 rounded-xl text-sm font-medium transition flex items-center gap-2">
+                        <i data-lucide="save" class="w-4 h-4"></i> Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Tools Editor UI -->
         <div id="tools-container" class="hidden w-full max-w-7xl mx-auto flex flex-col md:flex-row gap-6 animate-in fade-in duration-300 pb-8">
             <div class="w-full md:w-1/3 bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col max-h-[85vh]">
@@ -275,11 +355,14 @@
                 localStorage.setItem('orange_admin_key', key);
                 currentKey = key;
                 loginError.classList.add('hidden');
-                loginContainer.classList.add('hidden');
-                dashboardContainer.classList.remove('hidden');
-                logoutBtn.classList.remove('hidden');
-                adminMenu.classList.remove('hidden');
-                adminMenu.classList.add('flex');
+                
+                if (!loginContainer.classList.contains('hidden')) {
+                    loginContainer.classList.add('hidden');
+                    logoutBtn.classList.remove('hidden');
+                    adminMenu.classList.remove('hidden');
+                    adminMenu.classList.add('flex');
+                    document.getElementById('tab-general').click();
+                }
                 
                 renderDashboard(data);
             } catch (e) {
@@ -337,8 +420,10 @@
         }
     
         // Added Tool Editor JS
+        const tabGeneral = document.getElementById('tab-general');
         const tabAnalytics = document.getElementById('tab-analytics');
         const tabTools = document.getElementById('tab-tools');
+        const settingsContainer = document.getElementById('settings-container');
         const toolsContainer = document.getElementById('tools-container');
         
         let appConfig = null;
@@ -347,26 +432,68 @@
         let parsedNodes = {}; // Cache of nodes from currently selected workflow json
         const MAPPING_TYPES = ['prompt', 'image', 'resolution', 'seed'];
 
-        tabAnalytics.addEventListener('click', () => {
-            tabAnalytics.className = "admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition";
-            tabTools.className = "admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition";
-            dashboardContainer.classList.remove('hidden');
+        function resetTabs() {
+            const defaultClass = "admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition";
+            tabGeneral.className = defaultClass;
+            tabTools.className = defaultClass;
+            tabAnalytics.className = defaultClass;
+            
+            settingsContainer.classList.add('hidden');
             toolsContainer.classList.add('hidden');
+            dashboardContainer.classList.add('hidden');
+        }
+
+        const activeClass = "admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition";
+
+        tabGeneral.addEventListener('click', async () => {
+            resetTabs();
+            tabGeneral.className = activeClass;
+            settingsContainer.classList.remove('hidden');
+            await loadEditorData();
         });
 
         tabTools.addEventListener('click', async () => {
-            tabTools.className = "admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition";
-            tabAnalytics.className = "admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition";
-            dashboardContainer.classList.add('hidden');
+            resetTabs();
+            tabTools.className = activeClass;
             toolsContainer.classList.remove('hidden');
             await loadEditorData();
+        });
+
+        tabAnalytics.addEventListener('click', () => {
+            resetTabs();
+            tabAnalytics.className = activeClass;
+            dashboardContainer.classList.remove('hidden');
         });
 
         async function loadEditorData() {
             try {
                 // Config
                 const cRes = await fetch('/api/admin/config?key=' + currentKey);
-                if (cRes.ok) appConfig = await cRes.json();
+                if (cRes.ok) {
+                    appConfig = await cRes.json();
+                    
+                    // Populate General Settings
+                    document.getElementById('setting-comfy-url').value = appConfig.comfyServerUrl || '';
+                    document.getElementById('setting-admin-key').value = appConfig.adminKey || '';
+                    
+                    if (appConfig.aspectRatios) {
+                        const ar11 = appConfig.aspectRatios['1:1'];
+                        if (ar11) {
+                            document.getElementById('setting-ar-11-w').value = ar11.width;
+                            document.getElementById('setting-ar-11-h').value = ar11.height;
+                        }
+                        const ar916 = appConfig.aspectRatios['9:16'];
+                        if (ar916) {
+                            document.getElementById('setting-ar-916-w').value = ar916.width;
+                            document.getElementById('setting-ar-916-h').value = ar916.height;
+                        }
+                        const ar169 = appConfig.aspectRatios['16:9'];
+                        if (ar169) {
+                            document.getElementById('setting-ar-169-w').value = ar169.width;
+                            document.getElementById('setting-ar-169-h').value = ar169.height;
+                        }
+                    }
+                }
                 
                 // Workflows
                 const wRes = await fetch('/api/admin/workflows?key=' + currentKey);
@@ -549,9 +676,15 @@
                         <div id="ar-inputs" class="grid grid-cols-3 gap-2 ${(!hasCustomAR || !isEnabled) ? 'hidden' : ''}">
                             ${['1:1', '9:16', '16:9'].map(r => `
                                 <div class="bg-zinc-900/50 p-2 rounded border border-zinc-800">
-                                    <div class="text-[10px] text-zinc-500 mb-1 text-center font-bold">${r}</div>
-                                    <input type="number" id="ar-${r.replace(':','')}-w" placeholder="W" value="${ar[r]?.width || ''}" class="w-full bg-zinc-950 border border-zinc-800 text-xs p-1 rounded text-center text-zinc-300 mb-1 outline-none focus:border-orange-500" ${!isEnabled ? 'disabled' : ''}>
-                                    <input type="number" id="ar-${r.replace(':','')}-h" placeholder="H" value="${ar[r]?.height || ''}" class="w-full bg-zinc-950 border border-zinc-800 text-xs p-1 rounded text-center text-zinc-300 outline-none focus:border-orange-500" ${!isEnabled ? 'disabled' : ''}>
+                                    <div class="text-[10px] text-zinc-500 mb-2 text-center font-bold">${r}</div>
+                                    <div class="flex items-center gap-1 mb-1">
+                                        <span class="text-[10px] text-zinc-500 font-medium w-4 text-center">H</span>
+                                        <input type="number" id="ar-${r.replace(':','')}-h" value="${ar[r]?.height || ''}" class="w-full bg-zinc-950 border border-zinc-800 text-xs p-1 rounded text-center text-zinc-300 outline-none focus:border-orange-500" ${!isEnabled ? 'disabled' : ''}>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-[10px] text-zinc-500 font-medium w-4 text-center">W</span>
+                                        <input type="number" id="ar-${r.replace(':','')}-w" value="${ar[r]?.width || ''}" class="w-full bg-zinc-950 border border-zinc-800 text-xs p-1 rounded text-center text-zinc-300 outline-none focus:border-orange-500" ${!isEnabled ? 'disabled' : ''}>
+                                    </div>
                                 </div>
                             `).join('')}
                         </div>
@@ -661,7 +794,54 @@
             saveConfigToBackend();
         });
 
-        async function saveConfigToBackend() {
+                document.getElementById('save-settings-btn').addEventListener('click', async () => {
+            if(!appConfig) return;
+            
+            appConfig.comfyServerUrl = document.getElementById('setting-comfy-url').value.trim();
+            appConfig.adminKey = document.getElementById('setting-admin-key').value.trim();
+            
+            appConfig.aspectRatios = {
+                '1:1': {
+                    width: parseInt(document.getElementById('setting-ar-11-w').value) || 1024,
+                    height: parseInt(document.getElementById('setting-ar-11-h').value) || 1024
+                },
+                '9:16': {
+                    width: parseInt(document.getElementById('setting-ar-916-w').value) || 768,
+                    height: parseInt(document.getElementById('setting-ar-916-h').value) || 1344
+                },
+                '16:9': {
+                    width: parseInt(document.getElementById('setting-ar-169-w').value) || 1344,
+                    height: parseInt(document.getElementById('setting-ar-169-h').value) || 768
+                }
+            };
+            
+            const originalText = document.getElementById('save-settings-btn').innerHTML;
+            document.getElementById('save-settings-btn').innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
+            
+            try {
+                const res = await fetch('/api/admin/config?key=' + currentKey, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(appConfig)
+                });
+                
+                if(res.ok) {
+                    const st = document.getElementById('settings-save-status');
+                    st.classList.remove('hidden');
+                    setTimeout(() => st.classList.add('hidden'), 3000);
+                    currentKey = appConfig.adminKey; // update key in case it changed
+                } else {
+                    alert('Error saving config.');
+                }
+            } catch(e) {
+                alert('Save failed.');
+            }
+            
+            document.getElementById('save-settings-btn').innerHTML = originalText;
+            lucide.createIcons();
+        });
+
+async function saveConfigToBackend() {
             try {
                 const originalText = document.getElementById('save-tool-btn').innerHTML;
                 document.getElementById('save-tool-btn').innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
