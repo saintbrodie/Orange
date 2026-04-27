@@ -78,7 +78,8 @@ body {
 /* Base tweaks - High Quality Glass */
 .max-w-6xl {
     background: rgba(18, 18, 18, 0.7) !important;
-    backdrop-blur: 40px !important;
+    backdrop-filter: blur(40px) !important;
+    -webkit-backdrop-filter: blur(40px) !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
