@@ -364,7 +364,9 @@
             lucide.createIcons();
             
             try {
-                const res = await fetch('/api/admin/usage?key=' + encodeURIComponent(key) + '&period=' + currentPeriod);
+                const res = await fetch('/api/admin/usage?period=' + currentPeriod, {
+                    headers: { 'Authorization': 'Bearer ' + key }
+                });
                 if (res.status === 401) {
                     throw new Error("Unauthorized");
                 }
@@ -480,8 +482,29 @@
         });
 
 
-        document.getElementById('backup-db-btn').addEventListener('click', () => {
-            window.location.href = `/api/admin/db/backup?key=${encodeURIComponent(currentKey)}`;
+        // Helper for authenticated fetches
+        function adminFetch(url, options = {}) {
+            options.headers = options.headers || {};
+            options.headers['Authorization'] = 'Bearer ' + currentKey;
+            return fetch(url, options);
+        }
+
+        document.getElementById('backup-db-btn').addEventListener('click', async () => {
+            try {
+                const res = await adminFetch('/api/admin/db/backup');
+                if (!res.ok) throw new Error('Backup failed');
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'usage_logs_backup.db';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch(e) {
+                alert('Backup failed: ' + e.message);
+            }
         });
 
         const restoreInput = document.getElementById('restore-db-input');
@@ -500,10 +523,9 @@
 
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('key', currentKey);
 
             try {
-                const res = await fetch('/api/admin/db/restore', {
+                const res = await adminFetch('/api/admin/db/restore', {
                     method: 'POST',
                     body: formData
                 });
@@ -569,7 +591,7 @@
         async function loadEditorData() {
             try {
                 // Config
-                const cRes = await fetch('/api/admin/config?key=' + currentKey);
+                const cRes = await adminFetch('/api/admin/config');
                 if (cRes.ok) {
                     appConfig = await cRes.json();
                     
@@ -597,7 +619,7 @@
                 }
                 
                 // Workflows
-                const wRes = await fetch('/api/admin/workflows?key=' + currentKey);
+                const wRes = await adminFetch('/api/admin/workflows');
                 if (wRes.ok) {
                     const data = await wRes.json();
                     availableWorkflowFiles = data.files || [];
@@ -642,7 +664,7 @@
             const filename = e.target.value;
             if(!filename) { parsedNodes = {}; return; }
             try {
-                const res = await fetch(`/api/admin/workflows/${filename}?key=${currentKey}`);
+                const res = await adminFetch(`/api/admin/workflows/${filename}`);
                 if(res.ok) {
                     const data = await res.json();
                     const datalist = document.getElementById('nodes-list');
@@ -837,7 +859,7 @@
                  const tool = appConfig.tools[editingToolIndex];
                  if (tool.workflowFile) {
                      try {
-                         await fetch(`/api/admin/workflows/${encodeURIComponent(tool.workflowFile)}?key=${currentKey}`, { method: 'DELETE' });
+                         await adminFetch(`/api/admin/workflows/${encodeURIComponent(tool.workflowFile)}`, { method: 'DELETE' });
                      } catch(e) { console.error("Error deleting workflow file", e); }
                  }
                  appConfig.tools.splice(editingToolIndex, 1);
@@ -920,9 +942,9 @@
             document.getElementById('save-settings-btn').innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
             
             try {
-                const res = await fetch('/api/admin/config?key=' + currentKey, {
+                const res = await adminFetch('/api/admin/config', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentKey },
                     body: JSON.stringify(appConfig)
                 });
                 
@@ -946,9 +968,9 @@ async function saveConfigToBackend() {
             try {
                 const originalText = document.getElementById('save-tool-btn').innerHTML;
                 document.getElementById('save-tool-btn').innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
-                const res = await fetch('/api/admin/config?key=' + currentKey, {
+                const res = await adminFetch('/api/admin/config', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentKey },
                     body: JSON.stringify(appConfig)
                 });
                 
@@ -1000,14 +1022,13 @@ async function saveConfigToBackend() {
             
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('key', currentKey);
             
             const btn = document.getElementById('upload-workflow-btn');
             const origHTML = btn.innerHTML;
             btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Uploading...';
             
             try {
-                const res = await fetch('/api/admin/workflows/upload', {
+                const res = await adminFetch('/api/admin/workflows/upload', {
                     method: 'POST',
                     body: formData
                 });

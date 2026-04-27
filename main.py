@@ -9,8 +9,10 @@ import uuid
 import time
 import base64
 import sqlite3
+import shutil
+import tempfile
 from typing import Dict
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Header, Depends
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -55,6 +57,24 @@ COOLDOWN_SECONDS = 5.0
 
 def get_current_config():
     return load_config()
+
+# Admin auth via Authorization header
+async def verify_admin(authorization: str = Header(None)):
+    """Reusable dependency that validates the admin key from the Authorization header."""
+    config = get_current_config()
+    expected_key = config.get("adminKey", "orangeadmin")
+    if not authorization or authorization != f"Bearer {expected_key}":
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin key")
+    return True
+
+# Whitelist of valid period filters for usage queries
+PERIOD_FILTERS = {
+    "all":       "",
+    "weekly":    "WHERE timestamp >= datetime('now', '-7 days')",
+    "monthly":   "WHERE timestamp >= datetime('now', '-1 month')",
+    "quarterly": "WHERE timestamp >= datetime('now', '-3 months')",
+    "yearly":    "WHERE timestamp >= datetime('now', '-1 year')",
+}
 
 COMFY_URL = get_current_config().get("comfyServerUrl", "http://127.0.0.1:8188")
 
@@ -345,21 +365,10 @@ def serve_admin():
         return HTMLResponse(content=f.read())
 
 @app.get("/api/admin/usage")
-def get_admin_usage(key: str = None, period: str = "all"):
-    current_config = get_current_config()
-    expected_key = current_config.get("adminKey", "orangeadmin")
-    if key != expected_key:
-        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin key")
-    
-    date_filter = ""
-    if period == "weekly":
-        date_filter = "WHERE timestamp >= datetime('now', '-7 days')"
-    elif period == "monthly":
-        date_filter = "WHERE timestamp >= datetime('now', '-1 month')"
-    elif period == "quarterly":
-        date_filter = "WHERE timestamp >= datetime('now', '-3 months')"
-    elif period == "yearly":
-        date_filter = "WHERE timestamp >= datetime('now', '-1 year')"
+def get_admin_usage(period: str = "all", _=Depends(verify_admin)):
+    date_filter = PERIOD_FILTERS.get(period)
+    if date_filter is None:
+        raise HTTPException(status_code=400, detail=f"Invalid period: {period}. Valid: {', '.join(PERIOD_FILTERS.keys())}")
 
     try:
         conn = sqlite3.connect("usage_logs.db")
@@ -386,19 +395,11 @@ def get_admin_usage(key: str = None, period: str = "all"):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/config")
-def get_admin_config(key: str = None):
-    current_config = get_current_config()
-    expected_key = current_config.get("adminKey", "orangeadmin")
-    if key != expected_key:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    return current_config
+def get_admin_config(_=Depends(verify_admin)):
+    return get_current_config()
 
 @app.post("/api/admin/config")
-async def update_admin_config(request: Request, key: str = None):
-    current_config = get_current_config()
-    expected_key = current_config.get("adminKey", "orangeadmin")
-    if key != expected_key:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+async def update_admin_config(request: Request, _=Depends(verify_admin)):
     try:
         new_config = await request.json()
         save_config(new_config)
@@ -407,23 +408,13 @@ async def update_admin_config(request: Request, key: str = None):
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/admin/workflows")
-def list_admin_workflows(key: str = None):
-    current_config = get_current_config()
-    expected_key = current_config.get("adminKey", "orangeadmin")
-    if key != expected_key:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    
+def list_admin_workflows(_=Depends(verify_admin)):
     workflows_dir = os.path.join(os.path.dirname(__file__), "workflows")
     files = [f for f in os.listdir(workflows_dir) if f.endswith(".json") and f != "workflows-config.json"]
     return {"files": files}
 
 @app.get("/api/admin/workflows/{filename}")
-def get_admin_workflow(filename: str, key: str = None):
-    current_config = get_current_config()
-    expected_key = current_config.get("adminKey", "orangeadmin")
-    if key != expected_key:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-        
+def get_admin_workflow(filename: str, _=Depends(verify_admin)):
     safe_name = os.path.basename(filename)
     path = os.path.join(os.path.dirname(__file__), "workflows", safe_name)
     if not os.path.exists(path):
@@ -432,12 +423,7 @@ def get_admin_workflow(filename: str, key: str = None):
         return json.load(f)
 
 @app.delete("/api/admin/workflows/{filename}")
-def delete_admin_workflow(filename: str, key: str = None):
-    current_config = get_current_config()
-    expected_key = current_config.get("adminKey", "orangeadmin")
-    if key != expected_key:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-        
+def delete_admin_workflow(filename: str, _=Depends(verify_admin)):
     safe_name = os.path.basename(filename)
     if safe_name == "workflows-config.json":
         raise HTTPException(status_code=400, detail="Cannot delete config")
@@ -449,12 +435,7 @@ def delete_admin_workflow(filename: str, key: str = None):
     raise HTTPException(status_code=404, detail="File not found")
 
 @app.post("/api/admin/workflows/upload")
-async def upload_admin_workflow(file: UploadFile = File(...), key: str = Form(...)):
-    current_config = get_current_config()
-    expected_key = current_config.get("adminKey", "orangeadmin")
-    if key != expected_key:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-        
+async def upload_admin_workflow(request: Request, file: UploadFile = File(...), _=Depends(verify_admin)):
     if not file.filename.endswith(".json"):
         raise HTTPException(status_code=400, detail="Only .json files are allowed")
         
@@ -473,12 +454,7 @@ async def upload_admin_workflow(file: UploadFile = File(...), key: str = Form(..
         raise HTTPException(status_code=400, detail=f"Invalid JSON file: {e}")
 
 @app.get("/api/admin/db/backup")
-def backup_db(key: str = None):
-    current_config = get_current_config()
-    expected_key = current_config.get("adminKey", "orangeadmin")
-    if key != expected_key:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-        
+def backup_db(_=Depends(verify_admin)):
     db_path = os.path.join(os.path.dirname(__file__), "usage_logs.db")
     if not os.path.exists(db_path):
         raise HTTPException(status_code=404, detail="Database not found")
@@ -486,19 +462,40 @@ def backup_db(key: str = None):
     return FileResponse(path=db_path, filename="usage_logs_backup.db", media_type="application/octet-stream")
 
 @app.post("/api/admin/db/restore")
-async def restore_db(file: UploadFile = File(...), key: str = Form(...)):
-    current_config = get_current_config()
-    expected_key = current_config.get("adminKey", "orangeadmin")
-    if key != expected_key:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-        
+async def restore_db(request: Request, file: UploadFile = File(...), _=Depends(verify_admin)):
     if not file.filename.endswith(".db"):
         raise HTTPException(status_code=400, detail="Only .db files are allowed")
         
     db_path = os.path.join(os.path.dirname(__file__), "usage_logs.db")
     content = await file.read()
     
-    with open(db_path, "wb") as f:
-        f.write(content)
+    # Validate the uploaded file is a real SQLite database with the expected schema
+    tmp_path = db_path + ".upload_tmp"
+    try:
+        with open(tmp_path, "wb") as f:
+            f.write(content)
+        conn = sqlite3.connect(tmp_path)
+        cursor = conn.cursor()
+        # Verify the required 'usage' table exists with expected columns
+        cursor.execute("PRAGMA table_info(usage)")
+        columns = {row[1] for row in cursor.fetchall()}
+        required_columns = {"id", "timestamp", "client_ip", "tool_id", "prompt"}
+        if not required_columns.issubset(columns):
+            conn.close()
+            raise HTTPException(status_code=400, detail=f"Invalid database schema. Missing columns: {required_columns - columns}")
+        conn.close()
+    except sqlite3.DatabaseError as e:
+        raise HTTPException(status_code=400, detail=f"Uploaded file is not a valid SQLite database: {e}")
+    finally:
+        if os.path.exists(tmp_path) and not os.path.exists(db_path + ".upload_tmp"):
+            pass  # already cleaned up
+    
+    # Auto-backup current database before overwriting
+    if os.path.exists(db_path):
+        backup_path = db_path + ".bak"
+        shutil.copy2(db_path, backup_path)
+    
+    # Replace with the validated upload
+    shutil.move(tmp_path, db_path)
         
     return {"status": "success"}
