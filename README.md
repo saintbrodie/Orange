@@ -39,6 +39,11 @@ See the [Adding Workflows](docs/adding_workflows.md) guide to learn how to expor
       <img src="docs/Analytics.jpg" width="100%" alt="Analytics Dashboard" />
     </td>
   </tr>
+  <tr>
+    <td align="center"><b>General Settings</b></td>
+    <td align="center"><b>Tool Editor</b></td>
+    <td align="center"><b>Analytics</b></td>
+  </tr>
 </table>
 
 Orange features a secure analytics dashboard and an integrated Tool Editor that allows administrators to track usage metrics, manage workflows, and configure tools interactively.
