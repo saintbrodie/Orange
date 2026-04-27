@@ -1,0 +1,370 @@
+{
+  "734": {
+    "inputs": {
+      "image": "creation-7008a4a8.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "735": {
+    "inputs": {
+      "image": "fish.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "737": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "790",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "787": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "788": {
+    "inputs": {
+      "cfg": 1,
+      "model": [
+        "809",
+        0
+      ],
+      "positive": [
+        "801",
+        0
+      ],
+      "negative": [
+        "804",
+        0
+      ]
+    },
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFGGuider"
+    }
+  },
+  "789": {
+    "inputs": {
+      "noise": [
+        "791",
+        0
+      ],
+      "guider": [
+        "788",
+        0
+      ],
+      "sampler": [
+        "787",
+        0
+      ],
+      "sigmas": [
+        "805",
+        0
+      ],
+      "latent_image": [
+        "793",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    }
+  },
+  "790": {
+    "inputs": {
+      "samples": [
+        "789",
+        0
+      ],
+      "vae": [
+        "799",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "791": {
+    "inputs": {
+      "noise_seed": 53233781006232
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "792": {
+    "inputs": {
+      "clip_name": "qwen_3_8b_fp8mixed.safetensors",
+      "type": "flux2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "793": {
+    "inputs": {
+      "width": [
+        "794",
+        0
+      ],
+      "height": [
+        "794",
+        1
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyFlux2LatentImage",
+    "_meta": {
+      "title": "Empty Flux 2 Latent"
+    }
+  },
+  "794": {
+    "inputs": {
+      "image": [
+        "806",
+        0
+      ]
+    },
+    "class_type": "GetImageSize",
+    "_meta": {
+      "title": "Get Image Size"
+    }
+  },
+  "795": {
+    "inputs": {
+      "conditioning": [
+        "800",
+        0
+      ],
+      "latent": [
+        "798",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent"
+    }
+  },
+  "796": {
+    "inputs": {
+      "conditioning": [
+        "803",
+        0
+      ],
+      "latent": [
+        "798",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent"
+    }
+  },
+  "797": {
+    "inputs": {
+      "pixels": [
+        "802",
+        0
+      ],
+      "vae": [
+        "799",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode"
+    }
+  },
+  "798": {
+    "inputs": {
+      "pixels": [
+        "806",
+        0
+      ],
+      "vae": [
+        "799",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode"
+    }
+  },
+  "799": {
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "800": {
+    "inputs": {
+      "text": "put this fish on my plate",
+      "clip": [
+        "792",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Positive Prompt)"
+    }
+  },
+  "801": {
+    "inputs": {
+      "conditioning": [
+        "795",
+        0
+      ],
+      "latent": [
+        "797",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent"
+    }
+  },
+  "802": {
+    "inputs": {
+      "upscale_method": "nearest-exact",
+      "megapixels": [
+        "807",
+        0
+      ],
+      "resolution_steps": 1,
+      "image": [
+        "735",
+        0
+      ]
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": "ImageScaleToTotalPixels"
+    }
+  },
+  "803": {
+    "inputs": {
+      "conditioning": [
+        "800",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "ConditioningZeroOut"
+    }
+  },
+  "804": {
+    "inputs": {
+      "conditioning": [
+        "796",
+        0
+      ],
+      "latent": [
+        "797",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent"
+    }
+  },
+  "805": {
+    "inputs": {
+      "steps": 4,
+      "width": [
+        "794",
+        0
+      ],
+      "height": [
+        "794",
+        1
+      ]
+    },
+    "class_type": "Flux2Scheduler",
+    "_meta": {
+      "title": "Flux2Scheduler"
+    }
+  },
+  "806": {
+    "inputs": {
+      "upscale_method": "nearest-exact",
+      "megapixels": [
+        "807",
+        0
+      ],
+      "resolution_steps": 1,
+      "image": [
+        "734",
+        0
+      ]
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": "ImageScaleToTotalPixels"
+    }
+  },
+  "807": {
+    "inputs": {
+      "value": 2
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "Float"
+    }
+  },
+  "808": {
+    "inputs": {
+      "unet_name": "flux-2-klein-9b-kv-fp8.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "809": {
+    "inputs": {
+      "model": [
+        "808",
+        0
+      ]
+    },
+    "class_type": "FluxKVCache",
+    "_meta": {
+      "title": "Flux KV Cache"
+    }
+  }
+}
