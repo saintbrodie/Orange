@@ -6,6 +6,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let selectedToolId = null;
     let selectedAspectRatio = null;
     let selectedImageFile = null;
+    let selectedImage2File = null;
+    let currentOutputType = 'image';
 
     // DOM Elements
     const uiContainer = document.getElementById('ui-container');
@@ -19,18 +21,30 @@ document.addEventListener("DOMContentLoaded", () => {
     const promptInput = document.getElementById('prompt-input');
     
     const imageUploadContainer = document.getElementById('image-upload-container');
+    const image1Box = document.getElementById('image1-box');
+    const image2Box = document.getElementById('image2-box');
+
     const dropzone = document.getElementById('dropzone');
     const imageInput = document.getElementById('image-input');
     const imagePreview = document.getElementById('image-preview');
     const previewImg = document.getElementById('preview-img');
     const clearImageBtn = document.getElementById('clear-image-btn');
 
+    const dropzone2 = document.getElementById('dropzone2');
+    const image2Input = document.getElementById('image2-input');
+    const image2Preview = document.getElementById('image2-preview');
+    const previewImg2 = document.getElementById('preview-img2');
+    const clearImage2Btn = document.getElementById('clear-image2-btn');
+
     const aspectRatioContainer = document.getElementById('aspect-ratio-container');
     const generateBtn = document.getElementById('generate-btn');
     const queueStatus = document.getElementById('queue-status');
     const resultImage = document.getElementById('result-image');
+    const resultVideo = document.getElementById('result-video');
+    const resultAudio = document.getElementById('result-audio');
     const backBtn = document.getElementById('back-btn');
     const downloadBtn = document.getElementById('download-btn');
+    const downloadBtnText = document.getElementById('download-btn-text');
     const errorBanner = document.getElementById('error-banner');
     const errorMessage = document.getElementById('error-message');
 
@@ -38,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
     fetch(configUrl).then(res => res.json()).then(data => {
         config = data;
         renderTools();
-        selectTool(config.tools[0].id); // Select first tool
+        selectTool(config.tools[0].id);
     }).catch(err => {
         showError("Failed to load tools.");
     });
@@ -54,16 +68,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
             }`;
             
-            // Add icon/dot and text
+            // Choose icon based on output type
+            let iconName = 'chevron-right';
+            
             btn.innerHTML = `
                 <span>${tool.name}</span>
-                <i data-lucide="chevron-right" class="w-4 h-4 opacity-50 ${isActive ? 'text-orange-400 opacity-100' : 'group-hover:opacity-100'}"></i>
+                <i data-lucide="${iconName}" class="w-4 h-4 opacity-50 ${isActive ? 'text-orange-400 opacity-100' : 'group-hover:opacity-100'}"></i>
             `;
             
             btn.onclick = () => selectTool(tool.id);
             toolTabs.appendChild(btn);
         });
-        // Re-init lucide for the dynamically added icons
         lucide.createIcons();
     }
 
@@ -79,7 +94,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const ratios = Object.keys(ratiosObj);
         if(ratios.length === 0) return;
 
-        // Ensure selected ratio is valid before rendering
         if(!selectedAspectRatio || !ratios.includes(selectedAspectRatio)) {
             selectedAspectRatio = ratios[0];
         }
@@ -111,15 +125,33 @@ document.addEventListener("DOMContentLoaded", () => {
         const tool = config.tools.find(t => t.id === toolId);
         if(!tool) return;
 
-        // Dynamic inputs visualization based on nodeMapping requirements
+        // Track output type
+        currentOutputType = tool.outputType || 'image';
+
         const mapping = tool.nodeMapping;
         
-        // Image
+        // Image 1
         if(mapping.image) {
             imageUploadContainer.classList.remove('hidden');
+            image1Box.classList.remove('hidden');
         } else {
             imageUploadContainer.classList.add('hidden');
+            image1Box.classList.add('hidden');
             clearImage();
+        }
+
+        // Image 2
+        if(mapping.image2) {
+            imageUploadContainer.classList.remove('hidden');
+            image2Box.classList.remove('hidden');
+        } else {
+            image2Box.classList.add('hidden');
+            clearImage2();
+        }
+
+        // If neither image mapping, hide the whole container
+        if(!mapping.image && !mapping.image2) {
+            imageUploadContainer.classList.add('hidden');
         }
 
         // Prompt
@@ -129,7 +161,7 @@ document.addEventListener("DOMContentLoaded", () => {
             promptContainer.classList.add('hidden');
         }
 
-        // Aspect Ratio uses width/height
+        // Aspect Ratio
         if(mapping.width && mapping.height) {
             aspectRatioContainer.classList.remove('hidden');
         } else {
@@ -137,7 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Image Upload Logic
+    // Image 1 Upload Logic
     dropzone.addEventListener('click', () => imageInput.click());
     dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-zinc-600'); });
     dropzone.addEventListener('dragleave', () => dropzone.classList.remove('border-zinc-600'));
@@ -172,6 +204,41 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     clearImageBtn.addEventListener('click', clearImage);
 
+    // Image 2 Upload Logic
+    dropzone2.addEventListener('click', () => image2Input.click());
+    dropzone2.addEventListener('dragover', (e) => { e.preventDefault(); dropzone2.classList.add('border-zinc-600'); });
+    dropzone2.addEventListener('dragleave', () => dropzone2.classList.remove('border-zinc-600'));
+    dropzone2.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone2.classList.remove('border-zinc-600');
+        if(e.dataTransfer.files && e.dataTransfer.files[0]) {
+            handleImage2Selected(e.dataTransfer.files[0]);
+        }
+    });
+    image2Input.addEventListener('change', (e) => {
+        if(e.target.files && e.target.files[0]) {
+            handleImage2Selected(e.target.files[0]);
+        }
+    });
+
+    function handleImage2Selected(file) {
+        selectedImage2File = file;
+        const url = URL.createObjectURL(file);
+        previewImg2.src = url;
+        dropzone2.classList.add('hidden');
+        image2Preview.classList.remove('hidden');
+        errorBanner.classList.add('hidden');
+    }
+
+    function clearImage2() {
+        selectedImage2File = null;
+        image2Input.value = '';
+        previewImg2.src = '';
+        image2Preview.classList.add('hidden');
+        dropzone2.classList.remove('hidden');
+    }
+    clearImage2Btn.addEventListener('click', clearImage2);
+
     function showError(msg) {
         errorMessage.innerText = msg;
         errorBanner.classList.remove('hidden');
@@ -187,7 +254,10 @@ document.addEventListener("DOMContentLoaded", () => {
             return showError("Please enter a prompt.");
         }
         if(tool.nodeMapping.image && !selectedImageFile) {
-            return showError("Please upload a reference image.");
+            return showError("Please upload an image.");
+        }
+        if(tool.nodeMapping.image2 && !selectedImage2File) {
+            return showError("Please upload a second image.");
         }
 
         // Setup Form Data
@@ -196,6 +266,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if(tool.nodeMapping.prompt) formData.append("prompt", promptInput.value.trim());
         if(tool.nodeMapping.width && tool.nodeMapping.height) formData.append("aspect_ratio", selectedAspectRatio);
         if(tool.nodeMapping.image) formData.append("image", selectedImageFile);
+        if(tool.nodeMapping.image2) formData.append("image2", selectedImage2File);
 
         // UI Reset
         uiContainer.classList.add('hidden');
@@ -237,7 +308,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const promptId = data.prompt_id;
             const clientId = data.client_id;
             
-            // Start SSE listening
             listenToQueue(promptId, clientId, selectedToolId);
 
         } catch (e) {
@@ -264,7 +334,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 generatingTitle.innerText = "Setting things up...";
                 queueStatus.innerText = `Getting ready`;
             } else if (data.status === 'executing') {
-                // Update the title to the friendly node mapping string
                 generatingTitle.innerText = data.message;
             } else if (data.status === 'preview') {
                 const spinner = document.getElementById('loading-spinner');
@@ -282,7 +351,9 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (data.status === 'progress') {
                 progressContainer.classList.remove('hidden');
                 queueStatus.classList.add('hidden');
-                generatingTitle.innerText = "Generating Image...";
+
+                const typeLabel = currentOutputType === 'video' ? 'Video' : currentOutputType === 'audio' ? 'Audio' : 'Image';
+                generatingTitle.innerText = `Generating ${typeLabel}...`;
                 
                 const percent = Math.round((data.value / data.max) * 100);
                 progressBarFill.style.width = `${percent}%`;
@@ -291,7 +362,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 
             } else if (data.status === 'completed') {
                 evtSource.close();
-                fetchAndShowImage(promptId);
+                fetchAndShowResult(promptId);
             } else if (data.status === 'error') {
                 evtSource.close();
                 showGenerationError(data.detail || "An error occurred during generation.");
@@ -300,26 +371,57 @@ document.addEventListener("DOMContentLoaded", () => {
 
         evtSource.onerror = (err) => {
             evtSource.close();
-            // Try fetching final if crashed out of queue
-            fetchAndShowImage(promptId).catch(() => {
+            fetchAndShowResult(promptId).catch(() => {
                 showGenerationError("Lost connection to server.");
             });
         };
     }
 
-    async function fetchAndShowImage(promptId) {
+    async function fetchAndShowResult(promptId) {
         const generatingTitle = document.getElementById('generating-title');
+        const typeLabel = currentOutputType === 'video' ? 'Video' : currentOutputType === 'audio' ? 'Audio' : 'Image';
+        
         try {
-            generatingTitle.innerText = `Finalizing Image...`;
+            generatingTitle.innerText = `Finalizing ${typeLabel}...`;
             document.getElementById('queue-status').classList.remove('hidden');
-            document.getElementById('queue-status').innerText = `Stripping metadata`;
+            document.getElementById('queue-status').innerText = currentOutputType === 'image' ? 'Stripping metadata' : 'Preparing file';
             
-            const imageRes = await fetch(`/api/image?prompt_id=${promptId}`);
-            if(!imageRes.ok) throw new Error("Metadata stripped image not found");
+            const outputRes = await fetch(`/api/output?prompt_id=${promptId}&type=${currentOutputType}`);
+            if(!outputRes.ok) throw new Error(`${typeLabel} not found`);
             
-            const blob = await imageRes.blob();
+            const blob = await outputRes.blob();
             const url = URL.createObjectURL(blob);
-            resultImage.src = url;
+            
+            // Reset all result elements
+            resultImage.classList.add('hidden');
+            resultVideo.classList.add('hidden');
+            resultAudio.classList.add('hidden');
+            resultImage.src = '';
+            resultVideo.src = '';
+            resultAudio.src = '';
+
+            // File extension and download label
+            let ext = '.jpg';
+            let downloadLabel = 'Download Image';
+
+            if (currentOutputType === 'video') {
+                resultVideo.src = url;
+                resultVideo.classList.remove('hidden');
+                ext = '.mp4';
+                downloadLabel = 'Download Video';
+            } else if (currentOutputType === 'audio') {
+                resultAudio.src = url;
+                resultAudio.classList.remove('hidden');
+                ext = '.flac';
+                downloadLabel = 'Download Audio';
+            } else {
+                resultImage.src = url;
+                resultImage.classList.remove('hidden');
+                ext = '.jpg';
+                downloadLabel = 'Download Image';
+            }
+
+            downloadBtnText.innerText = downloadLabel;
             
             generatingLayer.classList.add('hidden');
             generatingLayer.classList.remove('flex');
@@ -330,14 +432,14 @@ document.addEventListener("DOMContentLoaded", () => {
             downloadBtn.onclick = () => {
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `creation-${promptId.substring(0,8)}.png`;
+                a.download = `creation-${promptId.substring(0,8)}${ext}`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
             };
 
         } catch (e) {
-            showGenerationError("Failed to fetch final image. It might have failed on the server.");
+            showGenerationError(`Failed to fetch final ${typeLabel.toLowerCase()}. It might have failed on the server.`);
         }
     }
 
@@ -358,6 +460,9 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('progress-bar-fill').style.width = '0%';
         document.getElementById('progress-percentage').innerText = '0%';
         document.getElementById('progress-steps').innerText = '0 / 0';
+        // Stop video/audio playback
+        resultVideo.pause();
+        resultAudio.pause();
     });
 
     // AI Status Polling

@@ -310,7 +310,7 @@
                             title="Delete tool"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div class="space-y-1">
                             <label class="text-xs font-medium text-zinc-400 uppercase">Tool ID</label>
                             <input type="text" id="edit-tool-id"
@@ -322,6 +322,15 @@
                             <input type="text" id="edit-tool-name"
                                 class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm focus:border-orange-600 focus:ring-1 outline-none"
                                 placeholder="e.g., Custom Generator">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-medium text-zinc-400 uppercase">Output Type</label>
+                            <select id="edit-tool-output-type"
+                                class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm focus:border-orange-600 focus:ring-1 outline-none text-zinc-300">
+                                <option value="image">Image</option>
+                                <option value="video">Video</option>
+                                <option value="audio">Audio</option>
+                            </select>
                         </div>
                     </div>
 
@@ -619,7 +628,7 @@
         let availableWorkflowFiles = [];
         let editingToolIndex = -1;
         let parsedNodes = {}; // Cache of nodes from currently selected workflow json
-        const MAPPING_TYPES = ['prompt', 'image', 'resolution', 'seed'];
+        const MAPPING_TYPES = ['prompt', 'image', 'image2', 'resolution', 'seed'];
 
         function resetTabs() {
             const defaultClass = "admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition";
@@ -762,6 +771,7 @@
             const tool = appConfig.tools[index];
             document.getElementById('edit-tool-id').value = tool.id || '';
             document.getElementById('edit-tool-name').value = tool.name || '';
+            document.getElementById('edit-tool-output-type').value = tool.outputType || 'image';
             document.getElementById('edit-tool-file').value = tool.workflowFile || '';
 
             // Trigger change to load nodes
@@ -945,6 +955,12 @@
             const tool = appConfig.tools[editingToolIndex];
             tool.id = document.getElementById('edit-tool-id').value.trim();
             tool.name = document.getElementById('edit-tool-name').value.trim();
+            const outputType = document.getElementById('edit-tool-output-type').value;
+            if (outputType && outputType !== 'image') {
+                tool.outputType = outputType;
+            } else {
+                delete tool.outputType; // default is image, no need to store
+            }
 
             tool.nodeMapping = {};
             delete tool.aspectRatios;

@@ -118,7 +118,8 @@ async def generate(
     tool_id: str = Form(...),
     prompt: str = Form(None),
     aspect_ratio: str = Form(None),
-    image: UploadFile = File(None)
+    image: UploadFile = File(None),
+    image2: UploadFile = File(None)
 ):
     client_ip = request.client.host if request.client else "unknown"
     now = time.time()
@@ -143,20 +144,29 @@ async def generate(
         raise HTTPException(status_code=400, detail="Prompt is required for this tool")
     if mapping.get("image") and not image:
         raise HTTPException(status_code=400, detail="Image is required for this tool")
+    if mapping.get("image2") and not image2:
+        raise HTTPException(status_code=400, detail="Second image is required for this tool")
     
-    # 1. Upload Image to ComfyUI if required
-    uploaded_image_name = None
-    if image and mapping.get("image"):
+    # 1. Upload Images to ComfyUI if required
+    async def upload_image_to_comfy(upload_file: UploadFile) -> str:
+        """Upload a single image to ComfyUI and return the uploaded filename."""
         try:
             async with httpx.AsyncClient() as client:
-                files = {'image': (image.filename, await image.read(), image.content_type)}
+                files = {'image': (upload_file.filename, await upload_file.read(), upload_file.content_type)}
                 res = await client.post(f"{get_comfy_url()}/upload/image", files=files)
                 if res.status_code != 200:
                     raise HTTPException(status_code=500, detail="Failed to upload image to ComfyUI backend")
-                upload_data = res.json()
-                uploaded_image_name = upload_data.get("name")
+                return res.json().get("name")
         except httpx.RequestError:
             raise HTTPException(status_code=503, detail="Could not connect to ComfyUI server for upload. Is it running on the correct port?")
+
+    uploaded_image_name = None
+    if image and mapping.get("image"):
+        uploaded_image_name = await upload_image_to_comfy(image)
+
+    uploaded_image2_name = None
+    if image2 and mapping.get("image2"):
+        uploaded_image2_name = await upload_image_to_comfy(image2)
             
     # 2. Map variables into the workflow
     if prompt and mapping.get("prompt"):
@@ -166,6 +176,10 @@ async def generate(
     if uploaded_image_name and mapping.get("image"):
         i_map = mapping["image"]
         workflow[i_map["nodeId"]]["inputs"][i_map["field"]] = uploaded_image_name
+
+    if uploaded_image2_name and mapping.get("image2"):
+        i2_map = mapping["image2"]
+        workflow[i2_map["nodeId"]]["inputs"][i2_map["field"]] = uploaded_image2_name
         
     if aspect_ratio and mapping.get("width") and mapping.get("height"):
         current_config = get_current_config()
@@ -223,11 +237,11 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
         "UNETLoader": "Loading AI Models...",
         "LoraLoader": "Loading AI Models...",
         "CLIPTextEncode": "Understanding your prompt...",
-        "KSampler": "Generating Image...",
-        "KSamplerAdvanced": "Generating Image...",
-        "SamplerCustom": "Generating Image...",
-        "VAEEncode": "Finalizing Image...",
-        "VAEDecode": "Finalizing Image...",
+        "KSampler": "Generating...",
+        "KSamplerAdvanced": "Generating...",
+        "SamplerCustom": "Generating...",
+        "VAEEncode": "Finalizing...",
+        "VAEDecode": "Finalizing...",
         "ImageScale": "Increasing resolution...",
         "ImageScaleBy": "Increasing resolution...",
         "ImageUpscaleWithModel": "Increasing resolution...",
@@ -235,7 +249,17 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
         "LatentUpscaleBy": "Increasing resolution...",
         "FaceDetailer": "Enhancing faces...",
         "Reactor": "Enhancing faces...",
-        "SaveImage": "Wrapping up..."
+        "SaveImage": "Wrapping up...",
+        # Video nodes
+        "WanVideoSampler": "Generating Video...",
+        "AnimateDiffEvolve": "Generating Video...",
+        "AnimateDiffSampler": "Generating Video...",
+        "VideoLinearCFGGuidance": "Generating Video...",
+        "VHS_VideoCombine": "Encoding Video...",
+        "SaveAnimatedWEBP": "Encoding Video...",
+        # Audio nodes
+        "StableAudioSampler": "Generating Audio...",
+        "SaveAudio": "Saving Audio...",
     }
 
     # Immediate history check
@@ -335,9 +359,13 @@ async def get_status(request: Request, prompt_id: str, client_id: str, tool_id: 
     return EventSourceResponse(status_generator(request, prompt_id, client_id, tool_id))
 
 
-@app.get("/api/image")
-async def get_image(prompt_id: str):
-    async with httpx.AsyncClient() as client:
+@app.get("/api/output")
+async def get_output(prompt_id: str, type: str = "image"):
+    """
+    Generalized output endpoint. Fetches the result from ComfyUI history.
+    type: 'image', 'video', or 'audio'
+    """
+    async with httpx.AsyncClient(timeout=30.0) as client:
         hist_res = await client.get(f"{get_comfy_url()}/history/{prompt_id}")
         if hist_res.status_code != 200:
             raise HTTPException(status_code=404, detail="History not found")
@@ -349,24 +377,68 @@ async def get_image(prompt_id: str):
         outputs = hist_data[prompt_id].get("outputs", {})
         
         file_info = None
-        for node_id, output_data in outputs.items():
-            images = output_data.get("images", [])
-            if images:
-                file_info = images[0]
-                break
+        
+        if type == "video":
+            # ComfyUI stores video outputs under "gifs" key (AnimateDiff, VHS, etc.)
+            for node_id, output_data in outputs.items():
+                gifs = output_data.get("gifs", [])
+                if gifs:
+                    file_info = gifs[0]
+                    break
+        elif type == "audio":
+            # ComfyUI stores audio outputs under "audio" key
+            for node_id, output_data in outputs.items():
+                audios = output_data.get("audio", [])
+                if audios:
+                    file_info = audios[0]
+                    break
+        else:
+            # Default: image
+            for node_id, output_data in outputs.items():
+                images = output_data.get("images", [])
+                if images:
+                    file_info = images[0]
+                    break
                 
         if not file_info:
-            raise HTTPException(status_code=404, detail="No output image found for prompt")
+            raise HTTPException(status_code=404, detail=f"No {type} output found for prompt")
             
         view_url = f"{get_comfy_url()}/view?filename={file_info['filename']}&subfolder={file_info.get('subfolder', '')}&type={file_info.get('type', 'output')}"
-        img_res = await client.get(view_url)
-        if img_res.status_code != 200:
-            raise HTTPException(status_code=500, detail="Failed to fetch image from ComfyUI backend")
+        file_res = await client.get(view_url)
+        if file_res.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Failed to fetch {type} from ComfyUI backend")
             
-        raw_bytes = img_res.content
-        clean_bytes = strip_metadata(raw_bytes)
+        raw_bytes = file_res.content
         
-        return StreamingResponse(io.BytesIO(clean_bytes), media_type="image/jpeg")
+        if type == "image":
+            # Strip metadata for images
+            clean_bytes = strip_metadata(raw_bytes)
+            return StreamingResponse(io.BytesIO(clean_bytes), media_type="image/jpeg")
+        elif type == "video":
+            # Determine media type from filename
+            fname = file_info['filename'].lower()
+            if fname.endswith('.webp'):
+                media_type = "image/webp"
+            elif fname.endswith('.gif'):
+                media_type = "image/gif"
+            else:
+                media_type = "video/mp4"
+            return StreamingResponse(io.BytesIO(raw_bytes), media_type=media_type)
+        elif type == "audio":
+            fname = file_info['filename'].lower()
+            if fname.endswith('.wav'):
+                media_type = "audio/wav"
+            elif fname.endswith('.mp3'):
+                media_type = "audio/mpeg"
+            else:
+                media_type = "audio/flac"
+            return StreamingResponse(io.BytesIO(raw_bytes), media_type=media_type)
+
+
+@app.get("/api/image")
+async def get_image(prompt_id: str):
+    """Backward-compatible alias for /api/output?type=image"""
+    return await get_output(prompt_id, type="image")
 
 @app.get("/admin")
 def serve_admin():
