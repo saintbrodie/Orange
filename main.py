@@ -25,29 +25,23 @@ app = FastAPI(title="ComfyUI Minimal Frontend")
 
 # Initialize the SQLite database for logging usage
 def init_db():
-    conn = sqlite3.connect("usage_logs.db")
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS usage (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            client_ip TEXT,
-            tool_id TEXT,
-            prompt TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    with sqlite3.connect("usage_logs.db") as conn:
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS usage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                client_ip TEXT,
+                tool_id TEXT,
+                prompt TEXT
+            )
+        ''')
 
 init_db()
 
 def log_usage(client_ip: str, tool_id: str, prompt: str = None):
     try:
-        conn = sqlite3.connect("usage_logs.db")
-        c = conn.cursor()
-        c.execute("INSERT INTO usage (client_ip, tool_id, prompt) VALUES (?, ?, ?)", (client_ip, tool_id, prompt))
-        conn.commit()
-        conn.close()
+        with sqlite3.connect("usage_logs.db") as conn:
+            conn.execute("INSERT INTO usage (client_ip, tool_id, prompt) VALUES (?, ?, ?)", (client_ip, tool_id, prompt))
     except Exception as e:
         print(f"Error logging usage: {e}")
 
@@ -76,7 +70,9 @@ PERIOD_FILTERS = {
     "yearly":    "WHERE timestamp >= datetime('now', '-1 year')",
 }
 
-COMFY_URL = get_current_config().get("comfyServerUrl", "http://127.0.0.1:8188")
+def get_comfy_url():
+    """Read ComfyUI URL from config on every call so admin changes take effect without restart."""
+    return get_current_config().get("comfyServerUrl", "http://127.0.0.1:8188")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -97,7 +93,7 @@ def get_workflows():
 async def get_health():
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:
-            res = await client.get(f"{COMFY_URL}/system_stats")
+            res = await client.get(f"{get_comfy_url()}/system_stats")
             if res.status_code == 200:
                 data = res.json()
                 vram_warning = False
@@ -151,7 +147,7 @@ async def generate(
         try:
             async with httpx.AsyncClient() as client:
                 files = {'image': (image.filename, await image.read(), image.content_type)}
-                res = await client.post(f"{COMFY_URL}/upload/image", files=files)
+                res = await client.post(f"{get_comfy_url()}/upload/image", files=files)
                 if res.status_code != 200:
                     raise HTTPException(status_code=500, detail="Failed to upload image to ComfyUI backend")
                 upload_data = res.json()
@@ -187,12 +183,12 @@ async def generate(
     payload = {"prompt": workflow, "client_id": client_id}
     try:
         async with httpx.AsyncClient() as client:
-            res = await client.post(f"{COMFY_URL}/prompt", json=payload)
+            res = await client.post(f"{get_comfy_url()}/prompt", json=payload)
             if res.status_code != 200:
                 raise HTTPException(status_code=500, detail="Failed to queue generation in ComfyUI")
             data = res.json()
     except httpx.RequestError:
-        raise HTTPException(status_code=503, detail=f"Could not connect to ComfyUI server at {COMFY_URL}. Is it running?")
+        raise HTTPException(status_code=503, detail=f"Could not connect to ComfyUI server at {get_comfy_url()}. Is it running?")
         
     # Log successful generation request
     log_usage(client_ip, tool_id, prompt)
@@ -242,7 +238,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
     # Immediate history check
     async with httpx.AsyncClient() as client:
         try:
-            hist_res = await client.get(f"{COMFY_URL}/history/{prompt_id}")
+            hist_res = await client.get(f"{get_comfy_url()}/history/{prompt_id}")
             if hist_res.status_code == 200 and prompt_id in hist_res.json():
                 yield json.dumps({"status": "completed"})
                 return
@@ -255,7 +251,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
                 if await request.is_disconnected():
                     break
                 try:
-                    queue_res = await client.get(f"{COMFY_URL}/queue")
+                    queue_res = await client.get(f"{get_comfy_url()}/queue")
                     if queue_res.status_code == 200:
                         queue_data = queue_res.json()
                         pending = queue_data.get("queue_pending", [])
@@ -267,7 +263,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
                 await asyncio.sleep(2)
                 
     async def listen_ws():
-        ws_url = COMFY_URL.replace("http://", "ws://").replace("https://", "wss://") + f"/ws?clientId={client_id}"
+        ws_url = get_comfy_url().replace("http://", "ws://").replace("https://", "wss://") + f"/ws?clientId={client_id}"
         try:
             async with websockets.connect(ws_url) as websocket:
                 while True:
@@ -329,7 +325,7 @@ async def get_status(request: Request, prompt_id: str, client_id: str, tool_id: 
 @app.get("/api/image")
 async def get_image(prompt_id: str):
     async with httpx.AsyncClient() as client:
-        hist_res = await client.get(f"{COMFY_URL}/history/{prompt_id}")
+        hist_res = await client.get(f"{get_comfy_url()}/history/{prompt_id}")
         if hist_res.status_code != 200:
             raise HTTPException(status_code=404, detail="History not found")
             
@@ -349,7 +345,7 @@ async def get_image(prompt_id: str):
         if not file_info:
             raise HTTPException(status_code=404, detail="No output image found for prompt")
             
-        view_url = f"{COMFY_URL}/view?filename={file_info['filename']}&subfolder={file_info.get('subfolder', '')}&type={file_info.get('type', 'output')}"
+        view_url = f"{get_comfy_url()}/view?filename={file_info['filename']}&subfolder={file_info.get('subfolder', '')}&type={file_info.get('type', 'output')}"
         img_res = await client.get(view_url)
         if img_res.status_code != 200:
             raise HTTPException(status_code=500, detail="Failed to fetch image from ComfyUI backend")
@@ -371,23 +367,21 @@ def get_admin_usage(period: str = "all", _=Depends(verify_admin)):
         raise HTTPException(status_code=400, detail=f"Invalid period: {period}. Valid: {', '.join(PERIOD_FILTERS.keys())}")
 
     try:
-        conn = sqlite3.connect("usage_logs.db")
-        conn.row_factory = sqlite3.Row
-        c = conn.cursor()
-        c.execute(f"SELECT * FROM usage {date_filter} ORDER BY timestamp DESC LIMIT 500")
-        rows = c.fetchall()
-        
-        # Summary stats
-        c.execute(f"SELECT tool_id, COUNT(*) as count FROM usage {date_filter} GROUP BY tool_id")
-        tools_summary = [dict(row) for row in c.fetchall()]
-        
-        c.execute(f"SELECT client_ip, COUNT(*) as count FROM usage {date_filter} GROUP BY client_ip")
-        ip_summary = [dict(row) for row in c.fetchall()]
-        
-        conn.close()
+        with sqlite3.connect("usage_logs.db") as conn:
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute(f"SELECT * FROM usage {date_filter} ORDER BY timestamp DESC LIMIT 500")
+            rows = [dict(row) for row in c.fetchall()]
+            
+            # Summary stats
+            c.execute(f"SELECT tool_id, COUNT(*) as count FROM usage {date_filter} GROUP BY tool_id")
+            tools_summary = [dict(row) for row in c.fetchall()]
+            
+            c.execute(f"SELECT client_ip, COUNT(*) as count FROM usage {date_filter} GROUP BY client_ip")
+            ip_summary = [dict(row) for row in c.fetchall()]
         
         return {
-            "logs": [dict(row) for row in rows],
+            "logs": rows,
             "tools_summary": tools_summary,
             "ip_summary": ip_summary
         }

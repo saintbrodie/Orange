@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,16 +16,19 @@
             -webkit-appearance: none;
             margin: 0;
         }
+
         input[type="number"] {
             -moz-appearance: textfield;
             appearance: textfield;
         }
 
         /* Override styles.css fixed viewport rules to allow dashboard scrolling */
-        html, body {
+        html,
+        body {
             overflow-y: auto !important;
             height: auto !important;
         }
+
         body {
             display: flex !important;
             align-items: stretch !important;
@@ -32,75 +36,102 @@
         }
     </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col p-4 font-sans selection:bg-orange-950 selection:text-orange-200">
+
+<body
+    class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col p-4 font-sans selection:bg-orange-950 selection:text-orange-200">
     <!-- Navbar -->
-    <nav class="w-[calc(100%-2rem)] max-w-7xl mx-auto mt-4 rounded-3xl bg-zinc-900/80 backdrop-blur-md border border-zinc-800 px-8 py-4 z-10 relative flex justify-between items-center shadow-2xl">
+    <nav
+        class="w-[calc(100%-2rem)] max-w-7xl mx-auto mt-4 rounded-3xl bg-zinc-900/80 backdrop-blur-md border border-zinc-800 px-8 py-4 z-10 relative flex justify-between items-center shadow-2xl">
         <div class="flex items-center gap-3">
             <img src="/static/orange.svg" class="w-10 h-10 rounded-lg object-contain" alt="Orange Mascot">
-            <h1 class="text-2xl font-bold bg-gradient-to-br from-orange-400 to-orange-600 text-transparent bg-clip-text mr-6">Orange Admin</h1>
-            
+            <h1
+                class="text-2xl font-bold bg-gradient-to-br from-orange-400 to-orange-600 text-transparent bg-clip-text mr-6">
+                Orange Admin</h1>
+
             <!-- Menu Tabs -->
             <div id="admin-menu" class="hidden items-center gap-2 border-l border-zinc-800 pl-6">
-                <button id="tab-general" class="admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition">
+                <button id="tab-general"
+                    class="admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition">
                     <i data-lucide="settings" class="w-4 h-4"></i> General Settings
                 </button>
-                <button id="tab-tools" class="admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition">
+                <button id="tab-tools"
+                    class="admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition">
                     <i data-lucide="wrench" class="w-4 h-4"></i> Tool Editor
                 </button>
-                <button id="tab-analytics" class="admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition">
+                <button id="tab-analytics"
+                    class="admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition">
                     <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Analytics
                 </button>
             </div>
         </div>
-        <button id="logout-btn" class="hidden bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-5 py-2.5 rounded-xl text-sm font-medium transition-colors border border-zinc-700 ml-auto flex items-center gap-2"><i data-lucide="log-out" class="w-4 h-4"></i> Logout</button>
+        <button id="logout-btn"
+            class="hidden bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-5 py-2.5 rounded-xl text-sm font-medium transition-colors border border-zinc-700 ml-auto flex items-center gap-2"><i
+                data-lucide="log-out" class="w-4 h-4"></i> Logout</button>
     </nav>
 
     <!-- Main Content Area -->
     <main class="flex-1 flex flex-col items-center relative w-full pt-16 pb-10 px-4 z-10">
-        
+
         <!-- Login Form UI -->
-        <div id="login-container" class="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-10 shadow-2xl animate-in fade-in zoom-in duration-300 mt-10">
+        <div id="login-container"
+            class="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-10 shadow-2xl animate-in fade-in zoom-in duration-300 mt-10">
             <div class="flex flex-col items-center gap-3 mb-8">
                 <i data-lucide="lock" class="w-12 h-12 text-orange-500 mb-2"></i>
-                <h2 class="text-2xl font-semibold text-zinc-100">Admin Tracking</h2>
+                <h2 class="text-2xl font-semibold text-zinc-100">Admin Dashboard</h2>
                 <p class="text-zinc-500 text-sm">Secure dashboard access</p>
             </div>
-            
+
             <div class="space-y-4">
                 <div class="space-y-2">
                     <label class="text-xs font-medium text-zinc-500 uppercase tracking-widest pl-1">Admin Key</label>
-                    <input type="password" id="admin-key" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-lg focus:outline-none focus:ring-1 focus:ring-orange-600 focus:border-orange-600 transition-all placeholder:text-zinc-700" placeholder="••••••••" autocomplete="off">
+                    <input type="password" id="admin-key"
+                        class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-lg focus:outline-none focus:ring-1 focus:ring-orange-600 focus:border-orange-600 transition-all placeholder:text-zinc-700"
+                        placeholder="••••••••" autocomplete="off">
                 </div>
-                
-                <div id="login-error" class="hidden bg-red-950/50 border border-red-900 text-red-200 px-4 py-3 rounded-xl text-sm flex items-start gap-3">
+
+                <div id="login-error"
+                    class="hidden bg-red-950/50 border border-red-900 text-red-200 px-4 py-3 rounded-xl text-sm flex items-start gap-3">
                     <i data-lucide="alert-circle" class="w-5 h-5 shrink-0 mt-0.5"></i>
                     <span>Invalid Admin Key</span>
                 </div>
 
-                <button id="login-btn" class="w-full bg-gradient-to-r from-orange-600 to-orange-500 text-white font-semibold flex items-center justify-center gap-3 rounded-xl py-4 hover:from-orange-500 hover:to-orange-400 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(249,115,22,0.2)] text-lg mt-4">
+                <button id="login-btn"
+                    class="w-full bg-gradient-to-r from-orange-600 to-orange-500 text-white font-semibold flex items-center justify-center gap-3 rounded-xl py-4 hover:from-orange-500 hover:to-orange-400 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(249,115,22,0.2)] text-lg mt-4">
                     Secure Login <i data-lucide="arrow-right" class="w-5 h-5"></i>
                 </button>
             </div>
         </div>
 
         <!-- Dashboard UI -->
-        <div id="dashboard-container" class="hidden w-full max-w-7xl mx-auto space-y-8 animate-in fade-in duration-300 pb-8">
+        <div id="dashboard-container"
+            class="hidden w-full max-w-7xl mx-auto space-y-8 animate-in fade-in duration-300 pb-8">
             <!-- Header & Filters -->
             <div class="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-4">
                     <h2 class="text-2xl font-semibold text-zinc-100 flex items-center gap-2">
                         <i data-lucide="bar-chart" class="w-6 h-6 text-orange-500"></i> Analytics
                     </h2>
-                    <button id="export-csv-btn" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-2 border border-zinc-700 shadow-sm">
+                    <button id="export-csv-btn"
+                        class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-2 border border-zinc-700 shadow-sm">
                         <i data-lucide="download" class="w-3 h-3"></i> Export CSV
                     </button>
                 </div>
                 <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-1 flex gap-1 shadow-lg">
-                    <button class="period-btn px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-800 text-zinc-100 shadow-sm transition-colors" data-period="all">All Time</button>
-                    <button class="period-btn px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors" data-period="weekly">Weekly</button>
-                    <button class="period-btn px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors" data-period="monthly">Monthly</button>
-                    <button class="period-btn px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors" data-period="quarterly">Quarterly</button>
-                    <button class="period-btn px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors" data-period="yearly">Yearly</button>
+                    <button
+                        class="period-btn px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-800 text-zinc-100 shadow-sm transition-colors"
+                        data-period="all">All Time</button>
+                    <button
+                        class="period-btn px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+                        data-period="weekly">Weekly</button>
+                    <button
+                        class="period-btn px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+                        data-period="monthly">Monthly</button>
+                    <button
+                        class="period-btn px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+                        data-period="quarterly">Quarterly</button>
+                    <button
+                        class="period-btn px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+                        data-period="yearly">Yearly</button>
                 </div>
             </div>
 
@@ -110,9 +141,11 @@
                     <h3 class="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-4">Top Tools Used</h3>
                     <ul class="space-y-3 overflow-y-auto max-h-72 pr-2" id="tools-list"></ul>
                 </div>
-                <div class="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col items-center justify-center text-center">
+                <div
+                    class="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col items-center justify-center text-center">
                     <h3 class="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-2">Total Generations</h3>
-                    <div class="text-6xl font-bold bg-gradient-to-br from-orange-400 to-orange-600 text-transparent bg-clip-text" id="total-count">0</div>
+                    <div class="text-6xl font-bold bg-gradient-to-br from-orange-400 to-orange-600 text-transparent bg-clip-text"
+                        id="total-count">0</div>
                 </div>
                 <div class="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6 shadow-xl">
                     <h3 class="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-4">Top Users (IP)</h3>
@@ -129,7 +162,8 @@
                 </div>
                 <div class="overflow-y-auto flex-1 p-0">
                     <table class="w-full text-left text-sm whitespace-nowrap">
-                        <thead class="uppercase tracking-wider text-zinc-500 text-xs bg-zinc-950/50 sticky top-0 backdrop-blur-sm">
+                        <thead
+                            class="uppercase tracking-wider text-zinc-500 text-xs bg-zinc-950/50 sticky top-0 backdrop-blur-sm">
                             <tr>
                                 <th class="px-6 py-4 font-medium">ID</th>
                                 <th class="px-6 py-4 font-medium">Time (Local)</th>
@@ -145,24 +179,28 @@
                 </div>
             </div>
         </div>
-    
+
         <!-- General Settings UI -->
         <div id="settings-container" class="hidden w-full max-w-3xl mx-auto animate-in fade-in duration-300 pb-8">
             <div class="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-8 shadow-xl flex flex-col">
                 <h2 class="text-xl font-semibold text-zinc-100 flex items-center gap-2 mb-6">
                     <i data-lucide="settings" class="w-5 h-5 text-orange-500"></i> General Settings
                 </h2>
-                
+
                 <div class="space-y-6">
                     <div>
-                        <label class="text-xs text-zinc-500 font-bold uppercase tracking-wider mb-2 block">ComfyUI Server URL</label>
-                        <input type="text" id="setting-comfy-url" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono">
+                        <label class="text-xs text-zinc-500 font-bold uppercase tracking-wider mb-2 block">ComfyUI
+                            Server URL</label>
+                        <input type="text" id="setting-comfy-url"
+                            class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono">
                     </div>
                     <div>
-                        <label class="text-xs text-zinc-500 font-bold uppercase tracking-wider mb-2 block">Admin Key</label>
-                        <input type="text" id="setting-admin-key" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono">
+                        <label class="text-xs text-zinc-500 font-bold uppercase tracking-wider mb-2 block">Admin
+                            Key</label>
+                        <input type="text" id="setting-admin-key"
+                            class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono">
                     </div>
-                    
+
                     <div class="pt-4 border-t border-zinc-800/50">
                         <h3 class="text-sm font-semibold text-zinc-300 mb-4">Default Aspect Ratios</h3>
                         <div class="grid grid-cols-3 gap-4">
@@ -170,55 +208,65 @@
                                 <div class="text-xs text-zinc-500 mb-2 font-bold text-center">1:1</div>
                                 <div class="flex items-center gap-2 mb-2">
                                     <span class="text-xs text-zinc-500 font-medium w-4 text-center">H</span>
-                                    <input type="number" id="setting-ar-11-h" class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                    <input type="number" id="setting-ar-11-h"
+                                        class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs text-zinc-500 font-medium w-4 text-center">W</span>
-                                    <input type="number" id="setting-ar-11-w" class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                    <input type="number" id="setting-ar-11-w"
+                                        class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
                                 </div>
                             </div>
                             <div class="bg-zinc-950 p-3 rounded border border-zinc-800">
                                 <div class="text-xs text-zinc-500 mb-2 font-bold text-center">9:16</div>
                                 <div class="flex items-center gap-2 mb-2">
                                     <span class="text-xs text-zinc-500 font-medium w-4 text-center">H</span>
-                                    <input type="number" id="setting-ar-916-h" class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                    <input type="number" id="setting-ar-916-h"
+                                        class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs text-zinc-500 font-medium w-4 text-center">W</span>
-                                    <input type="number" id="setting-ar-916-w" class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                    <input type="number" id="setting-ar-916-w"
+                                        class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
                                 </div>
                             </div>
                             <div class="bg-zinc-950 p-3 rounded border border-zinc-800">
                                 <div class="text-xs text-zinc-500 mb-2 font-bold text-center">16:9</div>
                                 <div class="flex items-center gap-2 mb-2">
                                     <span class="text-xs text-zinc-500 font-medium w-4 text-center">H</span>
-                                    <input type="number" id="setting-ar-169-h" class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                    <input type="number" id="setting-ar-169-h"
+                                        class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs text-zinc-500 font-medium w-4 text-center">W</span>
-                                    <input type="number" id="setting-ar-169-w" class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                    <input type="number" id="setting-ar-169-w"
+                                        class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="pt-4 border-t border-zinc-800/50">
                         <h3 class="text-sm font-semibold text-zinc-300 mb-4">Database Management</h3>
                         <div class="flex gap-4">
-                            <button id="backup-db-btn" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 border border-zinc-700 shadow-sm">
+                            <button id="backup-db-btn"
+                                class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 border border-zinc-700 shadow-sm">
                                 <i data-lucide="download-cloud" class="w-4 h-4"></i> Backup Database
                             </button>
                             <input type="file" id="restore-db-input" accept=".db" class="hidden">
-                            <button id="restore-db-btn" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 border border-zinc-700 shadow-sm">
+                            <button id="restore-db-btn"
+                                class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 border border-zinc-700 shadow-sm">
                                 <i data-lucide="upload-cloud" class="w-4 h-4"></i> Restore Database
                             </button>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="mt-8 flex justify-end items-center gap-4">
-                    <span id="settings-save-status" class="hidden text-sm text-green-500 flex items-center gap-1"><i data-lucide="check-circle-2" class="w-4 h-4"></i> Saved</span>
-                    <button id="save-settings-btn" class="bg-orange-600 hover:bg-orange-500 text-white px-6 py-2.5 rounded-xl text-sm font-medium transition flex items-center gap-2">
+                    <span id="settings-save-status" class="hidden text-sm text-green-500 flex items-center gap-1"><i
+                            data-lucide="check-circle-2" class="w-4 h-4"></i> Saved</span>
+                    <button id="save-settings-btn"
+                        class="bg-orange-600 hover:bg-orange-500 text-white px-6 py-2.5 rounded-xl text-sm font-medium transition flex items-center gap-2">
                         <i data-lucide="save" class="w-4 h-4"></i> Save Settings
                     </button>
                 </div>
@@ -226,26 +274,30 @@
         </div>
 
         <!-- Tools Editor UI -->
-        <div id="tools-container" class="hidden w-full max-w-7xl mx-auto flex flex-col md:flex-row gap-6 animate-in fade-in duration-300 pb-8">
-            <div class="w-full md:w-1/3 bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col max-h-[85vh]">
+        <div id="tools-container"
+            class="hidden w-full max-w-7xl mx-auto flex flex-col md:flex-row gap-6 animate-in fade-in duration-300 pb-8">
+            <div
+                class="w-full md:w-1/3 bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col max-h-[85vh]">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-semibold text-zinc-100 flex items-center gap-2">
                         <i data-lucide="blocks" class="w-5 h-5 text-orange-500"></i> Tools
                     </h2>
-                    
+
                 </div>
                 <div class="flex-1 overflow-y-auto pr-2 space-y-2" id="admin-tools-list">
                     <!-- Tools list -->
                 </div>
                 <div class="mt-6 pt-4 border-t border-zinc-800/50">
                     <input type="file" id="workflow-upload-input" accept=".json" class="hidden">
-                    <button id="upload-workflow-btn" class="w-full flex items-center justify-center gap-2 bg-gradient-to-br from-zinc-800 to-zinc-900 hover:from-zinc-700 hover:to-zinc-800 text-zinc-300 py-3 rounded-xl border border-zinc-700 transition shadow-sm">
+                    <button id="upload-workflow-btn"
+                        class="w-full flex items-center justify-center gap-2 bg-gradient-to-br from-zinc-800 to-zinc-900 hover:from-zinc-700 hover:to-zinc-800 text-zinc-300 py-3 rounded-xl border border-zinc-700 transition shadow-sm">
                         <i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload Workflow
                     </button>
                 </div>
             </div>
 
-            <div class="w-full md:w-2/3 bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col min-h-[60vh]">
+            <div
+                class="w-full md:w-2/3 bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col min-h-[60vh]">
                 <div id="tool-editor-empty" class="flex-1 flex flex-col items-center justify-center text-zinc-500">
                     <i data-lucide="mouse-pointer-click" class="w-12 h-12 mb-4 opacity-30"></i>
                     <p>Select a tool to configure or create a new one.</p>
@@ -253,23 +305,30 @@
                 <div id="tool-editor-form" class="hidden flex-col gap-6">
                     <div class="flex justify-between items-center border-b border-zinc-800 pb-4">
                         <h3 class="text-lg font-medium text-zinc-100" id="tool-editor-title">Edit Configuration</h3>
-                        <button id="delete-tool-btn" class="text-red-400 hover:text-red-200 bg-red-950/30 hover:bg-red-900/40 p-2 rounded-lg transition" title="Delete tool"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        <button id="delete-tool-btn"
+                            class="text-red-400 hover:text-red-200 bg-red-950/30 hover:bg-red-900/40 p-2 rounded-lg transition"
+                            title="Delete tool"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="space-y-1">
                             <label class="text-xs font-medium text-zinc-400 uppercase">Tool ID</label>
-                            <input type="text" id="edit-tool-id" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm focus:border-orange-600 focus:ring-1 focus:ring-orange-600 outline-none" placeholder="e.g., custom-gen">
+                            <input type="text" id="edit-tool-id"
+                                class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm focus:border-orange-600 focus:ring-1 focus:ring-orange-600 outline-none"
+                                placeholder="e.g., custom-gen">
                         </div>
                         <div class="space-y-1">
                             <label class="text-xs font-medium text-zinc-400 uppercase">Display Name</label>
-                            <input type="text" id="edit-tool-name" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm focus:border-orange-600 focus:ring-1 outline-none" placeholder="e.g., Custom Generator">
+                            <input type="text" id="edit-tool-name"
+                                class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm focus:border-orange-600 focus:ring-1 outline-none"
+                                placeholder="e.g., Custom Generator">
                         </div>
                     </div>
 
                     <div class="space-y-1">
                         <label class="text-xs font-medium text-zinc-400 uppercase">Workflow File (.json)</label>
-                        <input type="text" id="edit-tool-file" readonly class="w-full bg-zinc-950/50 border border-zinc-800 rounded-lg p-3 text-sm outline-none text-zinc-500 cursor-not-allowed">
+                        <input type="text" id="edit-tool-file" readonly
+                            class="w-full bg-zinc-950/50 border border-zinc-800 rounded-lg p-3 text-sm outline-none text-zinc-500 cursor-not-allowed">
                     </div>
 
                     <datalist id="nodes-list"></datalist>
@@ -280,9 +339,12 @@
                     </div>
 
                     <div class="mt-auto pt-6 flex justify-between items-center">
-                        <span id="save-status" class="text-sm font-medium text-green-400 hidden flex items-center gap-1"><i data-lucide="check-circle" class="w-4 h-4"></i> Saved to config</span>
+                        <span id="save-status"
+                            class="text-sm font-medium text-green-400 hidden flex items-center gap-1"><i
+                                data-lucide="check-circle" class="w-4 h-4"></i> Saved to config</span>
                         <div class="ml-auto flex gap-3">
-                            <button id="save-tool-btn" class="bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white px-6 py-3 rounded-xl text-sm font-semibold transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg flex items-center gap-2">
+                            <button id="save-tool-btn"
+                                class="bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white px-6 py-3 rounded-xl text-sm font-semibold transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg flex items-center gap-2">
                                 <i data-lucide="save" class="w-4 h-4"></i> Save Tool
                             </button>
                         </div>
@@ -337,7 +399,7 @@
 
         loginBtn.addEventListener('click', () => {
             const key = adminKeyInput.value.trim();
-            if(!key) return;
+            if (!key) return;
             fetchData(key);
         });
 
@@ -351,6 +413,8 @@
             localStorage.removeItem('orange_admin_key');
             currentKey = null;
             dashboardContainer.classList.add('hidden');
+            settingsContainer.classList.add('hidden');
+            toolsContainer.classList.add('hidden');
             logoutBtn.classList.add('hidden');
             adminMenu.classList.add('hidden');
             adminMenu.classList.remove('flex');
@@ -362,7 +426,7 @@
             const originalBtnText = loginBtn.innerHTML;
             loginBtn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Authenticating...';
             lucide.createIcons();
-            
+
             try {
                 const res = await fetch('/api/admin/usage?period=' + currentPeriod, {
                     headers: { 'Authorization': 'Bearer ' + key }
@@ -371,20 +435,22 @@
                     throw new Error("Unauthorized");
                 }
                 const data = await res.json();
-                
+
                 // Login Success
                 localStorage.setItem('orange_admin_key', key);
                 currentKey = key;
                 loginError.classList.add('hidden');
-                
+
                 if (!loginContainer.classList.contains('hidden')) {
                     loginContainer.classList.add('hidden');
                     logoutBtn.classList.remove('hidden');
                     adminMenu.classList.remove('hidden');
                     adminMenu.classList.add('flex');
-                    document.getElementById('tab-general').click();
+                    const savedTab = localStorage.getItem('orange_admin_tab') || 'general';
+                    const tabMap = { general: tabGeneral, tools: tabTools, analytics: tabAnalytics };
+                    (tabMap[savedTab] || tabGeneral).click();
                 }
-                
+
                 renderDashboard(data);
             } catch (e) {
                 loginError.classList.remove('hidden');
@@ -398,7 +464,7 @@
         function renderDashboard(data) {
             const { logs, tools_summary, ip_summary } = data;
             currentAnalyticsLogs = logs;
-            
+
             // Total Gen
             const total = tools_summary.reduce((acc, curr) => acc + curr.count, 0);
             document.getElementById('total-count').innerText = total;
@@ -406,14 +472,14 @@
             // Tools list
             const toolsList = document.getElementById('tools-list');
             toolsList.innerHTML = '';
-            tools_summary.sort((a,b) => b.count - a.count).forEach(t => {
+            tools_summary.sort((a, b) => b.count - a.count).forEach(t => {
                 toolsList.innerHTML += `<li class="flex justify-between items-center py-2 border-b border-zinc-800/50 last:border-0"><span class="text-zinc-300 font-medium">${t.tool_id}</span> <strong class="bg-zinc-800/50 text-orange-400 border border-zinc-700/50 px-2 py-1 rounded-md text-xs">${t.count}</strong></li>`;
             });
 
             // IP list
             const ipList = document.getElementById('ip-list');
             ipList.innerHTML = '';
-            ip_summary.sort((a,b) => b.count - a.count).forEach(ip => {
+            ip_summary.sort((a, b) => b.count - a.count).forEach(ip => {
                 ipList.innerHTML += `<li class="flex justify-between items-center py-2 border-b border-zinc-800/50 last:border-0"><span class="text-zinc-300 font-mono text-sm">${ip.client_ip}</span> <strong class="bg-zinc-800/50 text-orange-400 border border-zinc-700/50 px-2 py-1 rounded-md text-xs">${ip.count}</strong></li>`;
             });
 
@@ -426,7 +492,7 @@
                     let ds = log.timestamp.endsWith('Z') ? log.timestamp : log.timestamp + "Z";
                     const d = new Date(ds);
                     localTime = d.toLocaleString();
-                } catch(e) {}
+                } catch (e) { }
 
                 const promptSnippet = log.prompt ? log.prompt : '<em class="text-zinc-600">None</em>';
                 logsBody.innerHTML += `
@@ -440,7 +506,7 @@
                 `;
             });
         }
-    
+
 
         document.getElementById('export-csv-btn').addEventListener('click', () => {
             if (!currentAnalyticsLogs || currentAnalyticsLogs.length === 0) {
@@ -449,7 +515,7 @@
             }
 
             const headers = ['ID', 'Timestamp', 'Client IP', 'Tool ID', 'Prompt'];
-            
+
             const escapeCSV = (str) => {
                 if (str === null || str === undefined) return '';
                 const stringified = String(str);
@@ -468,10 +534,10 @@
             ]);
 
             const csvContent = [headers.map(escapeCSV).join(','), ...rows.map(r => r.join(','))].join('\n');
-            
+
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
-            
+
             const link = document.createElement('a');
             link.setAttribute('href', url);
             link.setAttribute('download', `orange_analytics_${currentPeriod}.csv`);
@@ -502,7 +568,7 @@
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-            } catch(e) {
+            } catch (e) {
                 alert('Backup failed: ' + e.message);
             }
         });
@@ -515,7 +581,7 @@
         restoreInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            
+
             if (!confirm('Are you sure you want to restore the database? This will overwrite current usage logs.')) {
                 e.target.value = '';
                 return;
@@ -538,7 +604,7 @@
             } catch (err) {
                 alert('Restore failed: ' + err);
             }
-            
+
             e.target.value = '';
         });
 
@@ -548,7 +614,7 @@
         const tabTools = document.getElementById('tab-tools');
         const settingsContainer = document.getElementById('settings-container');
         const toolsContainer = document.getElementById('tools-container');
-        
+
         let appConfig = null;
         let availableWorkflowFiles = [];
         let editingToolIndex = -1;
@@ -560,7 +626,7 @@
             tabGeneral.className = defaultClass;
             tabTools.className = defaultClass;
             tabAnalytics.className = defaultClass;
-            
+
             settingsContainer.classList.add('hidden');
             toolsContainer.classList.add('hidden');
             dashboardContainer.classList.add('hidden');
@@ -572,6 +638,7 @@
             resetTabs();
             tabGeneral.className = activeClass;
             settingsContainer.classList.remove('hidden');
+            localStorage.setItem('orange_admin_tab', 'general');
             await loadEditorData();
         });
 
@@ -579,6 +646,7 @@
             resetTabs();
             tabTools.className = activeClass;
             toolsContainer.classList.remove('hidden');
+            localStorage.setItem('orange_admin_tab', 'tools');
             await loadEditorData();
         });
 
@@ -586,6 +654,7 @@
             resetTabs();
             tabAnalytics.className = activeClass;
             dashboardContainer.classList.remove('hidden');
+            localStorage.setItem('orange_admin_tab', 'analytics');
         });
 
         async function loadEditorData() {
@@ -594,11 +663,11 @@
                 const cRes = await adminFetch('/api/admin/config');
                 if (cRes.ok) {
                     appConfig = await cRes.json();
-                    
+
                     // Populate General Settings
                     document.getElementById('setting-comfy-url').value = appConfig.comfyServerUrl || '';
                     document.getElementById('setting-admin-key').value = appConfig.adminKey || '';
-                    
+
                     if (appConfig.aspectRatios) {
                         const ar11 = appConfig.aspectRatios['1:1'];
                         if (ar11) {
@@ -617,14 +686,14 @@
                         }
                     }
                 }
-                
+
                 // Workflows
                 const wRes = await adminFetch('/api/admin/workflows');
                 if (wRes.ok) {
                     const data = await wRes.json();
                     availableWorkflowFiles = data.files || [];
                 }
-                
+
                 renderToolsList();
                 updateWorkflowDropdown();
             } catch (e) { console.error("Error loading tools data."); }
@@ -638,7 +707,7 @@
             appConfig.tools.forEach((tool, index) => {
                 const isSelected = index === editingToolIndex;
                 const activeClass = isSelected ? 'bg-orange-600/20 border-orange-600/50 text-orange-200' : 'bg-zinc-800/40 border-zinc-700 text-zinc-300 hover:bg-zinc-800';
-                
+
                 list.innerHTML += `
                     <div class="cursor-pointer p-3 rounded-xl border ${activeClass} transition flex items-center gap-3" onclick="selectTool(${index})">
                         <i data-lucide="terminal" class="w-4 h-4 opacity-70"></i>
@@ -662,24 +731,24 @@
 
         document.getElementById('edit-tool-file').addEventListener('change', async (e) => {
             const filename = e.target.value;
-            if(!filename) { parsedNodes = {}; return; }
+            if (!filename) { parsedNodes = {}; return; }
             try {
                 const res = await adminFetch(`/api/admin/workflows/${filename}`);
-                if(res.ok) {
+                if (res.ok) {
                     const data = await res.json();
                     const datalist = document.getElementById('nodes-list');
                     datalist.innerHTML = '';
                     parsedNodes = data;
                     Object.keys(data).forEach(nodeId => {
                         const node = data[nodeId];
-                        if(node.class_type && node._meta && node._meta.title) {
-                             datalist.innerHTML += `<option value="${nodeId}">${nodeId} (${node._meta.title} - ${node.class_type})</option>`;
+                        if (node.class_type && node._meta && node._meta.title) {
+                            datalist.innerHTML += `<option value="${nodeId}">${nodeId} (${node._meta.title} - ${node.class_type})</option>`;
                         } else {
-                             datalist.innerHTML += `<option value="${nodeId}">${nodeId} (${node.class_type})</option>`;
+                            datalist.innerHTML += `<option value="${nodeId}">${nodeId} (${node.class_type})</option>`;
                         }
                     });
                 }
-            } catch(e) {}
+            } catch (e) { }
         });
 
         async function selectTool(index) {
@@ -694,9 +763,9 @@
             document.getElementById('edit-tool-id').value = tool.id || '';
             document.getElementById('edit-tool-name').value = tool.name || '';
             document.getElementById('edit-tool-file').value = tool.workflowFile || '';
-            
+
             // Trigger change to load nodes
-            if(tool.workflowFile) {
+            if (tool.workflowFile) {
                 const ev = new Event('change');
                 document.getElementById('edit-tool-file').dispatchEvent(ev);
             }
@@ -704,14 +773,14 @@
             renderMappings(tool.nodeMapping || {});
         }
 
-        window.toggleMapping = function(type) {
+        window.toggleMapping = function (type) {
             const cb = document.getElementById(`map-${type}-enable`);
             const isEnabled = cb.checked;
             const container = document.getElementById(`map-${type}-container`);
             const nodeInput = document.getElementById(`map-${type}-node`);
             const dot = cb.nextElementSibling.nextElementSibling;
-            
-            if(isEnabled) {
+
+            if (isEnabled) {
                 container.classList.remove('opacity-50', 'grayscale');
                 nodeInput.disabled = false;
                 dot.classList.add('translate-x-3');
@@ -722,16 +791,16 @@
                     const customArCheckbox = document.getElementById('map-res-custom-ar');
                     if (customArCheckbox) customArCheckbox.disabled = false;
                     ['1:1', '9:16', '16:9'].forEach(r => {
-                        const arw = document.getElementById(`ar-${r.replace(':','')}-w`);
-                        const arh = document.getElementById(`ar-${r.replace(':','')}-h`);
+                        const arw = document.getElementById(`ar-${r.replace(':', '')}-w`);
+                        const arh = document.getElementById(`ar-${r.replace(':', '')}-h`);
                         if (arw) arw.disabled = false;
                         if (arh) arh.disabled = false;
                     });
                 } else {
                     const fieldInput = document.getElementById(`map-${type}-field`);
-                    if(fieldInput) fieldInput.disabled = false;
+                    if (fieldInput) fieldInput.disabled = false;
                     const seedRand = document.getElementById('map-seed-rand');
-                    if(type === 'seed' && seedRand) seedRand.disabled = false;
+                    if (type === 'seed' && seedRand) seedRand.disabled = false;
                 }
             } else {
                 container.classList.add('opacity-50', 'grayscale');
@@ -744,16 +813,16 @@
                     const customArCheckbox = document.getElementById('map-res-custom-ar');
                     if (customArCheckbox) customArCheckbox.disabled = true;
                     ['1:1', '9:16', '16:9'].forEach(r => {
-                        const arw = document.getElementById(`ar-${r.replace(':','')}-w`);
-                        const arh = document.getElementById(`ar-${r.replace(':','')}-h`);
+                        const arw = document.getElementById(`ar-${r.replace(':', '')}-w`);
+                        const arh = document.getElementById(`ar-${r.replace(':', '')}-h`);
                         if (arw) arw.disabled = true;
                         if (arh) arh.disabled = true;
                     });
                 } else {
                     const fieldInput = document.getElementById(`map-${type}-field`);
-                    if(fieldInput) fieldInput.disabled = true;
+                    if (fieldInput) fieldInput.disabled = true;
                     const seedRand = document.getElementById('map-seed-rand');
-                    if(type === 'seed' && seedRand) seedRand.disabled = true;
+                    if (type === 'seed' && seedRand) seedRand.disabled = true;
                 }
             }
         };
@@ -761,18 +830,18 @@
         function renderMappings(mappings) {
             const container = document.getElementById('node-mappings-container');
             container.innerHTML = '';
-            
+
             MAPPING_TYPES.forEach(type => {
                 let mapData, isEnabled, fieldUI, extraUI = '';
-                
+
                 if (type === 'resolution') {
-                    mapData = { 
+                    mapData = {
                         nodeId: (mappings.width && mappings.width.nodeId) || (mappings.height && mappings.height.nodeId) || '',
                         wField: (mappings.width && mappings.width.field) || 'width',
                         hField: (mappings.height && mappings.height.field) || 'height'
                     };
                     isEnabled = !!(mappings.width || mappings.height);
-                    
+
                     fieldUI = `
                         <div class="flex-1">
                             <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Width Field</label>
@@ -783,11 +852,11 @@
                             <input type="text" id="map-res-hfield" value="${mapData.hField}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" ${!isEnabled ? 'disabled' : ''}>
                         </div>
                     `;
-                    
+
                     const tool = appConfig.tools[editingToolIndex] || {};
                     const ar = tool.aspectRatios || {};
                     const hasCustomAR = !!tool.aspectRatios;
-                    
+
                     extraUI = `
                     <div class="mt-4 pt-3 border-t border-zinc-700/50">
                         <div class="flex justify-between items-center mb-2">
@@ -802,11 +871,11 @@
                                     <div class="text-[10px] text-zinc-500 mb-2 text-center font-bold">${r}</div>
                                     <div class="flex items-center gap-1 mb-1">
                                         <span class="text-[10px] text-zinc-500 font-medium w-4 text-center">H</span>
-                                        <input type="number" id="ar-${r.replace(':','')}-h" value="${ar[r]?.height || ''}" class="w-full bg-zinc-950 border border-zinc-800 text-xs p-1 rounded text-center text-zinc-300 outline-none focus:border-orange-500" ${!isEnabled ? 'disabled' : ''}>
+                                        <input type="number" id="ar-${r.replace(':', '')}-h" value="${ar[r]?.height || ''}" class="w-full bg-zinc-950 border border-zinc-800 text-xs p-1 rounded text-center text-zinc-300 outline-none focus:border-orange-500" ${!isEnabled ? 'disabled' : ''}>
                                     </div>
                                     <div class="flex items-center gap-1">
                                         <span class="text-[10px] text-zinc-500 font-medium w-4 text-center">W</span>
-                                        <input type="number" id="ar-${r.replace(':','')}-w" value="${ar[r]?.width || ''}" class="w-full bg-zinc-950 border border-zinc-800 text-xs p-1 rounded text-center text-zinc-300 outline-none focus:border-orange-500" ${!isEnabled ? 'disabled' : ''}>
+                                        <input type="number" id="ar-${r.replace(':', '')}-w" value="${ar[r]?.width || ''}" class="w-full bg-zinc-950 border border-zinc-800 text-xs p-1 rounded text-center text-zinc-300 outline-none focus:border-orange-500" ${!isEnabled ? 'disabled' : ''}>
                                     </div>
                                 </div>
                             `).join('')}
@@ -854,47 +923,47 @@
 
 
         document.getElementById('delete-tool-btn').addEventListener('click', async () => {
-             if(editingToolIndex === -1) return;
-             if(confirm('Are you sure you want to remove this tool configuration and permanently delete its workflow file?')) {
-                 const tool = appConfig.tools[editingToolIndex];
-                 if (tool.workflowFile) {
-                     try {
-                         await adminFetch(`/api/admin/workflows/${encodeURIComponent(tool.workflowFile)}`, { method: 'DELETE' });
-                     } catch(e) { console.error("Error deleting workflow file", e); }
-                 }
-                 appConfig.tools.splice(editingToolIndex, 1);
-                 document.getElementById('tool-editor-empty').classList.remove('hidden');
-                 document.getElementById('tool-editor-form').classList.add('hidden');
-                 document.getElementById('tool-editor-form').classList.remove('flex');
-                 editingToolIndex = -1;
-                 saveConfigToBackend();
-             }
+            if (editingToolIndex === -1) return;
+            if (confirm('Are you sure you want to remove this tool configuration and permanently delete its workflow file?')) {
+                const tool = appConfig.tools[editingToolIndex];
+                if (tool.workflowFile) {
+                    try {
+                        await adminFetch(`/api/admin/workflows/${encodeURIComponent(tool.workflowFile)}`, { method: 'DELETE' });
+                    } catch (e) { console.error("Error deleting workflow file", e); }
+                }
+                appConfig.tools.splice(editingToolIndex, 1);
+                document.getElementById('tool-editor-empty').classList.remove('hidden');
+                document.getElementById('tool-editor-form').classList.add('hidden');
+                document.getElementById('tool-editor-form').classList.remove('flex');
+                editingToolIndex = -1;
+                saveConfigToBackend();
+            }
         });
 
         document.getElementById('save-tool-btn').addEventListener('click', () => {
-            if(editingToolIndex === -1) return;
+            if (editingToolIndex === -1) return;
             const tool = appConfig.tools[editingToolIndex];
             tool.id = document.getElementById('edit-tool-id').value.trim();
             tool.name = document.getElementById('edit-tool-name').value.trim();
-            
+
             tool.nodeMapping = {};
             delete tool.aspectRatios;
-            
+
             MAPPING_TYPES.forEach(type => {
                 const isEnabled = document.getElementById(`map-${type}-enable`).checked;
                 const nodeVal = document.getElementById(`map-${type}-node`).value.trim();
-                
-                if(isEnabled && nodeVal) {
+
+                if (isEnabled && nodeVal) {
                     if (type === 'resolution') {
                         const wField = document.getElementById('map-res-wfield').value.trim() || 'width';
                         const hField = document.getElementById('map-res-hfield').value.trim() || 'height';
                         tool.nodeMapping.width = { nodeId: nodeVal, field: wField };
                         tool.nodeMapping.height = { nodeId: nodeVal, field: hField };
-                        
+
                         if (document.getElementById('map-res-custom-ar').checked) {
                             tool.aspectRatios = {};
                             ['1:1', '9:16', '16:9'].forEach(r => {
-                                const idSuffix = r.replace(':','');
+                                const idSuffix = r.replace(':', '');
                                 const w = parseInt(document.getElementById(`ar-${idSuffix}-w`).value);
                                 const h = parseInt(document.getElementById(`ar-${idSuffix}-h`).value);
                                 if (!isNaN(w) && !isNaN(h)) {
@@ -906,7 +975,7 @@
                         const fieldVal = document.getElementById(`map-${type}-field`).value.trim();
                         if (fieldVal) {
                             tool.nodeMapping[type] = { nodeId: nodeVal, field: fieldVal };
-                            if(type === 'seed') {
+                            if (type === 'seed') {
                                 tool.nodeMapping[type].generateRandom = document.getElementById('map-seed-rand').checked;
                             }
                         }
@@ -917,12 +986,12 @@
             saveConfigToBackend();
         });
 
-                document.getElementById('save-settings-btn').addEventListener('click', async () => {
-            if(!appConfig) return;
-            
+        document.getElementById('save-settings-btn').addEventListener('click', async () => {
+            if (!appConfig) return;
+
             appConfig.comfyServerUrl = document.getElementById('setting-comfy-url').value.trim();
             appConfig.adminKey = document.getElementById('setting-admin-key').value.trim();
-            
+
             appConfig.aspectRatios = {
                 '1:1': {
                     width: parseInt(document.getElementById('setting-ar-11-w').value) || 1024,
@@ -937,18 +1006,18 @@
                     height: parseInt(document.getElementById('setting-ar-169-h').value) || 768
                 }
             };
-            
+
             const originalText = document.getElementById('save-settings-btn').innerHTML;
             document.getElementById('save-settings-btn').innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
-            
+
             try {
                 const res = await adminFetch('/api/admin/config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentKey },
                     body: JSON.stringify(appConfig)
                 });
-                
-                if(res.ok) {
+
+                if (res.ok) {
                     const st = document.getElementById('settings-save-status');
                     st.classList.remove('hidden');
                     setTimeout(() => st.classList.add('hidden'), 3000);
@@ -956,15 +1025,15 @@
                 } else {
                     alert('Error saving config.');
                 }
-            } catch(e) {
+            } catch (e) {
                 alert('Save failed.');
             }
-            
+
             document.getElementById('save-settings-btn').innerHTML = originalText;
             lucide.createIcons();
         });
 
-async function saveConfigToBackend() {
+        async function saveConfigToBackend() {
             try {
                 const originalText = document.getElementById('save-tool-btn').innerHTML;
                 document.getElementById('save-tool-btn').innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
@@ -973,8 +1042,8 @@ async function saveConfigToBackend() {
                     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentKey },
                     body: JSON.stringify(appConfig)
                 });
-                
-                if(res.ok) {
+
+                if (res.ok) {
                     renderToolsList();
                     const st = document.getElementById('save-status');
                     st.classList.remove('hidden');
@@ -984,7 +1053,7 @@ async function saveConfigToBackend() {
                 }
                 document.getElementById('save-tool-btn').innerHTML = originalText;
                 lucide.createIcons();
-            } catch(e) {
+            } catch (e) {
                 alert('Save failed.');
             }
         }
@@ -992,7 +1061,7 @@ async function saveConfigToBackend() {
         // File Upload
         const uploadBtn = document.getElementById('upload-workflow-btn');
         const uploadInput = document.getElementById('workflow-upload-input');
-        
+
         uploadBtn.addEventListener('click', () => {
             uploadInput.click();
         });
@@ -1018,30 +1087,30 @@ async function saveConfigToBackend() {
 
         document.getElementById('workflow-upload-input').addEventListener('change', async (e) => {
             const file = e.target.files[0];
-            if(!file || !file.name.endsWith('.json')) return;
-            
+            if (!file || !file.name.endsWith('.json')) return;
+
             const formData = new FormData();
             formData.append('file', file);
-            
+
             const btn = document.getElementById('upload-workflow-btn');
             const origHTML = btn.innerHTML;
             btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Uploading...';
-            
+
             try {
                 const res = await adminFetch('/api/admin/workflows/upload', {
                     method: 'POST',
                     body: formData
                 });
                 const data = await res.json();
-                if(res.ok) {
-                    if(!availableWorkflowFiles.includes(data.filename)) {
+                if (res.ok) {
+                    if (!availableWorkflowFiles.includes(data.filename)) {
                         availableWorkflowFiles.push(data.filename);
                         updateWorkflowDropdown();
                     }
-                    
-                    if(!appConfig) appConfig = { tools: [] };
-                    if(!appConfig.tools) appConfig.tools = [];
-                    
+
+                    if (!appConfig) appConfig = { tools: [] };
+                    if (!appConfig.tools) appConfig.tools = [];
+
                     let autoMapping = {};
                     try {
                         const text = await file.text();
@@ -1062,20 +1131,20 @@ async function saveConfigToBackend() {
                                 }
                             }
                         }
-                    } catch(e) {
+                    } catch (e) {
                         console.error("Failed to parse node mappings automatically", e);
                     }
-                    
+
                     const defaultName = data.filename.replace('.json', '');
                     const defaultId = defaultName.toLowerCase().replace(/[^a-z0-9]/g, '-');
                     appConfig.tools.push({ id: defaultId, name: defaultName, workflowFile: data.filename, nodeMapping: autoMapping });
-                    
+
                     selectTool(appConfig.tools.length - 1);
                     alert("Uploaded successfully! New tool auto-generated.");
                 } else {
                     alert("Upload failed: " + data.detail);
                 }
-            } catch(err) {
+            } catch (err) {
                 alert("Upload failed.");
             } finally {
                 btn.innerHTML = origHTML;
@@ -1084,6 +1153,7 @@ async function saveConfigToBackend() {
             }
         });
 
-</script>
+    </script>
 </body>
+
 </html>
