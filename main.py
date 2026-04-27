@@ -78,8 +78,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 def serve_index():
-    with open("static/index.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    try:
+        with open("static/index.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="UI not found. Ensure static/index.html exists.")
 
 @app.get("/api/workflows")
 def get_workflows():
@@ -295,7 +298,17 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
                             await q.put({"status": "progress", "value": val, "max": m})
                         elif t == "execution_start":
                             await q.put({"status": "generating"})
-        except Exception as e:
+        except Exception:
+            # Before reporting failure, check if the job actually completed
+            # (e.g. ComfyUI restarted mid-generation but finished the prompt)
+            try:
+                async with httpx.AsyncClient(timeout=3.0) as client:
+                    r = await client.get(f"{get_comfy_url()}/history/{prompt_id}")
+                    if r.status_code == 200 and prompt_id in r.json():
+                        await q.put({"status": "completed"})
+                        return
+            except Exception:
+                pass
             await q.put({"status": "error", "detail": "Lost WebSocket connection to processing server."})
 
     task1 = asyncio.create_task(poll_queue())
@@ -357,8 +370,11 @@ async def get_image(prompt_id: str):
 
 @app.get("/admin")
 def serve_admin():
-    with open("static/admin.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    try:
+        with open("static/admin.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Admin UI not found. Ensure static/admin.html exists.")
 
 @app.get("/api/admin/usage")
 def get_admin_usage(period: str = "all", _=Depends(verify_admin)):
