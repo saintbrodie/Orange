@@ -1,6 +1,6 @@
 # Orange 😼
 
-![Orange UI Screenshot](docs/Screenshot.png)
+![Orange UI Screenshot](docs/Generate.jpg)
 
 Orange is a minimalist, dynamic web frontend wrapper around **ComfyUI**. It replaces the complex node-graph interface with a user-friendly, responsive experience that allows anyone to generate, edit, and upscale media via your local ComfyUI instance without knowing the node-spaghetti underneath.
 
@@ -28,9 +28,9 @@ See the [Adding Workflows](docs/adding_workflows.md) guide to learn how to expor
 
 ## Admin Dashboard
 <div align="center">
-  <img src="docs/General_Settings.jpg" width="32%" alt="General Settings" />
-  <img src="docs/Tool_Editor.jpg" width="32%" alt="Tool Editor" />
-  <img src="docs/Analytics.jpg" width="32%" alt="Analytics Dashboard" />
+  <img src="docs/General_Settings.jpg" width="32%" style="vertical-align: middle;" alt="General Settings" />
+  <img src="docs/Tool_Editor.jpg" width="32%" style="vertical-align: middle;" alt="Tool Editor" />
+  <img src="docs/Analytics.jpg" width="32%" style="vertical-align: middle;" alt="Analytics Dashboard" />
 </div>
 
 Orange features a secure analytics dashboard and an integrated Tool Editor that allows administrators to track usage metrics, manage workflows, and configure tools interactively.
