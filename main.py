@@ -353,7 +353,7 @@ async def get_image(prompt_id: str):
         raw_bytes = img_res.content
         clean_bytes = strip_metadata(raw_bytes)
         
-        return StreamingResponse(io.BytesIO(clean_bytes), media_type="image/png")
+        return StreamingResponse(io.BytesIO(clean_bytes), media_type="image/jpeg")
 
 @app.get("/admin")
 def serve_admin():

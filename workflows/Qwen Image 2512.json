@@ -173,7 +173,7 @@
   },
   "263": {
     "inputs": {
-      "value": 4
+      "value": 8
     },
     "class_type": "PrimitiveInt",
     "_meta": {
