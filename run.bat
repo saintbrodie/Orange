@@ -24,5 +24,13 @@ if not exist "venv" (
     call venv\Scripts\activate.bat
 )
 
+:loop
 echo Starting Orange App on port 7070...
 uvicorn main:app --host 0.0.0.0 --port 7070
+
+if exist "RESTART_REQUIRED" (
+    echo Restart requested...
+    del "RESTART_REQUIRED"
+    timeout /t 2 >nul
+    goto loop
+)

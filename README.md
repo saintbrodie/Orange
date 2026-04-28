@@ -11,6 +11,9 @@ Orange is a minimalist, dynamic web frontend wrapper around **ComfyUI**. It repl
 - **Extensible**: Simply drop in ComfyUI API workflows to add new generation paths.
 - **Auto-Installer**: Simple `run.bat` and `run.sh` scripts manage the environment on Windows/Mac/Linux.
 - **Admin Tracking**: Secure built-in dashboard to monitor platform usage metrics, IPs, and tool popularity.
+- **Multi-Modal Support**: Native support for Image, Video, and Audio generations.
+- **Output Text Support**: Ability to display generated text (like lyrics, metadata, or logs) directly alongside media outputs.
+- **Intelligent Auto-Mapping**: Admin Tool Editor automatically detects and maps node fields for `RandomNoise`, `CLIPTextEncode`, `EmptyLatentImage`, and more.
 
 ## Requirements
 - Python 3
@@ -52,7 +55,9 @@ Orange features a secure analytics dashboard and an integrated Tool Editor that 
 2. Login using the `adminKey` defined in your `workflows-config.json` (defaults to `orangeadmin`).
 
 ### Tool Editor Features
-- **Workflow Uploads**: Drag and drop ComfyUI API JSON workflows directly into the browser to automatically parse them. Orange will intelligently map your Prompt, Image, Resolution, and Seed inputs based on common nodes (e.g., `CLIPTextEncode`, `LoadImage`).
+- **Workflow Uploads**: Drag and drop ComfyUI API JSON workflows directly into the browser to automatically parse them. Orange will intelligently map your Prompt, Image, Resolution, and Seed inputs based on common nodes.
+- **Multi-Modal Output Types**: Configure tools as `Image`, `Video`, or `Audio` to unlock specific playback interfaces (like the Waveform visualizer).
+- **Text Mapping**: Bind an `outputText` node to display generated text (like lyrics) in a clean, copyable interface.
 - **Node Mappings**: Manually bind frontend UI elements (Prompt input, Image dropzone) to specific ComfyUI node IDs.
 - **Resolution Overrides**: Configure tool-specific output dimensions (1:1, 16:9, 9:16) for workflows that deviate from the global defaults, or turn off resolution scaling entirely.
 
