@@ -31,6 +31,20 @@ Orange UI dynamically renders input fields based on the mappings you provide in 
 *   **Image**: Connects to a `LoadImage` node. The Orange backend will automatically upload the user's file to ComfyUI and swap the filename into this node.
 *   **Resolution**: Connects to the width and height integers (e.g., in `EmptyLatentImage`). You can also configure tool-specific custom aspect ratios here using the "Override Default Aspect Ratios" checkbox.
 *   **Seed**: Connects to the random seed generator (e.g., in `KSampler` or `KSamplerAdvanced`). Make sure "Generate Random" is checked so Orange injects a new seed each time.
+*   **Output Text**: (New) Connects to any node that outputs text (like `PreviewText` or a custom Lyrics node). This will display the text in a scrollable box in the results view.
+
+### Output Types
+
+You can specify the **Output Type** for each tool:
+*   **Image**: Standard image output.
+*   **Video**: Uses a video player for playback (supports MP4, WebM, MKV, MOV). Compatible with nodes like `VHS_VideoCombine`.
+*   **Audio**: Uses a premium **WaveSurfer.js** player with a dynamic waveform visualization. Compatible with nodes like `SaveAudio`.
+
+### Auto-Detection
+The Tool Editor will attempt to automatically detect your node fields when you type a **Node ID**. For example:
+*   Typing the ID of a `RandomNoise` or `KSampler` node will auto-fill the **Seed** mapping.
+*   Typing the ID of a `CLIPTextEncode` node will auto-fill the **Prompt** mapping.
+
 
 You can verify and adjust these mappings, as well as the tool's Display Name and ID, directly in the Tool Editor interface. Click "Save Tool Configuration" when finished.
 

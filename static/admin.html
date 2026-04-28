@@ -859,6 +859,43 @@
             }
         };
 
+        window.autoDetectField = function (type, nodeId) {
+            if (!parsedNodes || !parsedNodes[nodeId]) return;
+            const node = parsedNodes[nodeId];
+            const classType = node.class_type;
+
+            if (type === 'seed') {
+                const field = document.getElementById('map-seed-field');
+                if (field && !field.value) {
+                    if (classType === 'RandomNoise' || classType === 'KSampler' || classType === 'KSamplerAdvanced') {
+                        field.value = 'seed';
+                    } else if (classType === 'PrimitiveNode') {
+                        field.value = 'value';
+                    }
+                }
+            } else if (type === 'prompt') {
+                const field = document.getElementById('map-prompt-field');
+                if (field && !field.value) {
+                    if (classType === 'CLIPTextEncode') field.value = 'text';
+                    else if (classType === 'PrimitiveNode' || classType === 'StringLiteral') field.value = 'value';
+                }
+            } else if (type === 'image' || type === 'image2') {
+                const field = document.getElementById(`map-${type}-field`);
+                if (field && !field.value) {
+                    if (classType === 'LoadImage') field.value = 'image';
+                }
+            } else if (type === 'resolution') {
+                const wf = document.getElementById('map-res-wfield');
+                const hf = document.getElementById('map-res-hfield');
+                if (wf && !wf.value && hf && !hf.value) {
+                    if (classType.includes('LatentImage') || classType.includes('EmptyLatent')) {
+                        wf.value = 'width';
+                        hf.value = 'height';
+                    }
+                }
+            }
+        };
+
         function renderMappings(mappings) {
             const container = document.getElementById('node-mappings-container');
             container.innerHTML = '';
@@ -941,7 +978,7 @@
                         <div class="flex gap-3">
                             <div class="flex-1">
                                 <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Node ID</label>
-                                <input type="text" id="map-${type}-node" value="${mapData.nodeId || ''}" list="nodes-list" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" placeholder="Node ID" ${!isEnabled ? 'disabled' : ''}>
+                                <input type="text" id="map-${type}-node" value="${mapData.nodeId || ''}" list="nodes-list" oninput="autoDetectField('${type}', this.value)" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" placeholder="Node ID" ${!isEnabled ? 'disabled' : ''}>
                             </div>
                             ${fieldUI}
                         </div>
