@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let selectedImageFile = null;
     let selectedImage2File = null;
     let currentOutputType = 'image';
+    let wavesurfer = null;
 
     // DOM Elements
     const uiContainer = document.getElementById('ui-container');
@@ -42,9 +43,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const resultImage = document.getElementById('result-image');
     const resultVideo = document.getElementById('result-video');
     const resultAudio = document.getElementById('result-audio');
+    const audioUI = document.getElementById('audio-ui');
     const backBtn = document.getElementById('back-btn');
     const downloadBtn = document.getElementById('download-btn');
     const downloadBtnText = document.getElementById('download-btn-text');
+    const outputTextContainer = document.getElementById('output-text-container');
+    const outputTextDisplay = document.getElementById('output-text-display');
+    const copyTextBtn = document.getElementById('copy-text-btn');
     const errorBanner = document.getElementById('error-banner');
     const errorMessage = document.getElementById('error-message');
 
@@ -170,7 +175,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Image 1 Upload Logic
-    dropzone.addEventListener('click', () => imageInput.click());
     dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-zinc-600'); });
     dropzone.addEventListener('dragleave', () => dropzone.classList.remove('border-zinc-600'));
     dropzone.addEventListener('drop', (e) => {
@@ -205,7 +209,6 @@ document.addEventListener("DOMContentLoaded", () => {
     clearImageBtn.addEventListener('click', clearImage);
 
     // Image 2 Upload Logic
-    dropzone2.addEventListener('click', () => image2Input.click());
     dropzone2.addEventListener('dragover', (e) => { e.preventDefault(); dropzone2.classList.add('border-zinc-600'); });
     dropzone2.addEventListener('dragleave', () => dropzone2.classList.remove('border-zinc-600'));
     dropzone2.addEventListener('drop', (e) => {
@@ -380,6 +383,8 @@ document.addEventListener("DOMContentLoaded", () => {
     async function fetchAndShowResult(promptId) {
         const generatingTitle = document.getElementById('generating-title');
         const typeLabel = currentOutputType === 'video' ? 'Video' : currentOutputType === 'audio' ? 'Audio' : 'Image';
+        const tool = config.tools.find(t => t.id === selectedToolId);
+        const mapping = tool ? (tool.nodeMapping || {}) : {};
         
         try {
             generatingTitle.innerText = `Finalizing ${typeLabel}...`;
@@ -395,7 +400,8 @@ document.addEventListener("DOMContentLoaded", () => {
             // Reset all result elements
             resultImage.classList.add('hidden');
             resultVideo.classList.add('hidden');
-            resultAudio.classList.add('hidden');
+            if (audioUI) audioUI.classList.add('hidden');
+            if (outputTextContainer) outputTextContainer.classList.add('hidden');
             resultImage.src = '';
             resultVideo.src = '';
             resultAudio.src = '';
@@ -404,21 +410,80 @@ document.addEventListener("DOMContentLoaded", () => {
             let ext = '.jpg';
             let downloadLabel = 'Download Image';
 
-            if (currentOutputType === 'video') {
-                resultVideo.src = url;
-                resultVideo.classList.remove('hidden');
-                ext = '.mp4';
-                downloadLabel = 'Download Video';
-            } else if (currentOutputType === 'audio') {
+            if (currentOutputType === 'audio') {
                 resultAudio.src = url;
-                resultAudio.classList.remove('hidden');
-                ext = '.flac';
+                if (audioUI) audioUI.classList.remove('hidden');
+                
+                // Initialize WaveSurfer
+                if (!wavesurfer) {
+                    wavesurfer = WaveSurfer.create({
+                        container: '#waveform',
+                        waveColor: '#3f3f46',
+                        progressColor: '#ea580c',
+                        cursorColor: '#f97316',
+                        barWidth: 2,
+                        barRadius: 3,
+                        cursorWidth: 1,
+                        height: 100,
+                        barGap: 3
+                    });
+
+                    wavesurfer.on('play', () => {
+                        document.getElementById('audio-play-pause').innerHTML = '<i data-lucide="pause" class="w-8 h-8 fill-current"></i>';
+                        lucide.createIcons();
+                    });
+
+                    wavesurfer.on('pause', () => {
+                        document.getElementById('audio-play-pause').innerHTML = '<i data-lucide="play" class="w-8 h-8 fill-current"></i>';
+                        lucide.createIcons();
+                    });
+
+                    wavesurfer.on('timeupdate', (currentTime) => {
+                        const duration = wavesurfer.getDuration();
+                        document.getElementById('audio-timer').innerText = `${formatTime(currentTime)} / ${formatTime(duration)}`;
+                    });
+                }
+
+                wavesurfer.load(url);
+                
+                const mimeExtMap = { 
+                    'audio/wav': '.wav', 
+                    'audio/mpeg': '.mp3', 
+                    'audio/flac': '.flac',
+                    'audio/ogg': '.ogg',
+                    'audio/mp4': '.m4a'
+                };
+                ext = mimeExtMap[blob.type] || '.flac';
                 downloadLabel = 'Download Audio';
-            } else {
+            } else if (blob.type.startsWith('image/')) {
+                // Handle images, gifs, and animated webps in the image element
                 resultImage.src = url;
                 resultImage.classList.remove('hidden');
-                ext = '.jpg';
-                downloadLabel = 'Download Image';
+                
+                // Get extension from MIME type
+                const mimeExtMap = { 'image/gif': '.gif', 'image/webp': '.webp', 'image/png': '.png' };
+                ext = mimeExtMap[blob.type] || '.jpg';
+                downloadLabel = currentOutputType === 'video' ? 'Download Video' : 'Download Image';
+            } else {
+                // Handle actual video files (mp4, webm, etc)
+                resultVideo.src = url;
+                resultVideo.classList.remove('hidden');
+                
+                const mimeExtMap = { 'video/webm': '.webm', 'video/x-matroska': '.mkv', 'video/quicktime': '.mov' };
+                ext = mimeExtMap[blob.type] || '.mp4';
+                downloadLabel = 'Download Video';
+            }
+
+            // Fetch Output Text if mapped
+            if (mapping.outputText) {
+                try {
+                    const textRes = await fetch(`/api/output?prompt_id=${promptId}&type=text`);
+                    if (textRes.ok) {
+                        const textData = await textRes.json();
+                        outputTextDisplay.innerText = textData.text;
+                        outputTextContainer.classList.remove('hidden');
+                    }
+                } catch (e) { console.error("Error fetching output text", e); }
             }
 
             downloadBtnText.innerText = downloadLabel;
@@ -463,7 +528,31 @@ document.addEventListener("DOMContentLoaded", () => {
         // Stop video/audio playback
         resultVideo.pause();
         resultAudio.pause();
+        if (wavesurfer) wavesurfer.pause();
     });
+
+    document.getElementById('audio-play-pause').onclick = () => {
+        if (wavesurfer) wavesurfer.playPause();
+    };
+
+    copyTextBtn.onclick = () => {
+        const text = outputTextDisplay.innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            const originalHTML = copyTextBtn.innerHTML;
+            copyTextBtn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i> Copied';
+            lucide.createIcons();
+            setTimeout(() => {
+                copyTextBtn.innerHTML = originalHTML;
+                lucide.createIcons();
+            }, 2000);
+        });
+    };
+
+    function formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const secondsRemainder = Math.floor(seconds % 60);
+        return `${minutes.toString().padStart(2, '0')}:${secondsRemainder.toString().padStart(2, '0')}`;
+    }
 
     // AI Status Polling
     const aiStatusDot = document.getElementById('ai-status-dot');

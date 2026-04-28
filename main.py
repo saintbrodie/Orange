@@ -11,6 +11,7 @@ import base64
 import sqlite3
 import shutil
 import tempfile
+import subprocess
 from typing import Dict
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Header, Depends
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse
@@ -379,12 +380,14 @@ async def get_output(prompt_id: str, type: str = "image"):
         file_info = None
         
         if type == "video":
-            # ComfyUI stores video outputs under "gifs" key (AnimateDiff, VHS, etc.)
+            # ComfyUI stores video outputs under "gifs" or "video" or "images" (for animated webp/gif)
             for node_id, output_data in outputs.items():
-                gifs = output_data.get("gifs", [])
-                if gifs:
-                    file_info = gifs[0]
-                    break
+                for key in ["gifs", "video", "images"]:
+                    items = output_data.get(key, [])
+                    if items:
+                        file_info = items[0]
+                        break
+                if file_info: break
         elif type == "audio":
             # ComfyUI stores audio outputs under "audio" key
             for node_id, output_data in outputs.items():
@@ -392,13 +395,27 @@ async def get_output(prompt_id: str, type: str = "image"):
                 if audios:
                     file_info = audios[0]
                     break
+                if file_info: break
+        elif type == "text":
+            # Search for text outputs
+            for node_id, output_data in outputs.items():
+                for key in ["text", "string", "messages"]:
+                    txt = output_data.get(key)
+                    if txt:
+                        # Sometimes it's a list, sometimes a string
+                        final_text = txt[0] if isinstance(txt, list) else txt
+                        return {"text": final_text}
+            raise HTTPException(status_code=404, detail="No text output found for prompt")
         else:
             # Default: image
             for node_id, output_data in outputs.items():
-                images = output_data.get("images", [])
-                if images:
-                    file_info = images[0]
-                    break
+                # Check images first, then gifs (in case it's a static frame in a gif node)
+                for key in ["images", "gifs"]:
+                    items = output_data.get(key, [])
+                    if items:
+                        file_info = items[0]
+                        break
+                if file_info: break
                 
         if not file_info:
             raise HTTPException(status_code=404, detail=f"No {type} output found for prompt")
@@ -411,9 +428,12 @@ async def get_output(prompt_id: str, type: str = "image"):
         raw_bytes = file_res.content
         
         if type == "image":
-            # Strip metadata for images
-            clean_bytes = strip_metadata(raw_bytes)
-            return StreamingResponse(io.BytesIO(clean_bytes), media_type="image/jpeg")
+            # Strip metadata for images, fallback to raw if it's a format PIL can't handle
+            try:
+                clean_bytes = strip_metadata(raw_bytes)
+                return StreamingResponse(io.BytesIO(clean_bytes), media_type="image/jpeg")
+            except Exception:
+                return StreamingResponse(io.BytesIO(raw_bytes), media_type="image/png")
         elif type == "video":
             # Determine media type from filename
             fname = file_info['filename'].lower()
@@ -421,6 +441,12 @@ async def get_output(prompt_id: str, type: str = "image"):
                 media_type = "image/webp"
             elif fname.endswith('.gif'):
                 media_type = "image/gif"
+            elif fname.endswith('.webm'):
+                media_type = "video/webm"
+            elif fname.endswith('.mkv'):
+                media_type = "video/x-matroska"
+            elif fname.endswith('.mov'):
+                media_type = "video/quicktime"
             else:
                 media_type = "video/mp4"
             return StreamingResponse(io.BytesIO(raw_bytes), media_type=media_type)
@@ -430,6 +456,10 @@ async def get_output(prompt_id: str, type: str = "image"):
                 media_type = "audio/wav"
             elif fname.endswith('.mp3'):
                 media_type = "audio/mpeg"
+            elif fname.endswith('.ogg'):
+                media_type = "audio/ogg"
+            elif fname.endswith('.m4a'):
+                media_type = "audio/mp4"
             else:
                 media_type = "audio/flac"
             return StreamingResponse(io.BytesIO(raw_bytes), media_type=media_type)
@@ -447,6 +477,45 @@ def serve_admin():
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Admin UI not found. Ensure static/admin.html exists.")
+
+@app.get("/api/admin/system/check-updates")
+def check_updates(_=Depends(verify_admin)):
+    try:
+        # Fetch latest from remote
+        subprocess.run(["git", "fetch"], check=True, capture_output=True)
+        # Compare local and remote
+        local = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
+        remote = subprocess.check_output(["git", "rev-parse", "@{u}"]).decode().strip()
+        
+        return {
+            "update_available": local != remote,
+            "current_version": local[:7],
+            "remote_version": remote[:7]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to check updates: {str(e)}")
+
+@app.post("/api/admin/system/update")
+def apply_update(_=Depends(verify_admin)):
+    try:
+        # Pull latest
+        subprocess.run(["git", "pull"], check=True, capture_output=True)
+        return {"status": "success", "message": "Updated to latest version. Please restart the server."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update: {str(e)}")
+
+@app.post("/api/admin/system/restart")
+def restart_server(_=Depends(verify_admin)):
+    try:
+        # Create sentinel file for run.bat loop
+        with open("RESTART_REQUIRED", "w") as f:
+            f.write("1")
+        
+        # Kill the current uvicorn process
+        # This will cause the run.bat loop to trigger
+        os._exit(0)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to restart: {str(e)}")
 
 @app.get("/api/admin/usage")
 def get_admin_usage(period: str = "all", _=Depends(verify_admin)):

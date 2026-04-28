@@ -260,6 +260,28 @@
                             </button>
                         </div>
                     </div>
+
+                    <div class="pt-4 border-t border-zinc-800/50">
+                        <h3 class="text-sm font-semibold text-zinc-300 mb-4">System Management</h3>
+                        <div class="flex flex-wrap gap-4 items-center">
+                            <button id="check-update-btn"
+                                class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 border border-zinc-700 shadow-sm">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Check for Updates
+                            </button>
+                            
+                            <button id="apply-update-btn"
+                                class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-lg shadow-emerald-900/20">
+                                <i data-lucide="sparkles" class="w-4 h-4"></i> Install Update
+                            </button>
+
+                            <button id="restart-server-btn"
+                                class="bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-900/50 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                                <i data-lucide="power" class="w-4 h-4"></i> Restart Server
+                            </button>
+
+                            <span id="update-status-text" class="text-xs text-zinc-500 font-mono italic"></span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="mt-8 flex justify-end items-center gap-4">
@@ -628,7 +650,7 @@
         let availableWorkflowFiles = [];
         let editingToolIndex = -1;
         let parsedNodes = {}; // Cache of nodes from currently selected workflow json
-        const MAPPING_TYPES = ['prompt', 'image', 'image2', 'resolution', 'seed'];
+        const MAPPING_TYPES = ['prompt', 'image', 'image2', 'resolution', 'seed', 'outputText'];
 
         function resetTabs() {
             const defaultClass = "admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition";
@@ -1169,6 +1191,93 @@
             }
         });
 
+        // System Management
+        document.getElementById('check-update-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('check-update-btn');
+            const statusText = document.getElementById('update-status-text');
+            const applyBtn = document.getElementById('apply-update-btn');
+            
+            btn.disabled = true;
+            statusText.innerText = "Checking...";
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Checking...';
+            lucide.createIcons();
+
+            try {
+                const res = await adminFetch('/api/admin/system/check-updates');
+                const data = await res.json();
+                
+                if (res.ok) {
+                    if (data.update_available) {
+                        statusText.innerText = `New version available: ${data.remote_version}`;
+                        statusText.classList.replace('text-zinc-500', 'text-emerald-500');
+                        applyBtn.classList.remove('hidden');
+                    } else {
+                        statusText.innerText = `Up to date (${data.current_version})`;
+                        statusText.classList.replace('text-emerald-500', 'text-zinc-500');
+                        applyBtn.classList.add('hidden');
+                    }
+                } else {
+                    statusText.innerText = "Check failed.";
+                }
+            } catch (e) {
+                statusText.innerText = "Error checking updates.";
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="refresh-cw" class="w-4 h-4"></i> Check for Updates';
+                lucide.createIcons();
+            }
+        });
+
+        document.getElementById('apply-update-btn').addEventListener('click', async () => {
+            if (!confirm("Are you sure you want to install the update? The server will need a restart after.")) return;
+            
+            const btn = document.getElementById('apply-update-btn');
+            const statusText = document.getElementById('update-status-text');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Installing...';
+            lucide.createIcons();
+
+            try {
+                const res = await adminFetch('/api/admin/system/update', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    statusText.innerText = "Update successful! Restart recommended.";
+                    btn.classList.add('hidden');
+                } else {
+                    alert("Update failed: " + data.detail);
+                }
+            } catch (e) {
+                alert("Update failed.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> Install Update';
+                lucide.createIcons();
+            }
+        });
+
+        document.getElementById('restart-server-btn').addEventListener('click', async () => {
+            if (!confirm("Restart the server? This will temporarily disconnect you.")) return;
+            
+            const btn = document.getElementById('restart-server-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Restarting...';
+            lucide.createIcons();
+
+            try {
+                // We don't await the response fully because the server will die
+                fetch('/api/admin/system/restart', { 
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + currentKey }
+                });
+                
+                setTimeout(() => {
+                    location.reload();
+                }, 5000);
+            } catch (e) {
+                // Fail silently as server is likely already restarting
+            }
+        });
     </script>
 </body>
 
