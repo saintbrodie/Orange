@@ -113,30 +113,6 @@
           "generateRandom": true
         }
       }
-    },
-    {
-      "id": "klein-2-input",
-      "name": "Klein Multi-Input",
-      "workflowFile": "Klein-2-input.json",
-      "nodeMapping": {
-        "prompt": {
-          "nodeId": "800",
-          "field": "text"
-        },
-        "image": {
-          "nodeId": "734",
-          "field": "image"
-        },
-        "image2": {
-          "nodeId": "735",
-          "field": "image"
-        },
-        "seed": {
-          "nodeId": "791",
-          "field": "noise_seed",
-          "generateRandom": true
-        }
-      }
     }
   ]
 }

@@ -338,7 +338,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 queueStatus.innerText = `Getting ready`;
             } else if (data.status === 'executing') {
                 generatingTitle.innerText = data.message;
-            } else if (data.status === 'preview') {
+            } else if (data.status === 'preview' && data.image) {
                 const spinner = document.getElementById('loading-spinner');
                 const previewContainer = document.getElementById('live-preview-container');
                 const previewImage = document.getElementById('live-preview-image');
@@ -350,6 +350,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 if (previewImage) {
                     previewImage.src = 'data:image/jpeg;base64,' + data.image;
+                    previewImage.classList.remove('opacity-0');
                 }
             } else if (data.status === 'progress') {
                 progressContainer.classList.remove('hidden');
