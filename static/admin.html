@@ -202,45 +202,112 @@
                     </div>
 
                     <div class="pt-4 border-t border-zinc-800/50">
-                        <h3 class="text-sm font-semibold text-zinc-300 mb-4">Default Aspect Ratios</h3>
-                        <div class="grid grid-cols-3 gap-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-sm font-semibold text-zinc-300">Default Aspect Ratios</h3>
+                            <div class="flex items-center gap-3">
+                                <label class="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Resolution Scale (Megapixels)</label>
+                                <input type="number" id="setting-target-mp" step="0.1" min="0.1" max="20.0" value="1.0"
+                                    class="w-20 bg-zinc-950 border border-zinc-800 rounded-lg p-1.5 text-xs text-zinc-300 outline-none focus:border-orange-500" onchange="handleMPChange()">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4" id="default-ratios-container">
+                            <!-- Slot 1 -->
                             <div class="bg-zinc-950 p-3 rounded border border-zinc-800">
-                                <div class="text-xs text-zinc-500 mb-2 font-bold text-center">1:1</div>
+                                <select id="setting-ar-slot-1-name" class="w-full bg-zinc-900 border border-zinc-800 text-[10px] p-1 mb-3 rounded text-center text-zinc-300 outline-none focus:border-orange-500 font-bold" onchange="handleRatioChange(1)">
+                                    <optgroup label="Square">
+                                        <option value="1:1">1:1</option>
+                                    </optgroup>
+                                    <optgroup label="Horizontal">
+                                        <option value="3:2">3:2</option>
+                                        <option value="4:3">4:3</option>
+                                        <option value="5:4">5:4</option>
+                                        <option value="16:9">16:9</option>
+                                        <option value="21:9">21:9</option>
+                                    </optgroup>
+                                    <optgroup label="Vertical">
+                                        <option value="2:3">2:3</option>
+                                        <option value="3:4">3:4</option>
+                                        <option value="4:5">4:5</option>
+                                        <option value="9:16">9:16</option>
+                                        <option value="9:21">9:21</option>
+                                    </optgroup>
+                                    <option value="custom">Custom</option>
+                                </select>
                                 <div class="flex items-center gap-2 mb-2">
-                                    <span class="text-xs text-zinc-500 font-medium w-4 text-center">H</span>
-                                    <input type="number" id="setting-ar-11-h"
-                                        class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                    <span class="text-[10px] text-zinc-500 font-medium w-4 text-center">H</span>
+                                    <input type="number" id="setting-ar-slot-1-h" step="16" onchange="roundTo16(this)"
+                                        class="w-full bg-zinc-900 border border-zinc-800 text-xs p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-xs text-zinc-500 font-medium w-4 text-center">W</span>
-                                    <input type="number" id="setting-ar-11-w"
-                                        class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                    <span class="text-[10px] text-zinc-500 font-medium w-4 text-center">W</span>
+                                    <input type="number" id="setting-ar-slot-1-w" step="16" onchange="roundTo16(this)"
+                                        class="w-full bg-zinc-900 border border-zinc-800 text-xs p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
                                 </div>
                             </div>
+                            <!-- Slot 2 -->
                             <div class="bg-zinc-950 p-3 rounded border border-zinc-800">
-                                <div class="text-xs text-zinc-500 mb-2 font-bold text-center">9:16</div>
+                                <select id="setting-ar-slot-2-name" class="w-full bg-zinc-900 border border-zinc-800 text-[10px] p-1 mb-3 rounded text-center text-zinc-300 outline-none focus:border-orange-500 font-bold" onchange="handleRatioChange(2)">
+                                    <optgroup label="Square">
+                                        <option value="1:1">1:1</option>
+                                    </optgroup>
+                                    <optgroup label="Horizontal">
+                                        <option value="3:2">3:2</option>
+                                        <option value="4:3">4:3</option>
+                                        <option value="5:4">5:4</option>
+                                        <option value="16:9">16:9</option>
+                                        <option value="21:9">21:9</option>
+                                    </optgroup>
+                                    <optgroup label="Vertical">
+                                        <option value="2:3">2:3</option>
+                                        <option value="3:4">3:4</option>
+                                        <option value="4:5">4:5</option>
+                                        <option value="9:16">9:16</option>
+                                        <option value="9:21">9:21</option>
+                                    </optgroup>
+                                    <option value="custom">Custom</option>
+                                </select>
                                 <div class="flex items-center gap-2 mb-2">
-                                    <span class="text-xs text-zinc-500 font-medium w-4 text-center">H</span>
-                                    <input type="number" id="setting-ar-916-h"
-                                        class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                    <span class="text-[10px] text-zinc-500 font-medium w-4 text-center">H</span>
+                                    <input type="number" id="setting-ar-slot-2-h" step="16" onchange="roundTo16(this)"
+                                        class="w-full bg-zinc-900 border border-zinc-800 text-xs p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-xs text-zinc-500 font-medium w-4 text-center">W</span>
-                                    <input type="number" id="setting-ar-916-w"
-                                        class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                    <span class="text-[10px] text-zinc-500 font-medium w-4 text-center">W</span>
+                                    <input type="number" id="setting-ar-slot-2-w" step="16" onchange="roundTo16(this)"
+                                        class="w-full bg-zinc-900 border border-zinc-800 text-xs p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
                                 </div>
                             </div>
+                            <!-- Slot 3 -->
                             <div class="bg-zinc-950 p-3 rounded border border-zinc-800">
-                                <div class="text-xs text-zinc-500 mb-2 font-bold text-center">16:9</div>
+                                <select id="setting-ar-slot-3-name" class="w-full bg-zinc-900 border border-zinc-800 text-[10px] p-1 mb-3 rounded text-center text-zinc-300 outline-none focus:border-orange-500 font-bold" onchange="handleRatioChange(3)">
+                                    <optgroup label="Square">
+                                        <option value="1:1">1:1</option>
+                                    </optgroup>
+                                    <optgroup label="Horizontal">
+                                        <option value="3:2">3:2</option>
+                                        <option value="4:3">4:3</option>
+                                        <option value="5:4">5:4</option>
+                                        <option value="16:9">16:9</option>
+                                        <option value="21:9">21:9</option>
+                                    </optgroup>
+                                    <optgroup label="Vertical">
+                                        <option value="2:3">2:3</option>
+                                        <option value="3:4">3:4</option>
+                                        <option value="4:5">4:5</option>
+                                        <option value="9:16">9:16</option>
+                                        <option value="9:21">9:21</option>
+                                    </optgroup>
+                                    <option value="custom">Custom</option>
+                                </select>
                                 <div class="flex items-center gap-2 mb-2">
-                                    <span class="text-xs text-zinc-500 font-medium w-4 text-center">H</span>
-                                    <input type="number" id="setting-ar-169-h"
-                                        class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                    <span class="text-[10px] text-zinc-500 font-medium w-4 text-center">H</span>
+                                    <input type="number" id="setting-ar-slot-3-h" step="16" onchange="roundTo16(this)"
+                                        class="w-full bg-zinc-900 border border-zinc-800 text-xs p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-xs text-zinc-500 font-medium w-4 text-center">W</span>
-                                    <input type="number" id="setting-ar-169-w"
-                                        class="w-full bg-zinc-900 border border-zinc-800 text-sm p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
+                                    <span class="text-[10px] text-zinc-500 font-medium w-4 text-center">W</span>
+                                    <input type="number" id="setting-ar-slot-3-w" step="16" onchange="roundTo16(this)"
+                                        class="w-full bg-zinc-900 border border-zinc-800 text-xs p-2 rounded text-center text-zinc-300 outline-none focus:border-orange-500">
                                 </div>
                             </div>
                         </div>
@@ -397,6 +464,49 @@
     <!-- Script -->
     <script>
         lucide.createIcons();
+
+        window.roundTo16 = function(el) {
+            let val = parseInt(el.value);
+            if (isNaN(val)) return;
+            el.value = Math.round(val / 16) * 16;
+        };
+
+        window.handleRatioChange = function(slot) {
+            const name = document.getElementById(`setting-ar-slot-${slot}-name`).value;
+            const mp = parseFloat(document.getElementById('setting-target-mp').value);
+            if (name === 'custom' || isNaN(mp)) return;
+            
+            // Parse ratio (e.g. "16:9" -> 16/9)
+            const parts = name.split(':');
+            if (parts.length !== 2) return;
+            const wRatio = parseInt(parts[0]);
+            const hRatio = parseInt(parts[1]);
+            const ratio = wRatio / hRatio;
+
+            // Math: TotalPixels = MP * (1024 * 1024)
+            // This multiplier (1048576) aligns 1.0 MP @ 1:1 exactly to 1024x1024
+            const totalPixels = mp * 1048576;
+            
+            // Adjust ratio for common standards (e.g. SDXL/Flux standards)
+            let effectiveRatio = ratio;
+            if (name === '16:9') effectiveRatio = 1.75;
+            else if (name === '9:16') effectiveRatio = 1 / 1.75;
+            else if (name === '21:9') effectiveRatio = 2.39;
+            else if (name === '9:21') effectiveRatio = 1 / 2.39;
+            
+            const hRaw = Math.sqrt(totalPixels / effectiveRatio);
+            const h = Math.round(hRaw / 16) * 16;
+            const w = Math.round((h * effectiveRatio) / 16) * 16;
+
+            // Round to nearest multiple of 16
+            document.getElementById(`setting-ar-slot-${slot}-h`).value = h;
+            document.getElementById(`setting-ar-slot-${slot}-w`).value = w;
+        };
+
+        window.handleMPChange = function() {
+            [1, 2, 3].forEach(slot => handleRatioChange(slot));
+        };
+
 
         const loginContainer = document.getElementById('login-container');
         const dashboardContainer = document.getElementById('dashboard-container');
@@ -698,23 +808,32 @@
                     // Populate General Settings
                     document.getElementById('setting-comfy-url').value = appConfig.comfyServerUrl || '';
                     document.getElementById('setting-admin-key').value = appConfig.adminKey || '';
+                    document.getElementById('setting-target-mp').value = appConfig.targetMegapixels || '1.0';
 
                     if (appConfig.aspectRatios) {
-                        const ar11 = appConfig.aspectRatios['1:1'];
-                        if (ar11) {
-                            document.getElementById('setting-ar-11-w').value = ar11.width;
-                            document.getElementById('setting-ar-11-h').value = ar11.height;
-                        }
-                        const ar916 = appConfig.aspectRatios['9:16'];
-                        if (ar916) {
-                            document.getElementById('setting-ar-916-w').value = ar916.width;
-                            document.getElementById('setting-ar-916-h').value = ar916.height;
-                        }
-                        const ar169 = appConfig.aspectRatios['16:9'];
-                        if (ar169) {
-                            document.getElementById('setting-ar-169-w').value = ar169.width;
-                            document.getElementById('setting-ar-169-h').value = ar169.height;
-                        }
+                        const keys = Object.keys(appConfig.aspectRatios);
+                        [1, 2, 3].forEach((slot, i) => {
+                            const key = keys[i];
+                            const select = document.getElementById(`setting-ar-slot-${slot}-name`);
+                            const hInput = document.getElementById(`setting-ar-slot-${slot}-h`);
+                            const wInput = document.getElementById(`setting-ar-slot-${slot}-w`);
+                            
+                            if (key) {
+                                // Find if this key is in our preset list
+                                let found = false;
+                                for (let opt of select.options) {
+                                    if (opt.value === key) {
+                                        select.value = key;
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if (!found) select.value = 'custom';
+                                
+                                hInput.value = appConfig.aspectRatios[key].height;
+                                wInput.value = appConfig.aspectRatios[key].width;
+                            }
+                        });
                     }
                 }
 
@@ -822,9 +941,10 @@
                     document.getElementById('map-res-hfield').disabled = false;
                     const customArCheckbox = document.getElementById('map-res-custom-ar');
                     if (customArCheckbox) customArCheckbox.disabled = false;
-                    ['1:1', '9:16', '16:9'].forEach(r => {
-                        const arw = document.getElementById(`ar-${r.replace(':', '')}-w`);
-                        const arh = document.getElementById(`ar-${r.replace(':', '')}-h`);
+                    Object.keys(appConfig.aspectRatios || {}).forEach(r => {
+                        const idSuffix = r.replace(':', '');
+                        const arw = document.getElementById(`ar-${idSuffix}-w`);
+                        const arh = document.getElementById(`ar-${idSuffix}-h`);
                         if (arw) arw.disabled = false;
                         if (arh) arh.disabled = false;
                     });
@@ -844,9 +964,10 @@
                     document.getElementById('map-res-hfield').disabled = true;
                     const customArCheckbox = document.getElementById('map-res-custom-ar');
                     if (customArCheckbox) customArCheckbox.disabled = true;
-                    ['1:1', '9:16', '16:9'].forEach(r => {
-                        const arw = document.getElementById(`ar-${r.replace(':', '')}-w`);
-                        const arh = document.getElementById(`ar-${r.replace(':', '')}-h`);
+                    Object.keys(appConfig.aspectRatios || {}).forEach(r => {
+                        const idSuffix = r.replace(':', '');
+                        const arw = document.getElementById(`ar-${idSuffix}-w`);
+                        const arh = document.getElementById(`ar-${idSuffix}-h`);
                         if (arw) arw.disabled = true;
                         if (arh) arh.disabled = true;
                     });
@@ -935,7 +1056,7 @@
                             </label>
                         </div>
                         <div id="ar-inputs" class="grid grid-cols-3 gap-2 ${(!hasCustomAR || !isEnabled) ? 'hidden' : ''}">
-                            ${['1:1', '9:16', '16:9'].map(r => `
+                            ${Object.keys(appConfig.aspectRatios || {}).map(r => `
                                 <div class="bg-zinc-900/50 p-2 rounded border border-zinc-800">
                                     <div class="text-[10px] text-zinc-500 mb-2 text-center font-bold">${r}</div>
                                     <div class="flex items-center gap-1 mb-1">
@@ -1037,12 +1158,16 @@
 
                         if (document.getElementById('map-res-custom-ar').checked) {
                             tool.aspectRatios = {};
-                            ['1:1', '9:16', '16:9'].forEach(r => {
+                            Object.keys(appConfig.aspectRatios || {}).forEach(r => {
                                 const idSuffix = r.replace(':', '');
-                                const w = parseInt(document.getElementById(`ar-${idSuffix}-w`).value);
-                                const h = parseInt(document.getElementById(`ar-${idSuffix}-h`).value);
-                                if (!isNaN(w) && !isNaN(h)) {
-                                    tool.aspectRatios[r] = { width: w, height: h };
+                                const wEl = document.getElementById(`ar-${idSuffix}-w`);
+                                const hEl = document.getElementById(`ar-${idSuffix}-h`);
+                                if (wEl && hEl) {
+                                    const w = parseInt(wEl.value);
+                                    const h = parseInt(hEl.value);
+                                    if (!isNaN(w) && !isNaN(h)) {
+                                        tool.aspectRatios[r] = { width: w, height: h };
+                                    }
                                 }
                             });
                         }
@@ -1067,20 +1192,22 @@
             appConfig.comfyServerUrl = document.getElementById('setting-comfy-url').value.trim();
             appConfig.adminKey = document.getElementById('setting-admin-key').value.trim();
 
-            appConfig.aspectRatios = {
-                '1:1': {
-                    width: parseInt(document.getElementById('setting-ar-11-w').value) || 1024,
-                    height: parseInt(document.getElementById('setting-ar-11-h').value) || 1024
-                },
-                '9:16': {
-                    width: parseInt(document.getElementById('setting-ar-916-w').value) || 768,
-                    height: parseInt(document.getElementById('setting-ar-916-h').value) || 1344
-                },
-                '16:9': {
-                    width: parseInt(document.getElementById('setting-ar-169-w').value) || 1344,
-                    height: parseInt(document.getElementById('setting-ar-169-h').value) || 768
+            appConfig.targetMegapixels = document.getElementById('setting-target-mp').value;
+
+            appConfig.aspectRatios = {};
+            [1, 2, 3].forEach(slot => {
+                let name = document.getElementById(`setting-ar-slot-${slot}-name`).value;
+                const h = parseInt(document.getElementById(`setting-ar-slot-${slot}-h`).value);
+                const w = parseInt(document.getElementById(`setting-ar-slot-${slot}-w`).value);
+                
+                if (name === 'custom') {
+                    name = `${w}:${h}`; // Fallback name for custom
                 }
-            };
+                
+                if (!isNaN(w) && !isNaN(h)) {
+                    appConfig.aspectRatios[name] = { width: w, height: h };
+                }
+            });
 
             const originalText = document.getElementById('save-settings-btn').innerHTML;
             document.getElementById('save-settings-btn').innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
