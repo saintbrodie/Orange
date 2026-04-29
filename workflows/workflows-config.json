@@ -15,6 +15,7 @@
       "height": 768
     }
   },
+  "targetMegapixels": "1.0",
   "tools": [
     {
       "id": "z-image",
