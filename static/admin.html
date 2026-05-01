@@ -371,11 +371,12 @@
                     <h2 class="text-xl font-semibold text-zinc-100 flex items-center gap-2">
                         <i data-lucide="blocks" class="w-5 h-5 text-orange-500"></i> Tools
                     </h2>
-
+                    <span id="order-save-status" class="text-xs font-medium text-green-400 hidden flex items-center gap-1">
+                        <i data-lucide="check-circle" class="w-3 h-3"></i> Order Saved
+                    </span>
                 </div>
-                <div class="flex-1 overflow-y-auto pr-2 space-y-2 relative" id="admin-tools-list">
+                <div class="flex-1 overflow-y-auto pr-2 space-y-2 relative" id="admin-tools-list" ondragover="event.preventDefault()">
                     <!-- Tools list -->
-                    <div id="drop-indicator" class="absolute left-0 right-2 h-0.5 bg-orange-500 rounded-full opacity-0 pointer-events-none transition-all duration-150 z-10"></div>
                 </div>
                 <div class="mt-6 pt-4 border-t border-zinc-800/50">
                     <input type="file" id="workflow-upload-input" accept=".json" class="hidden">
@@ -851,109 +852,90 @@
         }
 
         let draggedItemIndex = null;
+        let dragSourceNode = null;
 
-        function handleDragStart(e, index) {
-            draggedItemIndex = index;
+        function handleDragStart(e) {
+            const node = e.target.closest('[draggable]');
+            dragSourceNode = node;
+            draggedItemIndex = Array.from(node.parentNode.children).indexOf(node);
             e.dataTransfer.effectAllowed = 'move';
             // Use a small timeout to allow the drag image to be created before we change the style
-            setTimeout(() => e.target.classList.add('opacity-20'), 0);
-        }
-
-        function handleDragEnd(e) {
-            e.target.classList.remove('opacity-20');
-            draggedItemIndex = null;
+            setTimeout(() => { if (dragSourceNode) dragSourceNode.classList.add('opacity-10'); }, 0);
         }
 
         function handleDragOver(e) {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
             
-            const indicator = document.getElementById('drop-indicator');
-            const list = document.getElementById('admin-tools-list');
-            const item = e.target.closest('[draggable]');
+            const targetNode = e.target.closest('[draggable]');
+            if (!targetNode || targetNode === dragSourceNode || !dragSourceNode) return;
             
-            if (item && indicator) {
-                const rect = item.getBoundingClientRect();
-                const listRect = list.getBoundingClientRect();
-                const midpoint = rect.top + rect.height / 2;
-                
-                indicator.style.opacity = '1';
-                
-                if (e.clientY < midpoint) {
-                    indicator.style.top = (rect.top - listRect.top + list.scrollTop - 5) + 'px';
-                } else {
-                    indicator.style.top = (rect.bottom - listRect.top + list.scrollTop + 3) + 'px';
-                }
-            }
-        }
-
-        function handleDragLeave(e) {
-            // No need to clear shadows anymore
-        }
-
-        function handleDragEnd(e) {
-            e.target.classList.remove('opacity-20');
-            draggedItemIndex = null;
-            const indicator = document.getElementById('drop-indicator');
-            if (indicator) indicator.style.opacity = '0';
-        }
-
-        function handleDrop(e, targetIndex) {
-            e.preventDefault();
-            const indicator = document.getElementById('drop-indicator');
-            if (indicator) indicator.style.opacity = '0';
-
-            const item = e.target.closest('[draggable]');
-            let dropAfter = false;
-            if (item) {
-                const rect = item.getBoundingClientRect();
-                dropAfter = e.clientY > rect.top + rect.height / 2;
-            }
+            const list = dragSourceNode.parentNode;
+            const overIndex = Array.from(list.children).indexOf(targetNode);
+            draggedItemIndex = Array.from(list.children).indexOf(dragSourceNode);
             
-            if (draggedItemIndex === null) return;
+            if (draggedItemIndex === overIndex) return;
             
-            const selectedToolId = appConfig.tools[editingToolIndex]?.id;
-            
+            // Move item in array in real-time
             const tools = appConfig.tools;
             const movedItem = tools.splice(draggedItemIndex, 1)[0];
+            tools.splice(overIndex, 0, movedItem);
             
-            let adjustedTarget = targetIndex;
-            if (draggedItemIndex < targetIndex) adjustedTarget--;
-            if (dropAfter) adjustedTarget++;
+            // Move DOM node
+            const isMovingDown = draggedItemIndex < overIndex;
+            if (isMovingDown) {
+                list.insertBefore(dragSourceNode, targetNode.nextSibling);
+            } else {
+                list.insertBefore(dragSourceNode, targetNode);
+            }
             
-            tools.splice(adjustedTarget, 0, movedItem);
-            
+            // Maintain selection
+            const selectedToolId = appConfig.tools[editingToolIndex]?.id;
             if (selectedToolId) {
                 editingToolIndex = appConfig.tools.findIndex(t => t.id === selectedToolId);
             }
+        }
+
+        function handleDragLeave(e) { }
+
+        function handleDragEnd(e) {
+            if (dragSourceNode) dragSourceNode.classList.remove('opacity-10');
+            dragSourceNode = null;
+            draggedItemIndex = null;
+            renderToolsList(); // Final cleanup render
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (dragSourceNode) dragSourceNode.classList.remove('opacity-10');
+            dragSourceNode = null;
+            draggedItemIndex = null;
             
-            renderToolsList();
-            saveConfigToBackend();
+            renderToolsList(); // Full re-render to ensure classes are correct
+            syncToolsOrder();
         }
 
         function renderToolsList() {
             const list = document.getElementById('admin-tools-list');
-            const indicator = document.getElementById('drop-indicator');
-            
-            // Remove everything except the indicator
-            Array.from(list.children).forEach(child => {
-                if (child.id !== 'drop-indicator') list.removeChild(child);
-            });
+            list.innerHTML = '';
 
             if (!appConfig || !appConfig.tools) return;
 
             appConfig.tools.forEach((tool, index) => {
                 const isSelected = index === editingToolIndex;
+                const isDragging = index === draggedItemIndex;
                 const activeClass = isSelected ? 'bg-orange-600/20 border-orange-600/50 text-orange-200' : 'bg-zinc-800/40 border-zinc-700 text-zinc-300 hover:bg-zinc-800';
+                const draggingClass = isDragging ? 'opacity-10 pointer-events-none' : '';
 
                 list.innerHTML += `
                     <div class="p-3 rounded-xl border ${activeClass} transition flex items-center gap-3 group" 
                          draggable="true" 
-                         ondragstart="handleDragStart(event, ${index})" 
+                         ondragstart="handleDragStart(event)" 
                          ondragend="handleDragEnd(event)"
                          ondragover="handleDragOver(event)"
                          ondragleave="handleDragLeave(event)"
-                         ondrop="handleDrop(event, ${index})"
+                         ondrop="handleDrop(event)"
                          onclick="selectTool(${index})">
                         <div class="cursor-grab active:cursor-grabbing text-zinc-600 group-hover:text-zinc-400 transition-colors">
                             <i data-lucide="grip-vertical" class="w-4 h-4"></i>
@@ -1332,6 +1314,28 @@
             document.getElementById('save-settings-btn').innerHTML = originalText;
             lucide.createIcons();
         });
+
+        async function syncToolsOrder() {
+            try {
+                const res = await adminFetch('/api/admin/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentKey },
+                    body: JSON.stringify(appConfig)
+                });
+
+                if (res.ok) {
+                    const st = document.getElementById('order-save-status');
+                    if (st) {
+                        st.classList.remove('hidden');
+                        setTimeout(() => st.classList.add('hidden'), 3000);
+                    }
+                } else {
+                    console.error('Error syncing tool order.');
+                }
+            } catch (e) {
+                console.error('Failed to sync tool order.', e);
+            }
+        }
 
         async function saveConfigToBackend() {
             try {
