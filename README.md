@@ -26,8 +26,9 @@ Orange is a minimalist, dynamic web frontend wrapper around **ComfyUI**. It repl
    The startup script will automatically check for Python, install it if missing, create a virtual environment, install requirements, and start the frontend server on port `7070`.
 3. Open your browser and navigate to `http://localhost:7070/`.
 
-## Configuration
-See the [Adding Workflows](docs/adding_workflows.md) guide to learn how to export your own ComfyUI node graphs and use them as new generation tools in Orange.
+## Documentation
+- [Architecture Overview](docs/ARCHITECTURE.md): Detailed project breakdown and data flow for AI agents and developers.
+- [Adding Workflows](docs/adding_workflows.md): Guide on how to export and use your own ComfyUI node graphs.
 
 ## Admin Dashboard
 <table border="0">

@@ -1,0 +1,1079 @@
+lucide.createIcons();
+
+        window.roundTo16 = function(el) {
+            let val = parseInt(el.value);
+            if (isNaN(val)) return;
+            el.value = Math.round(val / 16) * 16;
+        };
+
+        window.handleRatioChange = function(slot) {
+            const name = document.getElementById(`setting-ar-slot-${slot}-name`).value;
+            const mp = parseFloat(document.getElementById('setting-target-mp').value);
+            if (name === 'custom' || isNaN(mp)) return;
+            
+            // Parse ratio (e.g. "16:9" -> 16/9)
+            const parts = name.split(':');
+            if (parts.length !== 2) return;
+            const wRatio = parseInt(parts[0]);
+            const hRatio = parseInt(parts[1]);
+            const ratio = wRatio / hRatio;
+
+            // Math: TotalPixels = MP * (1024 * 1024)
+            // This multiplier (1048576) aligns 1.0 MP @ 1:1 exactly to 1024x1024
+            const totalPixels = mp * 1048576;
+            
+            // Adjust ratio for common standards (e.g. SDXL/Flux standards)
+            let effectiveRatio = ratio;
+            if (name === '16:9') effectiveRatio = 1.75;
+            else if (name === '9:16') effectiveRatio = 1 / 1.75;
+            else if (name === '21:9') effectiveRatio = 2.39;
+            else if (name === '9:21') effectiveRatio = 1 / 2.39;
+            
+            const hRaw = Math.sqrt(totalPixels / effectiveRatio);
+            const h = Math.round(hRaw / 16) * 16;
+            const w = Math.round((h * effectiveRatio) / 16) * 16;
+
+            // Round to nearest multiple of 16
+            document.getElementById(`setting-ar-slot-${slot}-h`).value = h;
+            document.getElementById(`setting-ar-slot-${slot}-w`).value = w;
+        };
+
+        window.handleMPChange = function() {
+            [1, 2, 3].forEach(slot => handleRatioChange(slot));
+        };
+
+
+        const loginContainer = document.getElementById('login-container');
+        const dashboardContainer = document.getElementById('dashboard-container');
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const adminMenu = document.getElementById('admin-menu');
+        const adminKeyInput = document.getElementById('admin-key');
+        const loginError = document.getElementById('login-error');
+
+        let currentKey = localStorage.getItem('orange_admin_key');
+        let currentPeriod = 'all';
+        let currentAnalyticsLogs = [];
+
+        // Period filter events
+        document.querySelectorAll('.period-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.period-btn').forEach(b => {
+                    b.className = "period-btn px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors";
+                });
+                e.target.className = "period-btn px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-800 text-zinc-100 shadow-sm transition-colors";
+                currentPeriod = e.target.getAttribute('data-period');
+                if (currentKey) {
+                    fetchData(currentKey);
+                }
+            });
+        });
+
+        if (currentKey) {
+            fetchData(currentKey);
+        }
+
+        loginBtn.addEventListener('click', () => {
+            const key = adminKeyInput.value.trim();
+            if (!key) return;
+            fetchData(key);
+        });
+
+        adminKeyInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                loginBtn.click();
+            }
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('orange_admin_key');
+            currentKey = null;
+            dashboardContainer.classList.add('hidden');
+            settingsContainer.classList.add('hidden');
+            toolsContainer.classList.add('hidden');
+            logoutBtn.classList.add('hidden');
+            adminMenu.classList.add('hidden');
+            adminMenu.classList.remove('flex');
+            loginContainer.classList.remove('hidden');
+            adminKeyInput.value = '';
+        });
+
+        async function fetchData(key) {
+            const originalBtnText = loginBtn.innerHTML;
+            loginBtn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Authenticating...';
+            lucide.createIcons();
+
+            try {
+                const res = await fetch('/api/admin/usage?period=' + currentPeriod, {
+                    headers: { 'Authorization': 'Bearer ' + key }
+                });
+                if (res.status === 401) {
+                    throw new Error("Unauthorized");
+                }
+                const data = await res.json();
+
+                // Login Success
+                localStorage.setItem('orange_admin_key', key);
+                currentKey = key;
+                loginError.classList.add('hidden');
+
+                if (!loginContainer.classList.contains('hidden')) {
+                    loginContainer.classList.add('hidden');
+                    logoutBtn.classList.remove('hidden');
+                    adminMenu.classList.remove('hidden');
+                    adminMenu.classList.add('flex');
+                    const savedTab = localStorage.getItem('orange_admin_tab') || 'general';
+                    const tabMap = { general: tabGeneral, tools: tabTools, analytics: tabAnalytics };
+                    (tabMap[savedTab] || tabGeneral).click();
+                }
+
+                renderDashboard(data);
+            } catch (e) {
+                loginError.classList.remove('hidden');
+                localStorage.removeItem('orange_admin_key');
+            } finally {
+                loginBtn.innerHTML = originalBtnText;
+                lucide.createIcons();
+            }
+        }
+
+        function renderDashboard(data) {
+            const { logs, tools_summary, ip_summary } = data;
+            currentAnalyticsLogs = logs;
+
+            // Total Gen
+            const total = tools_summary.reduce((acc, curr) => acc + curr.count, 0);
+            document.getElementById('total-count').innerText = total;
+
+            // Tools list
+            const toolsList = document.getElementById('tools-list');
+            toolsList.innerHTML = '';
+            tools_summary.sort((a, b) => b.count - a.count).forEach(t => {
+                toolsList.innerHTML += `<li class="flex justify-between items-center py-2 border-b border-zinc-800/50 last:border-0"><span class="text-zinc-300 font-medium">${t.tool_id}</span> <strong class="bg-zinc-800/50 text-orange-400 border border-zinc-700/50 px-2 py-1 rounded-md text-xs">${t.count}</strong></li>`;
+            });
+
+            // IP list
+            const ipList = document.getElementById('ip-list');
+            ipList.innerHTML = '';
+            ip_summary.sort((a, b) => b.count - a.count).forEach(ip => {
+                ipList.innerHTML += `<li class="flex justify-between items-center py-2 border-b border-zinc-800/50 last:border-0"><span class="text-zinc-300 font-mono text-sm">${ip.client_ip}</span> <strong class="bg-zinc-800/50 text-orange-400 border border-zinc-700/50 px-2 py-1 rounded-md text-xs">${ip.count}</strong></li>`;
+            });
+
+            // Logs
+            const logsBody = document.getElementById('logs-body');
+            logsBody.innerHTML = '';
+            logs.forEach(log => {
+                let localTime = 'Unknown Time';
+                try {
+                    let ds = log.timestamp.endsWith('Z') ? log.timestamp : log.timestamp + "Z";
+                    const d = new Date(ds);
+                    localTime = d.toLocaleString();
+                } catch (e) { }
+
+                const promptSnippet = log.prompt ? log.prompt : '<em class="text-zinc-600">None</em>';
+                logsBody.innerHTML += `
+                    <tr class="hover:bg-zinc-800/30 transition-colors">
+                        <td class="px-6 py-3 text-zinc-500 font-mono">#${log.id}</td>
+                        <td class="px-6 py-3 text-zinc-400">${localTime}</td>
+                        <td class="px-6 py-3 font-mono text-zinc-300">${log.client_ip}</td>
+                        <td class="px-6 py-3 font-medium text-orange-400">${log.tool_id}</td>
+                        <td class="px-6 py-3 text-zinc-400 max-w-xs truncate" title="${log.prompt || ''}">${promptSnippet}</td>
+                    </tr>
+                `;
+            });
+        }
+
+
+        document.getElementById('export-csv-btn').addEventListener('click', () => {
+            if (!currentAnalyticsLogs || currentAnalyticsLogs.length === 0) {
+                alert('No data to export.');
+                return;
+            }
+
+            const headers = ['ID', 'Timestamp', 'Client IP', 'Tool ID', 'Prompt'];
+
+            const escapeCSV = (str) => {
+                if (str === null || str === undefined) return '';
+                const stringified = String(str);
+                if (stringified.includes(',') || stringified.includes('"') || stringified.includes('\n')) {
+                    return '"' + stringified.replace(/"/g, '""') + '"';
+                }
+                return stringified;
+            };
+
+            const rows = currentAnalyticsLogs.map(log => [
+                escapeCSV(log.id),
+                escapeCSV(log.timestamp),
+                escapeCSV(log.client_ip),
+                escapeCSV(log.tool_id),
+                escapeCSV(log.prompt)
+            ]);
+
+            const csvContent = [headers.map(escapeCSV).join(','), ...rows.map(r => r.join(','))].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `orange_analytics_${currentPeriod}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+
+        // Helper for authenticated fetches
+        function adminFetch(url, options = {}) {
+            options.headers = options.headers || {};
+            options.headers['Authorization'] = 'Bearer ' + currentKey;
+            return fetch(url, options);
+        }
+
+        document.getElementById('backup-db-btn').addEventListener('click', async () => {
+            try {
+                const res = await adminFetch('/api/admin/db/backup');
+                if (!res.ok) throw new Error('Backup failed');
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'usage_logs_backup.db';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                alert('Backup failed: ' + e.message);
+            }
+        });
+
+        const restoreInput = document.getElementById('restore-db-input');
+        document.getElementById('restore-db-btn').addEventListener('click', () => {
+            restoreInput.click();
+        });
+
+        restoreInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!confirm('Are you sure you want to restore the database? This will overwrite current usage logs.')) {
+                e.target.value = '';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await adminFetch('/api/admin/db/restore', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (res.ok) {
+                    alert('Database restored successfully!');
+                } else {
+                    const data = await res.json();
+                    alert('Restore failed: ' + (data.detail || 'Unknown error'));
+                }
+            } catch (err) {
+                alert('Restore failed: ' + err);
+            }
+
+            e.target.value = '';
+        });
+
+        // Added Tool Editor JS
+        const tabGeneral = document.getElementById('tab-general');
+        const tabAnalytics = document.getElementById('tab-analytics');
+        const tabTools = document.getElementById('tab-tools');
+        const settingsContainer = document.getElementById('settings-container');
+        const toolsContainer = document.getElementById('tools-container');
+
+        let appConfig = null;
+        let availableWorkflowFiles = [];
+        let editingToolIndex = -1;
+        let parsedNodes = {}; // Cache of nodes from currently selected workflow json
+        const MAPPING_TYPES = ['prompt', 'image', 'image2', 'resolution', 'seed', 'outputText'];
+
+        function resetTabs() {
+            const defaultClass = "admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition";
+            tabGeneral.className = defaultClass;
+            tabTools.className = defaultClass;
+            tabAnalytics.className = defaultClass;
+
+            settingsContainer.classList.add('hidden');
+            toolsContainer.classList.add('hidden');
+            dashboardContainer.classList.add('hidden');
+        }
+
+        const activeClass = "admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition";
+
+        tabGeneral.addEventListener('click', async () => {
+            resetTabs();
+            tabGeneral.className = activeClass;
+            settingsContainer.classList.remove('hidden');
+            localStorage.setItem('orange_admin_tab', 'general');
+            await loadEditorData();
+        });
+
+        tabTools.addEventListener('click', async () => {
+            resetTabs();
+            tabTools.className = activeClass;
+            toolsContainer.classList.remove('hidden');
+            localStorage.setItem('orange_admin_tab', 'tools');
+            await loadEditorData();
+        });
+
+        tabAnalytics.addEventListener('click', () => {
+            resetTabs();
+            tabAnalytics.className = activeClass;
+            dashboardContainer.classList.remove('hidden');
+            localStorage.setItem('orange_admin_tab', 'analytics');
+        });
+
+        async function loadEditorData() {
+            try {
+                // Config
+                const cRes = await adminFetch('/api/admin/config');
+                if (cRes.ok) {
+                    appConfig = await cRes.json();
+
+                    // Populate General Settings
+                    document.getElementById('setting-comfy-url').value = appConfig.comfyServerUrl || '';
+                    document.getElementById('setting-admin-key').value = appConfig.adminKey || '';
+                    document.getElementById('setting-target-mp').value = appConfig.targetMegapixels || '1.0';
+
+                    if (appConfig.aspectRatios) {
+                        const keys = Object.keys(appConfig.aspectRatios);
+                        [1, 2, 3].forEach((slot, i) => {
+                            const key = keys[i];
+                            const select = document.getElementById(`setting-ar-slot-${slot}-name`);
+                            const hInput = document.getElementById(`setting-ar-slot-${slot}-h`);
+                            const wInput = document.getElementById(`setting-ar-slot-${slot}-w`);
+                            
+                            if (key) {
+                                // Find if this key is in our preset list
+                                let found = false;
+                                for (let opt of select.options) {
+                                    if (opt.value === key) {
+                                        select.value = key;
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if (!found) select.value = 'custom';
+                                
+                                hInput.value = appConfig.aspectRatios[key].height;
+                                wInput.value = appConfig.aspectRatios[key].width;
+                            }
+                        });
+                    }
+                }
+
+                // Workflows
+                const wRes = await adminFetch('/api/admin/workflows');
+                if (wRes.ok) {
+                    const data = await wRes.json();
+                    availableWorkflowFiles = data.files || [];
+                }
+
+                renderToolsList();
+                updateWorkflowDropdown();
+            } catch (e) { console.error("Error loading tools data."); }
+        }
+
+        let draggedItemIndex = null;
+        let dragSourceNode = null;
+
+        function handleDragStart(e) {
+            const node = e.target.closest('[draggable]');
+            dragSourceNode = node;
+            draggedItemIndex = Array.from(node.parentNode.children).indexOf(node);
+            e.dataTransfer.effectAllowed = 'move';
+            // Use a small timeout to allow the drag image to be created before we change the style
+            setTimeout(() => { if (dragSourceNode) dragSourceNode.classList.add('opacity-10'); }, 0);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            const targetNode = e.target.closest('[draggable]');
+            if (!targetNode || targetNode === dragSourceNode || !dragSourceNode) return;
+            
+            const list = dragSourceNode.parentNode;
+            const overIndex = Array.from(list.children).indexOf(targetNode);
+            draggedItemIndex = Array.from(list.children).indexOf(dragSourceNode);
+            
+            if (draggedItemIndex === overIndex) return;
+            
+            // Move item in array in real-time
+            const tools = appConfig.tools;
+            const movedItem = tools.splice(draggedItemIndex, 1)[0];
+            tools.splice(overIndex, 0, movedItem);
+            
+            // Move DOM node
+            const isMovingDown = draggedItemIndex < overIndex;
+            if (isMovingDown) {
+                list.insertBefore(dragSourceNode, targetNode.nextSibling);
+            } else {
+                list.insertBefore(dragSourceNode, targetNode);
+            }
+            
+            // Maintain selection
+            const selectedToolId = appConfig.tools[editingToolIndex]?.id;
+            if (selectedToolId) {
+                editingToolIndex = appConfig.tools.findIndex(t => t.id === selectedToolId);
+            }
+        }
+
+        function handleDragLeave(e) { }
+
+        function handleDragEnd(e) {
+            if (dragSourceNode) dragSourceNode.classList.remove('opacity-10');
+            dragSourceNode = null;
+            draggedItemIndex = null;
+            renderToolsList(); // Final cleanup render
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (dragSourceNode) dragSourceNode.classList.remove('opacity-10');
+            dragSourceNode = null;
+            draggedItemIndex = null;
+            
+            renderToolsList(); // Full re-render to ensure classes are correct
+            syncToolsOrder();
+        }
+
+        function renderToolsList() {
+            const list = document.getElementById('admin-tools-list');
+            list.innerHTML = '';
+
+            if (!appConfig || !appConfig.tools) return;
+
+            appConfig.tools.forEach((tool, index) => {
+                const isSelected = index === editingToolIndex;
+                const isDragging = index === draggedItemIndex;
+                const activeClass = isSelected ? 'bg-orange-600/20 border-orange-600/50 text-orange-200' : 'bg-zinc-800/40 border-zinc-700 text-zinc-300 hover:bg-zinc-800';
+                const draggingClass = isDragging ? 'opacity-10 pointer-events-none' : '';
+
+                list.innerHTML += `
+                    <div class="p-3 rounded-xl border ${activeClass} transition flex items-center gap-3 group" 
+                         draggable="true" 
+                         ondragstart="handleDragStart(event)" 
+                         ondragend="handleDragEnd(event)"
+                         ondragover="handleDragOver(event)"
+                         ondragleave="handleDragLeave(event)"
+                         ondrop="handleDrop(event)"
+                         onclick="selectTool(${index})">
+                        <div class="cursor-grab active:cursor-grabbing text-zinc-600 group-hover:text-zinc-400 transition-colors">
+                            <i data-lucide="grip-vertical" class="w-4 h-4"></i>
+                        </div>
+                        <div class="flex flex-col flex-1 cursor-pointer">
+                            <span class="font-medium text-sm">${tool.name}</span>
+                            <span class="text-xs opacity-60 font-mono">${tool.id}</span>
+                        </div>
+                        <i data-lucide="terminal" class="w-4 h-4 opacity-30"></i>
+                    </div>
+                `;
+            });
+            lucide.createIcons();
+        }
+
+        function updateWorkflowDropdown() {
+            const select = document.getElementById('edit-tool-file');
+            select.innerHTML = '<option value="">Select workflow...</option>';
+            availableWorkflowFiles.forEach(file => {
+                select.innerHTML += `<option value="${file}">${file}</option>`;
+            });
+        }
+
+        document.getElementById('edit-tool-file').addEventListener('change', async (e) => {
+            const filename = e.target.value;
+            if (!filename) { parsedNodes = {}; return; }
+            try {
+                const res = await adminFetch(`/api/admin/workflows/${filename}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const datalist = document.getElementById('nodes-list');
+                    datalist.innerHTML = '';
+                    parsedNodes = data;
+                    Object.keys(data).forEach(nodeId => {
+                        const node = data[nodeId];
+                        if (node.class_type && node._meta && node._meta.title) {
+                            datalist.innerHTML += `<option value="${nodeId}">${nodeId} (${node._meta.title} - ${node.class_type})</option>`;
+                        } else {
+                            datalist.innerHTML += `<option value="${nodeId}">${nodeId} (${node.class_type})</option>`;
+                        }
+                    });
+                }
+            } catch (e) { }
+        });
+
+        async function selectTool(index) {
+            editingToolIndex = index;
+            renderToolsList();
+            document.getElementById('tool-editor-empty').classList.add('hidden');
+            document.getElementById('tool-editor-form').classList.remove('hidden');
+            document.getElementById('tool-editor-form').classList.add('flex');
+            document.getElementById('save-status').classList.add('hidden');
+
+            const tool = appConfig.tools[index];
+            document.getElementById('edit-tool-id').value = tool.id || '';
+            document.getElementById('edit-tool-name').value = tool.name || '';
+            document.getElementById('edit-tool-output-type').value = tool.outputType || 'image';
+            document.getElementById('edit-tool-file').value = tool.workflowFile || '';
+
+            // Trigger change to load nodes
+            if (tool.workflowFile) {
+                const ev = new Event('change');
+                document.getElementById('edit-tool-file').dispatchEvent(ev);
+            }
+
+            renderMappings(tool.nodeMapping || {});
+        }
+
+        window.toggleMapping = function (type) {
+            const cb = document.getElementById(`map-${type}-enable`);
+            const isEnabled = cb.checked;
+            const container = document.getElementById(`map-${type}-container`);
+            const nodeInput = document.getElementById(`map-${type}-node`);
+            const dot = cb.nextElementSibling.nextElementSibling;
+
+            if (isEnabled) {
+                container.classList.remove('opacity-50', 'grayscale');
+                nodeInput.disabled = false;
+                dot.classList.add('translate-x-3');
+                dot.classList.replace('bg-white', 'bg-orange-500');
+                if (type === 'resolution') {
+                    document.getElementById('map-res-wfield').disabled = false;
+                    document.getElementById('map-res-hfield').disabled = false;
+                    const customArCheckbox = document.getElementById('map-res-custom-ar');
+                    if (customArCheckbox) customArCheckbox.disabled = false;
+                    Object.keys(appConfig.aspectRatios || {}).forEach(r => {
+                        const idSuffix = r.replace(':', '');
+                        const arw = document.getElementById(`ar-${idSuffix}-w`);
+                        const arh = document.getElementById(`ar-${idSuffix}-h`);
+                        if (arw) arw.disabled = false;
+                        if (arh) arh.disabled = false;
+                    });
+                } else {
+                    const fieldInput = document.getElementById(`map-${type}-field`);
+                    if (fieldInput) fieldInput.disabled = false;
+                    const seedRand = document.getElementById('map-seed-rand');
+                    if (type === 'seed' && seedRand) seedRand.disabled = false;
+                }
+            } else {
+                container.classList.add('opacity-50', 'grayscale');
+                nodeInput.disabled = true;
+                dot.classList.remove('translate-x-3');
+                dot.classList.replace('bg-orange-500', 'bg-white');
+                if (type === 'resolution') {
+                    document.getElementById('map-res-wfield').disabled = true;
+                    document.getElementById('map-res-hfield').disabled = true;
+                    const customArCheckbox = document.getElementById('map-res-custom-ar');
+                    if (customArCheckbox) customArCheckbox.disabled = true;
+                    Object.keys(appConfig.aspectRatios || {}).forEach(r => {
+                        const idSuffix = r.replace(':', '');
+                        const arw = document.getElementById(`ar-${idSuffix}-w`);
+                        const arh = document.getElementById(`ar-${idSuffix}-h`);
+                        if (arw) arw.disabled = true;
+                        if (arh) arh.disabled = true;
+                    });
+                } else {
+                    const fieldInput = document.getElementById(`map-${type}-field`);
+                    if (fieldInput) fieldInput.disabled = true;
+                    const seedRand = document.getElementById('map-seed-rand');
+                    if (type === 'seed' && seedRand) seedRand.disabled = true;
+                }
+            }
+        };
+
+        window.autoDetectField = function (type, nodeId) {
+            if (!parsedNodes || !parsedNodes[nodeId]) return;
+            const node = parsedNodes[nodeId];
+            const classType = node.class_type;
+
+            if (type === 'seed') {
+                const field = document.getElementById('map-seed-field');
+                if (field && !field.value) {
+                    if (classType === 'RandomNoise' || classType === 'KSampler' || classType === 'KSamplerAdvanced') {
+                        field.value = 'seed';
+                    } else if (classType === 'PrimitiveNode') {
+                        field.value = 'value';
+                    }
+                }
+            } else if (type === 'prompt') {
+                const field = document.getElementById('map-prompt-field');
+                if (field && !field.value) {
+                    if (classType === 'CLIPTextEncode') field.value = 'text';
+                    else if (classType === 'PrimitiveNode' || classType === 'StringLiteral') field.value = 'value';
+                }
+            } else if (type === 'image' || type === 'image2') {
+                const field = document.getElementById(`map-${type}-field`);
+                if (field && !field.value) {
+                    if (classType === 'LoadImage') field.value = 'image';
+                }
+            } else if (type === 'resolution') {
+                const wf = document.getElementById('map-res-wfield');
+                const hf = document.getElementById('map-res-hfield');
+                if (wf && !wf.value && hf && !hf.value) {
+                    if (classType.includes('LatentImage') || classType.includes('EmptyLatent')) {
+                        wf.value = 'width';
+                        hf.value = 'height';
+                    }
+                }
+            }
+        };
+
+        function renderMappings(mappings) {
+            const container = document.getElementById('node-mappings-container');
+            container.innerHTML = '';
+
+            MAPPING_TYPES.forEach(type => {
+                let mapData, isEnabled, fieldUI, extraUI = '';
+
+                if (type === 'resolution') {
+                    mapData = {
+                        nodeId: (mappings.width && mappings.width.nodeId) || (mappings.height && mappings.height.nodeId) || '',
+                        wField: (mappings.width && mappings.width.field) || 'width',
+                        hField: (mappings.height && mappings.height.field) || 'height'
+                    };
+                    isEnabled = !!(mappings.width || mappings.height);
+
+                    fieldUI = `
+                        <div class="flex-1">
+                            <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Width Field</label>
+                            <input type="text" id="map-res-wfield" value="${mapData.wField}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" ${!isEnabled ? 'disabled' : ''}>
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Height Field</label>
+                            <input type="text" id="map-res-hfield" value="${mapData.hField}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" ${!isEnabled ? 'disabled' : ''}>
+                        </div>
+                    `;
+
+                    const tool = appConfig.tools[editingToolIndex] || {};
+                    const ar = tool.aspectRatios || {};
+                    const hasCustomAR = !!tool.aspectRatios;
+
+                    extraUI = `
+                    <div class="mt-4 pt-3 border-t border-zinc-700/50">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-xs text-zinc-300 font-medium flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="map-res-custom-ar" ${hasCustomAR ? 'checked' : ''} class="rounded bg-zinc-900 border-zinc-700 text-orange-500 focus:ring-orange-500" ${!isEnabled ? 'disabled' : ''} onchange="document.getElementById('ar-inputs').classList.toggle('hidden');">
+                                Override Default Aspect Ratios
+                            </label>
+                        </div>
+                        <div id="ar-inputs" class="grid grid-cols-3 gap-2 ${(!hasCustomAR || !isEnabled) ? 'hidden' : ''}">
+                            ${Object.keys(appConfig.aspectRatios || {}).map(r => `
+                                <div class="bg-zinc-900/50 p-2 rounded border border-zinc-800">
+                                    <div class="text-[10px] text-zinc-500 mb-2 text-center font-bold">${r}</div>
+                                    <div class="flex items-center gap-1 mb-1">
+                                        <span class="text-[10px] text-zinc-500 font-medium w-4 text-center">H</span>
+                                        <input type="number" id="ar-${r.replace(':', '')}-h" value="${ar[r]?.height || ''}" class="w-full bg-zinc-950 border border-zinc-800 text-xs p-1 rounded text-center text-zinc-300 outline-none focus:border-orange-500" ${!isEnabled ? 'disabled' : ''}>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-[10px] text-zinc-500 font-medium w-4 text-center">W</span>
+                                        <input type="number" id="ar-${r.replace(':', '')}-w" value="${ar[r]?.width || ''}" class="w-full bg-zinc-950 border border-zinc-800 text-xs p-1 rounded text-center text-zinc-300 outline-none focus:border-orange-500" ${!isEnabled ? 'disabled' : ''}>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    `;
+                } else {
+                    mapData = mappings[type] || { nodeId: '', field: '' };
+                    isEnabled = !!mappings[type];
+                    fieldUI = `
+                        <div class="flex-1">
+                            <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Field Name</label>
+                            <input type="text" id="map-${type}-field" value="${mapData.field || ''}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" placeholder="Input param" ${!isEnabled ? 'disabled' : ''}>
+                        </div>
+                    `;
+                    extraUI = type === 'seed' ? `<label class="flex items-center gap-2 mt-2 text-xs text-zinc-400"><input type="checkbox" id="map-seed-rand" ${mapData.generateRandom ? 'checked' : ''} class="rounded bg-zinc-900 border-zinc-700 text-orange-500 focus:ring-orange-500" ${!isEnabled ? 'disabled' : ''}> Generate Random</label>` : '';
+                }
+
+                container.innerHTML += `
+                    <div class="bg-zinc-800/40 border border-zinc-700/50 p-4 rounded-xl transition-all ${!isEnabled ? 'opacity-50 grayscale' : ''}" id="map-${type}-container">
+                        <div class="font-medium text-sm text-zinc-200 capitalize mb-3 flex justify-between items-center">
+                            <span class="flex items-center gap-2"><i data-lucide="link" class="w-3 h-3 text-orange-500"></i> ${type} Input</span>
+                            <label class="flex items-center cursor-pointer">
+                                <div class="relative">
+                                    <input type="checkbox" id="map-${type}-enable" class="sr-only" ${isEnabled ? 'checked' : ''} onchange="toggleMapping('${type}')">
+                                    <div class="block bg-zinc-700 w-8 h-5 rounded-full"></div>
+                                    <div class="dot absolute left-1 top-1 ${isEnabled ? 'bg-orange-500 translate-x-3' : 'bg-white'} w-3 h-3 rounded-full transition transform"></div>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="flex-1">
+                                <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Node ID</label>
+                                <input type="text" id="map-${type}-node" value="${mapData.nodeId || ''}" list="nodes-list" oninput="autoDetectField('${type}', this.value)" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" placeholder="Node ID" ${!isEnabled ? 'disabled' : ''}>
+                            </div>
+                            ${fieldUI}
+                        </div>
+                        ${extraUI}
+                    </div>
+                `;
+            });
+            lucide.createIcons();
+        }
+
+
+
+        document.getElementById('delete-tool-btn').addEventListener('click', async () => {
+            if (editingToolIndex === -1) return;
+            if (confirm('Are you sure you want to remove this tool configuration and permanently delete its workflow file?')) {
+                const tool = appConfig.tools[editingToolIndex];
+                if (tool.workflowFile) {
+                    try {
+                        await adminFetch(`/api/admin/workflows/${encodeURIComponent(tool.workflowFile)}`, { method: 'DELETE' });
+                    } catch (e) { console.error("Error deleting workflow file", e); }
+                }
+                appConfig.tools.splice(editingToolIndex, 1);
+                document.getElementById('tool-editor-empty').classList.remove('hidden');
+                document.getElementById('tool-editor-form').classList.add('hidden');
+                document.getElementById('tool-editor-form').classList.remove('flex');
+                editingToolIndex = -1;
+                saveConfigToBackend();
+            }
+        });
+
+        document.getElementById('save-tool-btn').addEventListener('click', () => {
+            if (editingToolIndex === -1) return;
+            const tool = appConfig.tools[editingToolIndex];
+            tool.id = document.getElementById('edit-tool-id').value.trim();
+            tool.name = document.getElementById('edit-tool-name').value.trim();
+            const outputType = document.getElementById('edit-tool-output-type').value;
+            if (outputType && outputType !== 'image') {
+                tool.outputType = outputType;
+            } else {
+                delete tool.outputType; // default is image, no need to store
+            }
+
+            tool.nodeMapping = {};
+            delete tool.aspectRatios;
+
+            MAPPING_TYPES.forEach(type => {
+                const isEnabled = document.getElementById(`map-${type}-enable`).checked;
+                const nodeVal = document.getElementById(`map-${type}-node`).value.trim();
+
+                if (isEnabled && nodeVal) {
+                    if (type === 'resolution') {
+                        const wField = document.getElementById('map-res-wfield').value.trim() || 'width';
+                        const hField = document.getElementById('map-res-hfield').value.trim() || 'height';
+                        tool.nodeMapping.width = { nodeId: nodeVal, field: wField };
+                        tool.nodeMapping.height = { nodeId: nodeVal, field: hField };
+
+                        if (document.getElementById('map-res-custom-ar').checked) {
+                            tool.aspectRatios = {};
+                            Object.keys(appConfig.aspectRatios || {}).forEach(r => {
+                                const idSuffix = r.replace(':', '');
+                                const wEl = document.getElementById(`ar-${idSuffix}-w`);
+                                const hEl = document.getElementById(`ar-${idSuffix}-h`);
+                                if (wEl && hEl) {
+                                    const w = parseInt(wEl.value);
+                                    const h = parseInt(hEl.value);
+                                    if (!isNaN(w) && !isNaN(h)) {
+                                        tool.aspectRatios[r] = { width: w, height: h };
+                                    }
+                                }
+                            });
+                        }
+                    } else {
+                        const fieldVal = document.getElementById(`map-${type}-field`).value.trim();
+                        if (fieldVal) {
+                            tool.nodeMapping[type] = { nodeId: nodeVal, field: fieldVal };
+                            if (type === 'seed') {
+                                tool.nodeMapping[type].generateRandom = document.getElementById('map-seed-rand').checked;
+                            }
+                        }
+                    }
+                }
+            });
+
+            saveConfigToBackend();
+        });
+
+        document.getElementById('save-settings-btn').addEventListener('click', async () => {
+            if (!appConfig) return;
+
+            appConfig.comfyServerUrl = document.getElementById('setting-comfy-url').value.trim();
+            appConfig.adminKey = document.getElementById('setting-admin-key').value.trim();
+
+            appConfig.targetMegapixels = document.getElementById('setting-target-mp').value;
+
+            appConfig.aspectRatios = {};
+            [1, 2, 3].forEach(slot => {
+                let name = document.getElementById(`setting-ar-slot-${slot}-name`).value;
+                const h = parseInt(document.getElementById(`setting-ar-slot-${slot}-h`).value);
+                const w = parseInt(document.getElementById(`setting-ar-slot-${slot}-w`).value);
+                
+                if (name === 'custom') {
+                    name = `${w}:${h}`; // Fallback name for custom
+                }
+                
+                if (!isNaN(w) && !isNaN(h)) {
+                    appConfig.aspectRatios[name] = { width: w, height: h };
+                }
+            });
+
+            const originalText = document.getElementById('save-settings-btn').innerHTML;
+            document.getElementById('save-settings-btn').innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
+
+            try {
+                const res = await adminFetch('/api/admin/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentKey },
+                    body: JSON.stringify(appConfig)
+                });
+
+                if (res.ok) {
+                    const st = document.getElementById('settings-save-status');
+                    st.classList.remove('hidden');
+                    setTimeout(() => st.classList.add('hidden'), 3000);
+                    currentKey = appConfig.adminKey; // update key in case it changed
+                } else {
+                    alert('Error saving config.');
+                }
+            } catch (e) {
+                alert('Save failed.');
+            }
+
+            document.getElementById('save-settings-btn').innerHTML = originalText;
+            lucide.createIcons();
+        });
+
+        async function syncToolsOrder() {
+            try {
+                const res = await adminFetch('/api/admin/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentKey },
+                    body: JSON.stringify(appConfig)
+                });
+
+                if (res.ok) {
+                    const st = document.getElementById('order-save-status');
+                    if (st) {
+                        st.classList.remove('hidden');
+                        setTimeout(() => st.classList.add('hidden'), 3000);
+                    }
+                } else {
+                    console.error('Error syncing tool order.');
+                }
+            } catch (e) {
+                console.error('Failed to sync tool order.', e);
+            }
+        }
+
+        async function saveConfigToBackend() {
+            try {
+                const originalText = document.getElementById('save-tool-btn').innerHTML;
+                document.getElementById('save-tool-btn').innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
+                const res = await adminFetch('/api/admin/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentKey },
+                    body: JSON.stringify(appConfig)
+                });
+
+                if (res.ok) {
+                    renderToolsList();
+                    const st = document.getElementById('save-status');
+                    st.classList.remove('hidden');
+                    setTimeout(() => st.classList.add('hidden'), 3000);
+                } else {
+                    alert('Error saving config.');
+                }
+                document.getElementById('save-tool-btn').innerHTML = originalText;
+                lucide.createIcons();
+            } catch (e) {
+                alert('Save failed.');
+            }
+        }
+
+        // File Upload
+        const uploadBtn = document.getElementById('upload-workflow-btn');
+        const uploadInput = document.getElementById('workflow-upload-input');
+
+        uploadBtn.addEventListener('click', () => {
+            uploadInput.click();
+        });
+
+        uploadBtn.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadBtn.classList.add('border-orange-500');
+        });
+
+        uploadBtn.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadBtn.classList.remove('border-orange-500');
+        });
+
+        uploadBtn.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadBtn.classList.remove('border-orange-500');
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                uploadInput.files = e.dataTransfer.files;
+                uploadInput.dispatchEvent(new Event('change'));
+            }
+        });
+
+        document.getElementById('workflow-upload-input').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file || !file.name.endsWith('.json')) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const btn = document.getElementById('upload-workflow-btn');
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Uploading...';
+
+            try {
+                const res = await adminFetch('/api/admin/workflows/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    if (!availableWorkflowFiles.includes(data.filename)) {
+                        availableWorkflowFiles.push(data.filename);
+                        updateWorkflowDropdown();
+                    }
+
+                    if (!appConfig) appConfig = { tools: [] };
+                    if (!appConfig.tools) appConfig.tools = [];
+
+                    let autoMapping = {};
+                    try {
+                        const text = await file.text();
+                        const parsedNodes = JSON.parse(text);
+                        if (parsedNodes) {
+                            for (const [nodeId, node] of Object.entries(parsedNodes)) {
+                                if (node.class_type === 'CLIPTextEncode' && !autoMapping.prompt) {
+                                    autoMapping.prompt = { nodeId, field: 'text' };
+                                } else if (node.class_type === 'LoadImage' && !autoMapping.image) {
+                                    autoMapping.image = { nodeId, field: 'image' };
+                                } else if (node.class_type === 'EmptyLatentImage' || node.class_type === 'EmptySD3LatentImage') {
+                                    if (!autoMapping.width) autoMapping.width = { nodeId, field: 'width' };
+                                    if (!autoMapping.height) autoMapping.height = { nodeId, field: 'height' };
+                                } else if (node.class_type === 'KSampler' && !autoMapping.seed) {
+                                    autoMapping.seed = { nodeId, field: 'seed', generateRandom: true };
+                                } else if (node.class_type === 'KSamplerAdvanced' && !autoMapping.seed) {
+                                    autoMapping.seed = { nodeId, field: 'noise_seed', generateRandom: true };
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Failed to parse node mappings automatically", e);
+                    }
+
+                    const defaultName = data.filename.replace('.json', '');
+                    const defaultId = defaultName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                    appConfig.tools.push({ id: defaultId, name: defaultName, workflowFile: data.filename, nodeMapping: autoMapping });
+
+                    selectTool(appConfig.tools.length - 1);
+                    alert("Uploaded successfully! New tool auto-generated.");
+                } else {
+                    alert("Upload failed: " + data.detail);
+                }
+            } catch (err) {
+                alert("Upload failed.");
+            } finally {
+                btn.innerHTML = origHTML;
+                lucide.createIcons();
+                e.target.value = ''; // reset
+            }
+        });
+
+        // System Management
+        document.getElementById('check-update-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('check-update-btn');
+            const statusText = document.getElementById('update-status-text');
+            const applyBtn = document.getElementById('apply-update-btn');
+            
+            btn.disabled = true;
+            statusText.innerText = "Checking...";
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Checking...';
+            lucide.createIcons();
+
+            try {
+                const res = await adminFetch('/api/admin/system/check-updates');
+                const data = await res.json();
+                
+                if (res.ok) {
+                    if (data.update_available) {
+                        statusText.innerText = `New version available: ${data.remote_version}`;
+                        statusText.classList.replace('text-zinc-500', 'text-emerald-500');
+                        applyBtn.classList.remove('hidden');
+                    } else {
+                        statusText.innerText = `Up to date (${data.current_version})`;
+                        statusText.classList.replace('text-emerald-500', 'text-zinc-500');
+                        applyBtn.classList.add('hidden');
+                    }
+                } else {
+                    statusText.innerText = "Check failed.";
+                }
+            } catch (e) {
+                statusText.innerText = "Error checking updates.";
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="refresh-cw" class="w-4 h-4"></i> Check for Updates';
+                lucide.createIcons();
+            }
+        });
+
+        document.getElementById('apply-update-btn').addEventListener('click', async () => {
+            if (!confirm("Are you sure you want to install the update? The server will need a restart after.")) return;
+            
+            const btn = document.getElementById('apply-update-btn');
+            const statusText = document.getElementById('update-status-text');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Installing...';
+            lucide.createIcons();
+
+            try {
+                const res = await adminFetch('/api/admin/system/update', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    statusText.innerText = "Update successful! Restart recommended.";
+                    btn.classList.add('hidden');
+                } else {
+                    alert("Update failed: " + data.detail);
+                }
+            } catch (e) {
+                alert("Update failed.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> Install Update';
+                lucide.createIcons();
+            }
+        });
+
+        document.getElementById('restart-server-btn').addEventListener('click', async () => {
+            if (!confirm("Restart the server? This will temporarily disconnect you.")) return;
+            
+            const btn = document.getElementById('restart-server-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Restarting...';
+            lucide.createIcons();
+
+            try {
+                // We don't await the response fully because the server will die
+                fetch('/api/admin/system/restart', { 
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + currentKey }
+                });
+                
+                setTimeout(() => {
+                    location.reload();
+                }, 5000);
+            } catch (e) {
+                // Fail silently as server is likely already restarting
+            }
+        });

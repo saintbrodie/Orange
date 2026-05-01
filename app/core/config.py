@@ -1,7 +1,12 @@
 import json
 import os
 
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "workflows", "workflows-config.json")
+# We assume the working directory is still the project root (f:\Orange)
+# So 'workflows' directory is in the parent of the 'app' directory, or we can just use the CWD.
+# Let's dynamically find the project root from this file's location.
+# This file is in app/core/, so project root is two levels up.
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+CONFIG_PATH = os.path.join(PROJECT_ROOT, "workflows", "workflows-config.json")
 
 # In-memory cache: invalidated automatically when the file changes on disk
 _config_cache = None
@@ -35,7 +40,7 @@ def get_tool_settings(tool_id: str):
     return None
 
 def get_base_workflow(workflow_file: str):
-    path = os.path.join(os.path.dirname(__file__), "workflows", workflow_file)
+    path = os.path.join(PROJECT_ROOT, "workflows", workflow_file)
     if not os.path.exists(path):
         raise FileNotFoundError(f"Workflow file {workflow_file} not found.")
     with open(path, "r", encoding="utf-8") as f:

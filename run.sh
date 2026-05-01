@@ -27,4 +27,4 @@ else
 fi
 
 echo "Starting Orange App on port 7070..."
-uvicorn main:app --host 0.0.0.0 --port 7070
+uvicorn app.main:app --host 0.0.0.0 --port 7070
