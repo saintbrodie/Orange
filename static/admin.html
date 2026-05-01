@@ -373,8 +373,9 @@
                     </h2>
 
                 </div>
-                <div class="flex-1 overflow-y-auto pr-2 space-y-2" id="admin-tools-list">
+                <div class="flex-1 overflow-y-auto pr-2 space-y-2 relative" id="admin-tools-list">
                     <!-- Tools list -->
+                    <div id="drop-indicator" class="absolute left-0 right-2 h-0.5 bg-orange-500 rounded-full opacity-0 pointer-events-none transition-all duration-150 z-10"></div>
                 </div>
                 <div class="mt-6 pt-4 border-t border-zinc-800/50">
                     <input type="file" id="workflow-upload-input" accept=".json" class="hidden">
@@ -849,9 +850,96 @@
             } catch (e) { console.error("Error loading tools data."); }
         }
 
+        let draggedItemIndex = null;
+
+        function handleDragStart(e, index) {
+            draggedItemIndex = index;
+            e.dataTransfer.effectAllowed = 'move';
+            // Use a small timeout to allow the drag image to be created before we change the style
+            setTimeout(() => e.target.classList.add('opacity-20'), 0);
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('opacity-20');
+            draggedItemIndex = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            const indicator = document.getElementById('drop-indicator');
+            const list = document.getElementById('admin-tools-list');
+            const item = e.target.closest('[draggable]');
+            
+            if (item && indicator) {
+                const rect = item.getBoundingClientRect();
+                const listRect = list.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+                
+                indicator.style.opacity = '1';
+                
+                if (e.clientY < midpoint) {
+                    indicator.style.top = (rect.top - listRect.top + list.scrollTop - 5) + 'px';
+                } else {
+                    indicator.style.top = (rect.bottom - listRect.top + list.scrollTop + 3) + 'px';
+                }
+            }
+        }
+
+        function handleDragLeave(e) {
+            // No need to clear shadows anymore
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('opacity-20');
+            draggedItemIndex = null;
+            const indicator = document.getElementById('drop-indicator');
+            if (indicator) indicator.style.opacity = '0';
+        }
+
+        function handleDrop(e, targetIndex) {
+            e.preventDefault();
+            const indicator = document.getElementById('drop-indicator');
+            if (indicator) indicator.style.opacity = '0';
+
+            const item = e.target.closest('[draggable]');
+            let dropAfter = false;
+            if (item) {
+                const rect = item.getBoundingClientRect();
+                dropAfter = e.clientY > rect.top + rect.height / 2;
+            }
+            
+            if (draggedItemIndex === null) return;
+            
+            const selectedToolId = appConfig.tools[editingToolIndex]?.id;
+            
+            const tools = appConfig.tools;
+            const movedItem = tools.splice(draggedItemIndex, 1)[0];
+            
+            let adjustedTarget = targetIndex;
+            if (draggedItemIndex < targetIndex) adjustedTarget--;
+            if (dropAfter) adjustedTarget++;
+            
+            tools.splice(adjustedTarget, 0, movedItem);
+            
+            if (selectedToolId) {
+                editingToolIndex = appConfig.tools.findIndex(t => t.id === selectedToolId);
+            }
+            
+            renderToolsList();
+            saveConfigToBackend();
+        }
+
         function renderToolsList() {
             const list = document.getElementById('admin-tools-list');
-            list.innerHTML = '';
+            const indicator = document.getElementById('drop-indicator');
+            
+            // Remove everything except the indicator
+            Array.from(list.children).forEach(child => {
+                if (child.id !== 'drop-indicator') list.removeChild(child);
+            });
+
             if (!appConfig || !appConfig.tools) return;
 
             appConfig.tools.forEach((tool, index) => {
@@ -859,12 +947,22 @@
                 const activeClass = isSelected ? 'bg-orange-600/20 border-orange-600/50 text-orange-200' : 'bg-zinc-800/40 border-zinc-700 text-zinc-300 hover:bg-zinc-800';
 
                 list.innerHTML += `
-                    <div class="cursor-pointer p-3 rounded-xl border ${activeClass} transition flex items-center gap-3" onclick="selectTool(${index})">
-                        <i data-lucide="terminal" class="w-4 h-4 opacity-70"></i>
-                        <div class="flex flex-col">
+                    <div class="p-3 rounded-xl border ${activeClass} transition flex items-center gap-3 group" 
+                         draggable="true" 
+                         ondragstart="handleDragStart(event, ${index})" 
+                         ondragend="handleDragEnd(event)"
+                         ondragover="handleDragOver(event)"
+                         ondragleave="handleDragLeave(event)"
+                         ondrop="handleDrop(event, ${index})"
+                         onclick="selectTool(${index})">
+                        <div class="cursor-grab active:cursor-grabbing text-zinc-600 group-hover:text-zinc-400 transition-colors">
+                            <i data-lucide="grip-vertical" class="w-4 h-4"></i>
+                        </div>
+                        <div class="flex flex-col flex-1 cursor-pointer">
                             <span class="font-medium text-sm">${tool.name}</span>
                             <span class="text-xs opacity-60 font-mono">${tool.id}</span>
                         </div>
+                        <i data-lucide="terminal" class="w-4 h-4 opacity-30"></i>
                     </div>
                 `;
             });

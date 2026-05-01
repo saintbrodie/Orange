@@ -1,0 +1,392 @@
+{
+  "734": {
+    "inputs": {
+      "image": "temp-8e591c61-9fa8-4418-83b3-45cae7e776d9.jpg"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "735": {
+    "inputs": {
+      "image": "temp-50c541f3-f681-4fba-8cf2-bcf3b61ad6d8(1).jpg"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "737": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "800",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "797": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "798": {
+    "inputs": {
+      "cfg": 1,
+      "model": [
+        "815",
+        0
+      ],
+      "positive": [
+        "808",
+        0
+      ],
+      "negative": [
+        "811",
+        0
+      ]
+    },
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFGGuider"
+    }
+  },
+  "799": {
+    "inputs": {
+      "noise": [
+        "816",
+        0
+      ],
+      "guider": [
+        "798",
+        0
+      ],
+      "sampler": [
+        "797",
+        0
+      ],
+      "sigmas": [
+        "812",
+        0
+      ],
+      "latent_image": [
+        "819",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    }
+  },
+  "800": {
+    "inputs": {
+      "samples": [
+        "799",
+        0
+      ],
+      "vae": [
+        "806",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "801": {
+    "inputs": {
+      "clip_name": "qwen_3_8b_fp8mixed.safetensors",
+      "type": "flux2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "802": {
+    "inputs": {
+      "conditioning": [
+        "807",
+        0
+      ],
+      "latent": [
+        "805",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent"
+    }
+  },
+  "803": {
+    "inputs": {
+      "conditioning": [
+        "810",
+        0
+      ],
+      "latent": [
+        "805",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent"
+    }
+  },
+  "804": {
+    "inputs": {
+      "pixels": [
+        "809",
+        0
+      ],
+      "vae": [
+        "806",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode"
+    }
+  },
+  "805": {
+    "inputs": {
+      "pixels": [
+        "813",
+        0
+      ],
+      "vae": [
+        "806",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode"
+    }
+  },
+  "806": {
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "807": {
+    "inputs": {
+      "text": "replace flag on the wall with this banner",
+      "clip": [
+        "801",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Positive Prompt)"
+    }
+  },
+  "808": {
+    "inputs": {
+      "conditioning": [
+        "802",
+        0
+      ],
+      "latent": [
+        "804",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent"
+    }
+  },
+  "809": {
+    "inputs": {
+      "upscale_method": "nearest-exact",
+      "megapixels": [
+        "814",
+        0
+      ],
+      "resolution_steps": 1,
+      "image": [
+        "735",
+        0
+      ]
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": "ImageScaleToTotalPixels"
+    }
+  },
+  "810": {
+    "inputs": {
+      "conditioning": [
+        "807",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "ConditioningZeroOut"
+    }
+  },
+  "811": {
+    "inputs": {
+      "conditioning": [
+        "803",
+        0
+      ],
+      "latent": [
+        "804",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent"
+    }
+  },
+  "812": {
+    "inputs": {
+      "steps": 4,
+      "width": [
+        "822",
+        0
+      ],
+      "height": [
+        "822",
+        1
+      ]
+    },
+    "class_type": "Flux2Scheduler",
+    "_meta": {
+      "title": "Flux2Scheduler"
+    }
+  },
+  "813": {
+    "inputs": {
+      "upscale_method": "nearest-exact",
+      "megapixels": [
+        "814",
+        0
+      ],
+      "resolution_steps": 1,
+      "image": [
+        "734",
+        0
+      ]
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": "ImageScaleToTotalPixels"
+    }
+  },
+  "814": {
+    "inputs": {
+      "value": 2
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "Float"
+    }
+  },
+  "815": {
+    "inputs": {
+      "model": [
+        "817",
+        0
+      ]
+    },
+    "class_type": "FluxKVCache",
+    "_meta": {
+      "title": "Flux KV Cache"
+    }
+  },
+  "816": {
+    "inputs": {
+      "noise_seed": 688297030986780
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "817": {
+    "inputs": {
+      "unet_name": "flux-2-klein-9b-kv-fp8.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "819": {
+    "inputs": {
+      "width": [
+        "822",
+        0
+      ],
+      "height": [
+        "822",
+        1
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyFlux2LatentImage",
+    "_meta": {
+      "title": "Empty Flux 2 Latent"
+    }
+  },
+  "820": {
+    "inputs": {
+      "value": 1.5
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "Float"
+    }
+  },
+  "821": {
+    "inputs": {
+      "expression": "a * b",
+      "values.a": [
+        "822",
+        0
+      ]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {
+      "title": "Math Expression"
+    }
+  },
+  "822": {
+    "inputs": {
+      "image": [
+        "813",
+        0
+      ]
+    },
+    "class_type": "GetImageSize",
+    "_meta": {
+      "title": "Get Image Size"
+    }
+  }
+}
