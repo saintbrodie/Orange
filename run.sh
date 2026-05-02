@@ -22,6 +22,12 @@ if [ ! -d "venv" ]; then
     source venv/bin/activate
     pip install -r requirements.txt
     echo "Install complete!"
+    
+    echo ""
+    read -p "Do you want to download the default workflow models for ComfyUI now? (y/n): " DOWNLOAD_MODELS
+    if [ "$DOWNLOAD_MODELS" = "y" ] || [ "$DOWNLOAD_MODELS" = "Y" ]; then
+        python scripts/download_models.py
+    fi
 else
     source venv/bin/activate
 fi

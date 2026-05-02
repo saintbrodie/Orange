@@ -14,15 +14,25 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
+set "FRESH_INSTALL=0"
 if not exist "venv" (
     echo Virtual environment not found. Installing Orange App...
     python -m venv venv
     call venv\Scripts\activate.bat
     pip install -r requirements.txt
     echo Install complete!
+    set "FRESH_INSTALL=1"
 ) else (
     call venv\Scripts\activate.bat
 )
+
+if "%FRESH_INSTALL%"=="0" goto skip_download
+echo.
+set /p "DOWNLOAD_MODELS=Do you want to download the default workflow models for ComfyUI now? (y/n): "
+if /i "%DOWNLOAD_MODELS%"=="y" (
+    python scripts\download_models.py
+)
+:skip_download
 
 :loop
 echo Starting Orange App on port 7070...
