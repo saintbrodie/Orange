@@ -184,43 +184,60 @@ lucide.createIcons();
         }
 
 
-        document.getElementById('export-csv-btn').addEventListener('click', () => {
-            if (!currentAnalyticsLogs || currentAnalyticsLogs.length === 0) {
-                alert('No data to export.');
-                return;
-            }
+        document.getElementById('export-csv-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('export-csv-btn');
+            const originalBtnText = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin inline-block align-text-bottom"></i> Exporting...';
+            lucide.createIcons();
 
-            const headers = ['ID', 'Timestamp', 'Client IP', 'Tool ID', 'Prompt'];
+            try {
+                const res = await adminFetch('/api/admin/usage?period=' + currentPeriod + '&export=true');
+                if (!res.ok) throw new Error("Failed to fetch full logs");
+                const data = await res.json();
+                const logsToExport = data.logs;
 
-            const escapeCSV = (str) => {
-                if (str === null || str === undefined) return '';
-                const stringified = String(str);
-                if (stringified.includes(',') || stringified.includes('"') || stringified.includes('\n')) {
-                    return '"' + stringified.replace(/"/g, '""') + '"';
+                if (!logsToExport || logsToExport.length === 0) {
+                    alert('No data to export.');
+                    return;
                 }
-                return stringified;
-            };
 
-            const rows = currentAnalyticsLogs.map(log => [
-                escapeCSV(log.id),
-                escapeCSV(log.timestamp),
-                escapeCSV(log.client_ip),
-                escapeCSV(log.tool_id),
-                escapeCSV(log.prompt)
-            ]);
+                const headers = ['ID', 'Timestamp', 'Client IP', 'Tool ID', 'Prompt'];
 
-            const csvContent = [headers.map(escapeCSV).join(','), ...rows.map(r => r.join(','))].join('\n');
+                const escapeCSV = (str) => {
+                    if (str === null || str === undefined) return '';
+                    const stringified = String(str);
+                    if (stringified.includes(',') || stringified.includes('"') || stringified.includes('\n')) {
+                        return '"' + stringified.replace(/"/g, '""') + '"';
+                    }
+                    return stringified;
+                };
 
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
+                const rows = logsToExport.map(log => [
+                    escapeCSV(log.id),
+                    escapeCSV(log.timestamp),
+                    escapeCSV(log.client_ip),
+                    escapeCSV(log.tool_id),
+                    escapeCSV(log.prompt)
+                ]);
 
-            const link = document.createElement('a');
-            link.setAttribute('href', url);
-            link.setAttribute('download', `orange_analytics_${currentPeriod}.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+                const csvContent = [headers.map(escapeCSV).join(','), ...rows.map(r => r.join(','))].join('\n');
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `orange_analytics_${currentPeriod}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (e) {
+                alert('Export failed: ' + e);
+            } finally {
+                btn.innerHTML = originalBtnText;
+                lucide.createIcons();
+            }
         });
 
 

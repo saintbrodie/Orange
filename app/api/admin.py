@@ -58,7 +58,7 @@ def restart_server(_=Depends(verify_admin)):
         raise HTTPException(status_code=500, detail=f"Failed to restart: {str(e)}")
 
 @router.get("/api/admin/usage")
-def get_admin_usage(period: str = "all", _=Depends(verify_admin)):
+def get_admin_usage(period: str = "all", export: bool = False, _=Depends(verify_admin)):
     date_filter = PERIOD_FILTERS.get(period)
     if date_filter is None:
         raise HTTPException(status_code=400, detail=f"Invalid period: {period}. Valid: {', '.join(PERIOD_FILTERS.keys())}")
@@ -67,7 +67,10 @@ def get_admin_usage(period: str = "all", _=Depends(verify_admin)):
         with sqlite3.connect(get_db_path()) as conn:
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
-            c.execute(f"SELECT * FROM usage {date_filter} ORDER BY timestamp DESC LIMIT 500")
+            if export:
+                c.execute(f"SELECT * FROM usage {date_filter} ORDER BY timestamp DESC")
+            else:
+                c.execute(f"SELECT * FROM usage {date_filter} ORDER BY timestamp DESC LIMIT 500")
             rows = [dict(row) for row in c.fetchall()]
             
             c.execute(f"SELECT tool_id, COUNT(*) as count FROM usage {date_filter} GROUP BY tool_id")
