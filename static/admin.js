@@ -319,12 +319,15 @@ lucide.createIcons();
         const galleryModalAnalytics = document.getElementById('gallery-modal-analytics');
         const galleryModalDownload = document.getElementById('gallery-modal-download');
         const galleryModalOpen = document.getElementById('gallery-modal-open');
+        const galleryModalDelete = document.getElementById('gallery-modal-delete');
 
         let rawGalleryItems = [];
         let filteredGalleryItems = [];
         let galleryGroups = [];
         let currentGalleryIndex = 0;
         let renderedGroupsCount = 0;
+        let selectedPromptIds = new Set();
+        let lastSelectedGlobalIndex = null;
         const GROUPS_PER_PAGE = 3;
         
         const galleryToolFilter = document.getElementById('gallery-tool-filter');
@@ -440,6 +443,117 @@ lucide.createIcons();
             lucide.createIcons();
         }
 
+        function updateBulkActionsUI() {
+            const bar = document.getElementById('gallery-bulk-actions');
+            const countEl = document.getElementById('bulk-select-count');
+            const count = selectedPromptIds.size;
+            
+            if (count > 0) {
+                bar.classList.remove('hidden');
+                bar.classList.add('flex');
+                countEl.innerText = `${count} Items Selected`;
+            } else {
+                bar.classList.add('hidden');
+                bar.classList.remove('flex');
+            }
+        }
+
+        function renderSelectionStates() {
+            // Find all gallery items and update their visual state
+            document.querySelectorAll('[data-prompt-id]').forEach(el => {
+                const pid = el.getAttribute('data-prompt-id');
+                const checkbox = el.querySelector('.gallery-item-checkbox');
+                if (selectedPromptIds.has(pid)) {
+                    el.classList.add('border-orange-500', 'bg-orange-500/10');
+                    el.classList.remove('border-zinc-800');
+                    if(checkbox) checkbox.checked = true;
+                } else {
+                    el.classList.remove('border-orange-500', 'bg-orange-500/10');
+                    el.classList.add('border-zinc-800');
+                    if(checkbox) checkbox.checked = false;
+                }
+            });
+        }
+
+        window.toggleSelect = function(globalIndex, event) {
+            if (event) event.stopPropagation();
+            const item = filteredGalleryItems[globalIndex];
+            const isSelected = selectedPromptIds.has(item.prompt_id);
+            
+            if (event && event.shiftKey && lastSelectedGlobalIndex !== null) {
+                const start = Math.min(globalIndex, lastSelectedGlobalIndex);
+                const end = Math.max(globalIndex, lastSelectedGlobalIndex);
+                // If the one we just clicked was selected, we are range selecting ON
+                // If it was unselected, we are range selecting OFF
+                // But usually shift-click is for ADDING to selection
+                for (let i = start; i <= end; i++) {
+                    selectedPromptIds.add(filteredGalleryItems[i].prompt_id);
+                }
+            } else {
+                if (isSelected) {
+                    selectedPromptIds.delete(item.prompt_id);
+                } else {
+                    selectedPromptIds.add(item.prompt_id);
+                }
+            }
+            
+            lastSelectedGlobalIndex = globalIndex;
+            updateBulkActionsUI();
+            renderSelectionStates();
+        };
+
+        window.toggleGroupSelect = function(groupIndex, event) {
+            if(event) event.stopPropagation();
+            const group = galleryGroups[groupIndex];
+            const allSelected = group.items.every(item => selectedPromptIds.has(item.prompt_id));
+            if (allSelected) {
+                group.items.forEach(item => selectedPromptIds.delete(item.prompt_id));
+            } else {
+                group.items.forEach(item => selectedPromptIds.add(item.prompt_id));
+            }
+            updateBulkActionsUI();
+            renderSelectionStates();
+        };
+
+        if(document.getElementById('bulk-clear-btn')) {
+            document.getElementById('bulk-clear-btn').addEventListener('click', () => {
+                selectedPromptIds.clear();
+                updateBulkActionsUI();
+                renderSelectionStates();
+            });
+        }
+
+        if(document.getElementById('bulk-delete-btn')) {
+            document.getElementById('bulk-delete-btn').addEventListener('click', async () => {
+                const count = selectedPromptIds.size;
+                if (!confirm(`Are you sure you want to delete ${count} selected generations?`)) return;
+                
+                const btn = document.getElementById('bulk-delete-btn');
+                const origHTML = btn.innerHTML;
+                btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Deleting...';
+                btn.disabled = true;
+                
+                try {
+                    const res = await adminFetch('/api/admin/bulk-delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt_ids: Array.from(selectedPromptIds) })
+                    });
+                    if (res.ok) {
+                        selectedPromptIds.clear();
+                        updateBulkActionsUI();
+                        loadGallery(); // Full refresh
+                    } else {
+                        alert("Bulk delete failed.");
+                    }
+                } catch(e) { alert("Error during bulk delete."); }
+                
+                btn.innerHTML = origHTML;
+                btn.disabled = false;
+                lucide.createIcons();
+            });
+        }
+
         function applyGalleryFilters() {
             const filterVal = galleryToolFilter.value;
             const empty = document.getElementById('gallery-empty');
@@ -505,7 +619,10 @@ lucide.createIcons();
             for (let i = renderedGroupsCount; i < limit; i++) {
                 const group = galleryGroups[i];
                 let groupHtml = `<div class="space-y-4 animate-in fade-in duration-500">
-                    <h3 class="text-sm font-semibold text-zinc-400 border-b border-zinc-800 pb-2">${group.label}</h3>
+                    <h3 class="text-sm font-semibold text-zinc-400 border-b border-zinc-800 pb-2 flex justify-between items-center cursor-pointer hover:text-zinc-200 transition-colors group/header" onclick="toggleGroupSelect(${i}, event)">
+                        <span>${group.label}</span>
+                        <span class="text-[10px] uppercase tracking-widest opacity-0 group-hover/header:opacity-50 transition-opacity font-bold">Click to select all</span>
+                    </h3>
                     <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 `;
                 
@@ -525,9 +642,20 @@ lucide.createIcons();
                         mediaEl = `<img src="${url}" class="w-full h-full object-cover rounded-xl shadow-lg border border-zinc-800/50" loading="lazy">`;
                     }
                     
+                    const isSelected = selectedPromptIds.has(item.prompt_id);
                     groupHtml += `
-                        <div class="aspect-square relative group overflow-hidden rounded-xl bg-zinc-900 border border-zinc-800 hover:border-orange-500/50 transition-colors cursor-pointer" onclick="openGalleryModal(${item.globalIndex})">
+                        <div class="aspect-square relative group overflow-hidden rounded-xl bg-zinc-900 border ${isSelected ? 'border-orange-500 bg-orange-500/10' : 'border-zinc-800'} hover:border-orange-500/50 transition-colors cursor-pointer" 
+                             data-prompt-id="${item.prompt_id}"
+                             onclick="openGalleryModal(${item.globalIndex})">
                             ${mediaEl}
+                            
+                            <!-- Checkbox Overlay -->
+                            <div class="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity ${isSelected ? 'opacity-100' : ''}">
+                                <input type="checkbox" class="gallery-item-checkbox w-5 h-5 rounded border-zinc-700 bg-zinc-900 text-orange-600 focus:ring-orange-500 focus:ring-offset-zinc-900 transition-all cursor-pointer" 
+                                       ${isSelected ? 'checked' : ''} 
+                                       onclick="toggleSelect(${item.globalIndex}, event)">
+                            </div>
+
                             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 pointer-events-none">
                                 <span class="text-[10px] font-mono text-zinc-300 truncate">${item.filename || item.prompt_id}</span>
                             </div>
@@ -650,6 +778,30 @@ lucide.createIcons();
                     if (e.key === 'ArrowLeft') openGalleryModal(currentGalleryIndex - 1);
                     if (e.key === 'ArrowRight') openGalleryModal(currentGalleryIndex + 1);
                 }
+            });
+        }
+
+        if (galleryModalDelete) {
+            galleryModalDelete.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const item = filteredGalleryItems[currentGalleryIndex];
+                if (!confirm("Are you sure you want to delete this generation from history?")) return;
+                
+                galleryModalDelete.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Deleting...';
+                lucide.createIcons();
+
+                try {
+                    const res = await adminFetch(`/api/admin/media/${item.prompt_id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        closeGalleryModal();
+                        loadGallery(); // Refresh gallery
+                    } else {
+                        alert("Failed to delete.");
+                    }
+                } catch(e) { alert("Error deleting."); }
+                
+                galleryModalDelete.innerHTML = '<i data-lucide="trash-2" class="w-4 h-4"></i> Delete Generation';
+                lucide.createIcons();
             });
         }
 

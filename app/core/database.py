@@ -51,5 +51,12 @@ def get_backend_for_prompt(prompt_id: str) -> str:
         print(f"Error fetching backend: {e}")
     return None
 
+def delete_usage(prompt_id: str):
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute("DELETE FROM usage WHERE prompt_id = ?", (prompt_id,))
+    except Exception as e:
+        print(f"Error deleting usage: {e}")
+
 def get_db_path() -> str:
     return DB_PATH

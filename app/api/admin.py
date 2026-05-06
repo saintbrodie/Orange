@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, UploadFi
 from fastapi.responses import FileResponse
 
 from app.core.config import load_config, save_config, PROJECT_ROOT, get_comfy_servers
-from app.core.database import get_db_path
+from app.core.database import log_usage, get_backend_for_prompt, get_db_path, delete_usage
 
 router = APIRouter()
 
@@ -191,6 +191,46 @@ def delete_admin_workflow(filename: str, _=Depends(verify_admin)):
         os.remove(path)
         return {"status": "success"}
     raise HTTPException(status_code=404, detail="File not found")
+
+@router.post("/api/admin/bulk-delete")
+async def bulk_delete_media(payload: dict, _=Depends(verify_admin)):
+    prompt_ids = payload.get("prompt_ids", [])
+    servers = get_comfy_servers()
+    
+    for prompt_id in prompt_ids:
+        backend_url = get_backend_for_prompt(prompt_id)
+        target_urls = [backend_url] if backend_url else [s.get("url") for s in servers]
+        
+        for t_url in target_urls:
+            if not t_url: continue
+            try:
+                async with httpx.AsyncClient(timeout=2.0) as client:
+                    await client.post(f"{t_url}/history", json={"delete": [prompt_id]})
+            except Exception:
+                pass
+        delete_usage(prompt_id)
+    return {"status": "success", "deleted_count": len(prompt_ids)}
+
+@router.delete("/api/admin/media/{prompt_id}")
+async def delete_media(prompt_id: str, _=Depends(verify_admin)):
+    backend_url = get_backend_for_prompt(prompt_id)
+    
+    if backend_url:
+        target_urls = [backend_url]
+    else:
+        servers = get_comfy_servers()
+        target_urls = [s.get("url") for s in servers]
+
+    for t_url in target_urls:
+        if not t_url: continue
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                await client.post(f"{t_url}/history", json={"delete": [prompt_id]})
+        except Exception:
+            pass
+    
+    delete_usage(prompt_id)
+    return {"status": "success"}
 
 @router.post("/api/admin/workflows/upload")
 async def upload_admin_workflow(request: Request, file: UploadFile = File(...), _=Depends(verify_admin)):
