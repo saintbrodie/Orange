@@ -45,3 +45,14 @@ def get_base_workflow(workflow_file: str):
         raise FileNotFoundError(f"Workflow file {workflow_file} not found.")
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+def get_comfy_servers():
+    config = load_config()
+    servers = config.get("comfyServers", [])
+    if not servers:
+        # Fallback to single URL
+        legacy_url = config.get("comfyServerUrl", "http://127.0.0.1:8188")
+        servers = [{"url": legacy_url, "priority": 1}]
+    
+    # Sort servers by priority (lowest number first)
+    return sorted(servers, key=lambda x: int(x.get("priority", 1)))

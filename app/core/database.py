@@ -19,17 +19,37 @@ def init_db():
             conn.execute('ALTER TABLE usage ADD COLUMN prompt_id TEXT')
         except sqlite3.OperationalError:
             pass
+        try:
+            conn.execute('ALTER TABLE usage ADD COLUMN backend_url TEXT')
+        except sqlite3.OperationalError:
+            pass
 
-def log_usage(client_ip: str, tool_id: str, prompt: str = None, prompt_id: str = None):
+def log_usage(client_ip: str, tool_id: str, prompt: str = None, prompt_id: str = None, backend_url: str = None):
     try:
         with sqlite3.connect(DB_PATH) as conn:
             if prompt_id is not None:
-                conn.execute("INSERT INTO usage (client_ip, tool_id, prompt, prompt_id) VALUES (?, ?, ?, ?)", (client_ip, tool_id, prompt, prompt_id))
+                if backend_url is not None:
+                    conn.execute("INSERT INTO usage (client_ip, tool_id, prompt, prompt_id, backend_url) VALUES (?, ?, ?, ?, ?)", (client_ip, tool_id, prompt, prompt_id, backend_url))
+                else:
+                    conn.execute("INSERT INTO usage (client_ip, tool_id, prompt, prompt_id) VALUES (?, ?, ?, ?)", (client_ip, tool_id, prompt, prompt_id))
             else:
                 # Fallback for old schema if somehow not updated
                 conn.execute("INSERT INTO usage (client_ip, tool_id, prompt) VALUES (?, ?, ?)", (client_ip, tool_id, prompt))
     except Exception as e:
         print(f"Error logging usage: {e}")
+
+def get_backend_for_prompt(prompt_id: str) -> str:
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute("SELECT backend_url FROM usage WHERE prompt_id = ?", (prompt_id,))
+            row = c.fetchone()
+            if row and row["backend_url"]:
+                return row["backend_url"]
+    except Exception as e:
+        print(f"Error fetching backend: {e}")
+    return None
 
 def get_db_path() -> str:
     return DB_PATH

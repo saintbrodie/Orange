@@ -1,5 +1,10 @@
 {
-  "comfyServerUrl": "http://127.0.0.1:8188",
+  "comfyServers": [
+    {
+      "url": "http://127.0.0.1:8188",
+      "priority": 1
+    }
+  ],
   "adminKey": "orangeadmin",
   "aspectRatios": {
     "1:1": {

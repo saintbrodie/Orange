@@ -6,7 +6,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
-from app.core.config import get_tool_settings, get_base_workflow, load_config
+from app.core.config import get_tool_settings, get_base_workflow, load_config, get_comfy_servers
+from app.core.database import get_backend_for_prompt
 
 router = APIRouter()
 
@@ -15,23 +16,46 @@ def get_comfy_url():
 
 @router.get("/api/health")
 async def get_health():
-    try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            res = await client.get(f"{get_comfy_url()}/system_stats")
-            if res.status_code == 200:
-                data = res.json()
-                vram_warning = False
-                devices = data.get("devices", [])
-                if devices:
-                    device = devices[0]
-                    vram_free = device.get("vram_free", 1)
-                    vram_total = device.get("vram_total", 1)
-                    if vram_total > 0 and (vram_free / vram_total) < 0.05:
-                        vram_warning = True
-                return {"status": "ready", "vram_warning": vram_warning}
-    except Exception:
-        pass
-    return JSONResponse(status_code=503, content={"status": "offline"})
+    servers = get_comfy_servers()
+    if not servers:
+        return JSONResponse(status_code=503, content={"status": "offline"})
+
+    # Check all servers concurrently
+    async def check_server(url: str):
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                res = await client.get(f"{url}/system_stats")
+                if res.status_code == 200:
+                    data = res.json()
+                    vram_warning = False
+                    devices = data.get("devices", [])
+                    if devices:
+                        device = devices[0]
+                        vram_free = device.get("vram_free", 1)
+                        vram_total = device.get("vram_total", 1)
+                        if vram_total > 0 and (vram_free / vram_total) < 0.05:
+                            vram_warning = True
+                    return {"status": "ready", "vram_warning": vram_warning}
+        except Exception:
+            pass
+        return {"status": "offline", "vram_warning": False}
+
+    tasks = [check_server(s.get("url")) for s in servers]
+    results = await asyncio.gather(*tasks)
+
+    any_ready = False
+    any_vram_warning = False
+    
+    for r in results:
+        if r["status"] == "ready":
+            any_ready = True
+        if r["vram_warning"]:
+            any_vram_warning = True
+
+    if any_ready:
+        return {"status": "ready", "vram_warning": any_vram_warning}
+    else:
+        return JSONResponse(status_code=503, content={"status": "offline"})
 
 async def status_generator(request: Request, prompt_id: str, client_id: str, tool_id: str = None):
     q = asyncio.Queue()
@@ -76,9 +100,13 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
         "SaveAudio": "Saving Audio...",
     }
 
+    target_url = get_backend_for_prompt(prompt_id)
+    if not target_url:
+        target_url = get_comfy_url()
+
     async with httpx.AsyncClient() as client:
         try:
-            hist_res = await client.get(f"{get_comfy_url()}/history/{prompt_id}")
+            hist_res = await client.get(f"{target_url}/history/{prompt_id}")
             if hist_res.status_code == 200 and prompt_id in hist_res.json():
                 yield json.dumps({"status": "completed"})
                 return
@@ -91,7 +119,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
                 if await request.is_disconnected():
                     break
                 try:
-                    queue_res = await client.get(f"{get_comfy_url()}/queue")
+                    queue_res = await client.get(f"{target_url}/queue")
                     if queue_res.status_code == 200:
                         queue_data = queue_res.json()
                         pending = queue_data.get("queue_pending", [])
@@ -104,7 +132,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
                 
     async def listen_ws():
         import base64
-        ws_url = get_comfy_url().replace("http://", "ws://").replace("https://", "wss://") + f"/ws?clientId={client_id}"
+        ws_url = target_url.replace("http://", "ws://").replace("https://", "wss://") + f"/ws?clientId={client_id}"
         try:
             async with websockets.connect(ws_url) as websocket:
                 while True:
@@ -137,7 +165,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
         except Exception:
             try:
                 async with httpx.AsyncClient(timeout=3.0) as client:
-                    r = await client.get(f"{get_comfy_url()}/history/{prompt_id}")
+                    r = await client.get(f"{target_url}/history/{prompt_id}")
                     if r.status_code == 200 and prompt_id in r.json():
                         await q.put({"status": "completed"})
                         return

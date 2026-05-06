@@ -589,6 +589,12 @@ lucide.createIcons();
                     localTime = new Date(a.timestamp.endsWith('Z') ? a.timestamp : a.timestamp + "Z").toLocaleString();
                 } catch(e){}
                 
+                let backendDisplay = a.backend_url || 'N/A';
+                if (a.backend_url && appConfig && appConfig.comfyServers) {
+                    const srv = appConfig.comfyServers.find(s => s.url === a.backend_url);
+                    if (srv) backendDisplay = `Server ${srv.priority} (${a.backend_url})`;
+                }
+                
                 analyticsHtml = `
                     <div class="space-y-1">
                         <label class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Timestamp</label>
@@ -601,6 +607,10 @@ lucide.createIcons();
                     <div class="space-y-1">
                         <label class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Tool ID</label>
                         <div class="text-orange-400 font-medium text-xs bg-zinc-950 p-2 rounded border border-zinc-800">${a.tool_id || 'N/A'}</div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Backend Server</label>
+                        <div class="text-zinc-300 font-mono text-xs bg-zinc-950 p-2 rounded border border-zinc-800">${backendDisplay}</div>
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Prompt</label>
@@ -651,7 +661,15 @@ lucide.createIcons();
                     appConfig = await cRes.json();
 
                     // Populate General Settings
-                    document.getElementById('setting-comfy-url').value = appConfig.comfyServerUrl || '';
+                    if (!appConfig.comfyServers) {
+                        appConfig.comfyServers = [];
+                        if (appConfig.comfyServerUrl) {
+                            appConfig.comfyServers.push({ url: appConfig.comfyServerUrl, priority: 1 });
+                            delete appConfig.comfyServerUrl;
+                        }
+                    }
+                    renderComfyServers();
+
                     document.getElementById('setting-admin-key').value = appConfig.adminKey || '';
                     document.getElementById('setting-target-mp').value = appConfig.targetMegapixels || '1.0';
 
@@ -1109,10 +1127,43 @@ lucide.createIcons();
             saveConfigToBackend();
         });
 
+        function renderComfyServers() {
+            const container = document.getElementById('comfy-servers-container');
+            container.innerHTML = '';
+            
+            if (!appConfig.comfyServers) appConfig.comfyServers = [];
+            
+            appConfig.comfyServers.forEach((server, i) => {
+                const el = document.createElement('div');
+                el.className = "flex items-center gap-2";
+                el.innerHTML = `
+                    <div class="flex-1">
+                        <label class="text-[10px] text-zinc-500 font-bold uppercase block mb-1">URL</label>
+                        <input type="text" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs focus:border-orange-500 outline-none text-zinc-300 font-mono" value="${server.url}" onchange="appConfig.comfyServers[${i}].url = this.value">
+                    </div>
+                    <div class="w-20">
+                        <label class="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Priority</label>
+                        <input type="number" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs focus:border-orange-500 outline-none text-zinc-300 font-mono text-center" value="${server.priority || 1}" onchange="appConfig.comfyServers[${i}].priority = parseInt(this.value) || 1">
+                    </div>
+                    <button class="mt-4 text-zinc-500 hover:text-red-400 p-2 rounded hover:bg-red-950/30 transition" onclick="appConfig.comfyServers.splice(${i}, 1); renderComfyServers();"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                `;
+                container.appendChild(el);
+            });
+            lucide.createIcons();
+        }
+
+        document.getElementById('add-server-btn').addEventListener('click', () => {
+            if (!appConfig.comfyServers) appConfig.comfyServers = [];
+            // Assign next priority
+            let maxP = 0;
+            appConfig.comfyServers.forEach(s => { if (s.priority > maxP) maxP = s.priority; });
+            appConfig.comfyServers.push({ url: 'http://127.0.0.1:8188', priority: maxP + 1 });
+            renderComfyServers();
+        });
+
         document.getElementById('save-settings-btn').addEventListener('click', async () => {
             if (!appConfig) return;
 
-            appConfig.comfyServerUrl = document.getElementById('setting-comfy-url').value.trim();
             appConfig.adminKey = document.getElementById('setting-admin-key').value.trim();
 
             appConfig.targetMegapixels = document.getElementById('setting-target-mp').value;

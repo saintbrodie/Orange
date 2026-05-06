@@ -4,10 +4,11 @@ import subprocess
 import shutil
 import json
 import httpx
+import asyncio
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse
 
-from app.core.config import load_config, save_config, PROJECT_ROOT
+from app.core.config import load_config, save_config, PROJECT_ROOT, get_comfy_servers
 from app.core.database import get_db_path
 
 router = APIRouter()
@@ -60,15 +61,26 @@ def restart_server(_=Depends(verify_admin)):
 
 @router.get("/api/admin/media")
 async def get_admin_media(_=Depends(verify_admin)):
-    comfy_url = load_config().get("comfyServerUrl", "http://127.0.0.1:8188")
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        try:
-            res = await client.get(f"{comfy_url}/history")
-            if res.status_code != 200:
-                raise HTTPException(status_code=500, detail="Failed to fetch history from ComfyUI")
-            hist_data = res.json()
-        except Exception:
-            raise HTTPException(status_code=500, detail="Could not connect to ComfyUI server")
+    servers = get_comfy_servers()
+    if not servers:
+        raise HTTPException(status_code=500, detail="No ComfyUI servers configured")
+
+    async def fetch_history(url: str):
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            try:
+                res = await client.get(f"{url}/history")
+                if res.status_code == 200:
+                    return res.json()
+            except Exception:
+                pass
+        return {}
+
+    tasks = [fetch_history(s.get("url")) for s in servers]
+    results = await asyncio.gather(*tasks)
+    
+    hist_data = {}
+    for r in results:
+        hist_data.update(r)
             
     # Fetch usage data
     usage_logs = {}
@@ -78,7 +90,7 @@ async def get_admin_media(_=Depends(verify_admin)):
             c = conn.cursor()
             # We fetch everything where prompt_id is present
             try:
-                c.execute("SELECT prompt_id, client_ip, tool_id, prompt, timestamp FROM usage WHERE prompt_id IS NOT NULL")
+                c.execute("SELECT prompt_id, client_ip, tool_id, prompt, timestamp, backend_url FROM usage WHERE prompt_id IS NOT NULL")
                 for row in c.fetchall():
                     usage_logs[row["prompt_id"]] = dict(row)
             except sqlite3.OperationalError:
@@ -87,6 +99,8 @@ async def get_admin_media(_=Depends(verify_admin)):
         pass
 
     media_items = []
+    # Using sorted by prompt_id (or could just iterate). prompt_ids in comfyui are UUIDs, so chronological is tricky without timestamp from usage_logs.
+    # Actually, reversed list of items is standard in comfy history to get newest first. Let's rely on that.
     for prompt_id, data in reversed(list(hist_data.items())):
         outputs = data.get("outputs", {})
         types_added = set()

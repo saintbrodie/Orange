@@ -293,8 +293,18 @@ document.addEventListener("DOMContentLoaded", () => {
         progressContainer.classList.add('hidden');
         queueStatus.classList.remove('hidden');
         generatingTitle.innerText = "Initializing connection...";
-        queueStatus.innerText = "Connecting to server";
+        queueStatus.innerText = "Contacting Cluster...";
         generateBtn.disabled = true;
+
+        fetch('/api/backend/best').then(r => r.json()).then(data => {
+            console.log("Selected backend:", data);
+            if (data && data.priority) {
+                // Update if it's still in the initial connection phase
+                if (queueStatus.innerText.includes("Contacting Cluster")) {
+                    queueStatus.innerText = `Connecting to server ${data.priority}...`;
+                }
+            }
+        }).catch(err => console.error("Error fetching best backend:", err));
 
         try {
             const res = await fetch('/api/generate', {
