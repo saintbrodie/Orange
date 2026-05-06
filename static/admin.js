@@ -91,6 +91,7 @@ lucide.createIcons();
             dashboardContainer.classList.add('hidden');
             settingsContainer.classList.add('hidden');
             toolsContainer.classList.add('hidden');
+            if(galleryContainer) galleryContainer.classList.add('hidden');
             logoutBtn.classList.add('hidden');
             adminMenu.classList.add('hidden');
             adminMenu.classList.remove('flex');
@@ -123,7 +124,7 @@ lucide.createIcons();
                     adminMenu.classList.remove('hidden');
                     adminMenu.classList.add('flex');
                     const savedTab = localStorage.getItem('orange_admin_tab') || 'general';
-                    const tabMap = { general: tabGeneral, tools: tabTools, analytics: tabAnalytics };
+                    const tabMap = { general: tabGeneral, tools: tabTools, analytics: tabAnalytics, gallery: document.getElementById('tab-gallery') };
                     (tabMap[savedTab] || tabGeneral).click();
                 }
 
@@ -305,8 +306,29 @@ lucide.createIcons();
         const tabGeneral = document.getElementById('tab-general');
         const tabAnalytics = document.getElementById('tab-analytics');
         const tabTools = document.getElementById('tab-tools');
+        const tabGallery = document.getElementById('tab-gallery');
         const settingsContainer = document.getElementById('settings-container');
         const toolsContainer = document.getElementById('tools-container');
+        const galleryContainer = document.getElementById('gallery-container');
+
+        const galleryModal = document.getElementById('gallery-modal');
+        const galleryModalClose = document.getElementById('gallery-modal-close');
+        const galleryModalPrev = document.getElementById('gallery-modal-prev');
+        const galleryModalNext = document.getElementById('gallery-modal-next');
+        const galleryModalMediaContainer = document.getElementById('gallery-modal-media-container');
+        const galleryModalAnalytics = document.getElementById('gallery-modal-analytics');
+        const galleryModalDownload = document.getElementById('gallery-modal-download');
+        const galleryModalOpen = document.getElementById('gallery-modal-open');
+
+        let rawGalleryItems = [];
+        let filteredGalleryItems = [];
+        let galleryGroups = [];
+        let currentGalleryIndex = 0;
+        let renderedGroupsCount = 0;
+        const GROUPS_PER_PAGE = 3;
+        
+        const galleryToolFilter = document.getElementById('gallery-tool-filter');
+        const galleryLoadingSentinel = document.getElementById('gallery-loading-sentinel');
 
         let appConfig = null;
         let availableWorkflowFiles = [];
@@ -319,10 +341,15 @@ lucide.createIcons();
             tabGeneral.className = defaultClass;
             tabTools.className = defaultClass;
             tabAnalytics.className = defaultClass;
+            if(tabGallery) tabGallery.className = defaultClass;
 
             settingsContainer.classList.add('hidden');
             toolsContainer.classList.add('hidden');
             dashboardContainer.classList.add('hidden');
+            if(galleryContainer) {
+                galleryContainer.classList.add('hidden');
+                galleryContainer.classList.remove('flex');
+            }
         }
 
         const activeClass = "admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition";
@@ -349,6 +376,272 @@ lucide.createIcons();
             dashboardContainer.classList.remove('hidden');
             localStorage.setItem('orange_admin_tab', 'analytics');
         });
+
+        if(tabGallery) {
+            tabGallery.addEventListener('click', async () => {
+                resetTabs();
+                tabGallery.className = activeClass;
+                galleryContainer.classList.remove('hidden');
+                galleryContainer.classList.add('flex');
+                localStorage.setItem('orange_admin_tab', 'gallery');
+                await loadGallery();
+            });
+        }
+        
+        if(document.getElementById('refresh-gallery-btn')) {
+            document.getElementById('refresh-gallery-btn').addEventListener('click', loadGallery);
+        }
+
+        async function loadGallery() {
+            const empty = document.getElementById('gallery-empty');
+            const btn = document.getElementById('refresh-gallery-btn');
+            
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Loading...';
+            lucide.createIcons();
+            
+            try {
+                const res = await adminFetch('/api/admin/media');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.media && data.media.length > 0) {
+                        rawGalleryItems = data.media;
+                        
+                        // Populate tool filter dropdown
+                        const tools = new Set();
+                        rawGalleryItems.forEach(item => {
+                            if (item.analytics && item.analytics.tool_id) {
+                                tools.add(item.analytics.tool_id);
+                            }
+                        });
+                        
+                        const currentVal = galleryToolFilter.value;
+                        galleryToolFilter.innerHTML = '<option value="all">All Tools</option>';
+                        Array.from(tools).sort().forEach(t => {
+                            const opt = document.createElement('option');
+                            opt.value = t;
+                            opt.textContent = t;
+                            galleryToolFilter.appendChild(opt);
+                        });
+                        if (tools.has(currentVal)) {
+                            galleryToolFilter.value = currentVal;
+                        }
+                        
+                        applyGalleryFilters();
+                    } else {
+                        rawGalleryItems = [];
+                        applyGalleryFilters();
+                    }
+                }
+            } catch (e) {
+                console.error("Gallery load error", e);
+            }
+            
+            btn.innerHTML = '<i data-lucide="refresh-cw" class="w-4 h-4"></i> Refresh';
+            lucide.createIcons();
+        }
+
+        function applyGalleryFilters() {
+            const filterVal = galleryToolFilter.value;
+            const empty = document.getElementById('gallery-empty');
+            const grid = document.getElementById('gallery-grid');
+            
+            if (filterVal === 'all') {
+                filteredGalleryItems = [...rawGalleryItems];
+            } else {
+                filteredGalleryItems = rawGalleryItems.filter(i => i.analytics && i.analytics.tool_id === filterVal);
+            }
+            
+            if (filteredGalleryItems.length === 0) {
+                grid.innerHTML = '';
+                galleryGroups = [];
+                if(galleryLoadingSentinel) galleryLoadingSentinel.classList.add('hidden');
+                empty.classList.remove('hidden');
+                empty.classList.add('flex');
+                return;
+            }
+            
+            empty.classList.add('hidden');
+            empty.classList.remove('flex');
+            
+            const groupsMap = {};
+            filteredGalleryItems.forEach((item, index) => {
+                let dateStr = 'Unknown Date';
+                if (item.analytics && item.analytics.timestamp) {
+                    try {
+                        const d = new Date(item.analytics.timestamp.endsWith('Z') ? item.analytics.timestamp : item.analytics.timestamp + "Z");
+                        const today = new Date();
+                        const yesterday = new Date(today);
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        
+                        if (d.toDateString() === today.toDateString()) {
+                            dateStr = 'Today';
+                        } else if (d.toDateString() === yesterday.toDateString()) {
+                            dateStr = 'Yesterday';
+                        } else {
+                            dateStr = d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+                        }
+                    } catch(e) {}
+                }
+                if (!groupsMap[dateStr]) groupsMap[dateStr] = [];
+                groupsMap[dateStr].push({ ...item, globalIndex: index });
+            });
+            
+            galleryGroups = Object.keys(groupsMap).map(k => ({ label: k, items: groupsMap[k] }));
+            
+            grid.innerHTML = '';
+            renderedGroupsCount = 0;
+            renderNextGalleryGroups();
+        }
+
+        function renderNextGalleryGroups() {
+            if (renderedGroupsCount >= galleryGroups.length) {
+                if(galleryLoadingSentinel) galleryLoadingSentinel.classList.add('hidden');
+                return;
+            }
+            
+            const grid = document.getElementById('gallery-grid');
+            const limit = Math.min(renderedGroupsCount + GROUPS_PER_PAGE, galleryGroups.length);
+            
+            for (let i = renderedGroupsCount; i < limit; i++) {
+                const group = galleryGroups[i];
+                let groupHtml = `<div class="space-y-4 animate-in fade-in duration-500">
+                    <h3 class="text-sm font-semibold text-zinc-400 border-b border-zinc-800 pb-2">${group.label}</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                `;
+                
+                group.items.forEach(item => {
+                    let mediaEl = '';
+                    const url = `/api/output?prompt_id=${item.prompt_id}&type=${item.type}`;
+                    
+                    if (item.type === 'video') {
+                        mediaEl = `<video src="${url}" class="w-full h-full object-cover rounded-xl" autoplay loop muted playsinline></video>`;
+                    } else if (item.type === 'audio') {
+                        mediaEl = `
+                            <div class="w-full h-full flex flex-col items-center justify-center bg-zinc-800 rounded-xl p-4 gap-2">
+                                <i data-lucide="music" class="w-6 h-6 text-orange-500"></i>
+                            </div>
+                        `;
+                    } else {
+                        mediaEl = `<img src="${url}" class="w-full h-full object-cover rounded-xl shadow-lg border border-zinc-800/50" loading="lazy">`;
+                    }
+                    
+                    groupHtml += `
+                        <div class="aspect-square relative group overflow-hidden rounded-xl bg-zinc-900 border border-zinc-800 hover:border-orange-500/50 transition-colors cursor-pointer" onclick="openGalleryModal(${item.globalIndex})">
+                            ${mediaEl}
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 pointer-events-none">
+                                <span class="text-[10px] font-mono text-zinc-300 truncate">${item.filename || item.prompt_id}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                groupHtml += `</div></div>`;
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = groupHtml;
+                grid.appendChild(wrapper.firstElementChild);
+            }
+            
+            renderedGroupsCount = limit;
+            lucide.createIcons();
+            
+            if (renderedGroupsCount < galleryGroups.length) {
+                if(galleryLoadingSentinel) galleryLoadingSentinel.classList.remove('hidden');
+            } else {
+                if(galleryLoadingSentinel) galleryLoadingSentinel.classList.add('hidden');
+            }
+        }
+
+        if(galleryToolFilter) {
+            galleryToolFilter.addEventListener('change', applyGalleryFilters);
+        }
+
+        // Setup Intersection Observer for Infinite Scroll
+        if (galleryLoadingSentinel) {
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) {
+                    renderNextGalleryGroups();
+                }
+            }, { rootMargin: '200px' });
+            observer.observe(galleryLoadingSentinel);
+        }
+
+        window.openGalleryModal = function(index) {
+            if (index < 0 || index >= filteredGalleryItems.length) return;
+            currentGalleryIndex = index;
+            const item = filteredGalleryItems[index];
+            const url = `/api/output?prompt_id=${item.prompt_id}&type=${item.type}`;
+            
+            let mediaEl = '';
+            if (item.type === 'video') {
+                mediaEl = `<video src="${url}" class="max-w-full max-h-full object-contain rounded-lg shadow-lg" autoplay loop muted playsinline controls></video>`;
+            } else if (item.type === 'audio') {
+                mediaEl = `<audio src="${url}" controls class="w-full max-w-sm"></audio>`;
+            } else {
+                mediaEl = `<img src="${url}" class="max-w-full max-h-full object-contain rounded-lg shadow-lg">`;
+            }
+            galleryModalMediaContainer.innerHTML = mediaEl;
+            
+            let analyticsHtml = '';
+            if (item.analytics) {
+                const a = item.analytics;
+                let localTime = 'Unknown';
+                try {
+                    localTime = new Date(a.timestamp.endsWith('Z') ? a.timestamp : a.timestamp + "Z").toLocaleString();
+                } catch(e){}
+                
+                analyticsHtml = `
+                    <div class="space-y-1">
+                        <label class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Timestamp</label>
+                        <div class="text-zinc-300 font-mono text-xs bg-zinc-950 p-2 rounded border border-zinc-800">${localTime}</div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Client IP</label>
+                        <div class="text-zinc-300 font-mono text-xs bg-zinc-950 p-2 rounded border border-zinc-800">${a.client_ip || 'N/A'}</div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Tool ID</label>
+                        <div class="text-orange-400 font-medium text-xs bg-zinc-950 p-2 rounded border border-zinc-800">${a.tool_id || 'N/A'}</div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Prompt</label>
+                        <div class="text-zinc-300 text-xs bg-zinc-950 p-2 rounded border border-zinc-800 max-h-40 overflow-y-auto whitespace-pre-wrap">${a.prompt || 'None'}</div>
+                    </div>
+                `;
+            } else {
+                analyticsHtml = `<div class="text-zinc-500 text-center py-4 italic">No analytics data found for this generation.</div>`;
+            }
+            
+            galleryModalAnalytics.innerHTML = analyticsHtml;
+            galleryModalDownload.href = url;
+            galleryModalOpen.href = url;
+            
+            galleryModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            
+            galleryModalPrev.style.display = index > 0 ? 'block' : 'none';
+            galleryModalNext.style.display = index < filteredGalleryItems.length - 1 ? 'block' : 'none';
+        };
+
+        window.closeGalleryModal = function() {
+            galleryModal.classList.add('hidden');
+            document.body.style.overflow = '';
+            galleryModalMediaContainer.innerHTML = '';
+        };
+
+        if(galleryModalClose) {
+            galleryModalClose.addEventListener('click', closeGalleryModal);
+            galleryModal.addEventListener('click', closeGalleryModal);
+            galleryModalPrev.addEventListener('click', (e) => { e.stopPropagation(); openGalleryModal(currentGalleryIndex - 1); });
+            galleryModalNext.addEventListener('click', (e) => { e.stopPropagation(); openGalleryModal(currentGalleryIndex + 1); });
+            
+            document.addEventListener('keydown', (e) => {
+                if (!galleryModal.classList.contains('hidden')) {
+                    if (e.key === 'Escape') closeGalleryModal();
+                    if (e.key === 'ArrowLeft') openGalleryModal(currentGalleryIndex - 1);
+                    if (e.key === 'ArrowRight') openGalleryModal(currentGalleryIndex + 1);
+                }
+            });
+        }
 
         async function loadEditorData() {
             try {

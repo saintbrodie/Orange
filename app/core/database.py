@@ -15,11 +15,19 @@ def init_db():
                 prompt TEXT
             )
         ''')
+        try:
+            conn.execute('ALTER TABLE usage ADD COLUMN prompt_id TEXT')
+        except sqlite3.OperationalError:
+            pass
 
-def log_usage(client_ip: str, tool_id: str, prompt: str = None):
+def log_usage(client_ip: str, tool_id: str, prompt: str = None, prompt_id: str = None):
     try:
         with sqlite3.connect(DB_PATH) as conn:
-            conn.execute("INSERT INTO usage (client_ip, tool_id, prompt) VALUES (?, ?, ?)", (client_ip, tool_id, prompt))
+            if prompt_id is not None:
+                conn.execute("INSERT INTO usage (client_ip, tool_id, prompt, prompt_id) VALUES (?, ?, ?, ?)", (client_ip, tool_id, prompt, prompt_id))
+            else:
+                # Fallback for old schema if somehow not updated
+                conn.execute("INSERT INTO usage (client_ip, tool_id, prompt) VALUES (?, ?, ?)", (client_ip, tool_id, prompt))
     except Exception as e:
         print(f"Error logging usage: {e}")
 

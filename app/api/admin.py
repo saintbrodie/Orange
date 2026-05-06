@@ -3,6 +3,7 @@ import sqlite3
 import subprocess
 import shutil
 import json
+import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse
 
@@ -56,6 +57,56 @@ def restart_server(_=Depends(verify_admin)):
         os._exit(0)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to restart: {str(e)}")
+
+@router.get("/api/admin/media")
+async def get_admin_media(_=Depends(verify_admin)):
+    comfy_url = load_config().get("comfyServerUrl", "http://127.0.0.1:8188")
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            res = await client.get(f"{comfy_url}/history")
+            if res.status_code != 200:
+                raise HTTPException(status_code=500, detail="Failed to fetch history from ComfyUI")
+            hist_data = res.json()
+        except Exception:
+            raise HTTPException(status_code=500, detail="Could not connect to ComfyUI server")
+            
+    # Fetch usage data
+    usage_logs = {}
+    try:
+        with sqlite3.connect(get_db_path()) as conn:
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            # We fetch everything where prompt_id is present
+            try:
+                c.execute("SELECT prompt_id, client_ip, tool_id, prompt, timestamp FROM usage WHERE prompt_id IS NOT NULL")
+                for row in c.fetchall():
+                    usage_logs[row["prompt_id"]] = dict(row)
+            except sqlite3.OperationalError:
+                pass # schema not migrated yet
+    except Exception:
+        pass
+
+    media_items = []
+    for prompt_id, data in reversed(list(hist_data.items())):
+        outputs = data.get("outputs", {})
+        types_added = set()
+        for node_id, output_data in outputs.items():
+            for mtype in ["images", "gifs", "video", "audio"]:
+                if mtype in types_added: continue
+                items = output_data.get(mtype, [])
+                if items:
+                    t = "image" if mtype in ["images", "gifs"] else mtype
+                    if t not in types_added:
+                        media_items.append({
+                            "prompt_id": prompt_id,
+                            "filename": items[0].get("filename"),
+                            "type": t,
+                            "analytics": usage_logs.get(prompt_id)
+                        })
+                        types_added.add(t)
+                        types_added.add(mtype)
+    
+    return {"media": media_items}
 
 @router.get("/api/admin/usage")
 def get_admin_usage(period: str = "all", export: bool = False, _=Depends(verify_admin)):

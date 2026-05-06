@@ -115,7 +115,7 @@ async def generate(
         raise HTTPException(status_code=503, detail=f"Could not connect to ComfyUI server at {get_comfy_url()}. Is it running?")
         
     # Log successful generation request
-    log_usage(client_ip, tool_id, prompt)
+    log_usage(client_ip, tool_id, prompt, prompt_id=data.get("prompt_id"))
     
     return {"prompt_id": data.get("prompt_id"), "client_id": client_id}
 

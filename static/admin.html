@@ -62,6 +62,10 @@
                     class="admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition">
                     <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Analytics
                 </button>
+                <button id="tab-gallery"
+                    class="admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i data-lucide="image" class="w-4 h-4"></i> Gallery
+                </button>
             </div>
         </div>
         <button id="logout-btn"
@@ -448,6 +452,66 @@
                                 <i data-lucide="save" class="w-4 h-4"></i> Save Tool
                             </button>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gallery UI -->
+        <div id="gallery-container" class="hidden w-full max-w-7xl mx-auto flex-col gap-6 animate-in fade-in duration-300 pb-8">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-semibold text-zinc-100 flex items-center gap-2">
+                    <i data-lucide="image" class="w-6 h-6 text-orange-500"></i> Media Gallery
+                </h2>
+                <div class="flex items-center gap-3">
+                    <select id="gallery-tool-filter" class="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300 outline-none focus:border-orange-500 shadow-sm hidden md:block">
+                        <option value="all">All Tools</option>
+                    </select>
+                    <button id="refresh-gallery-btn"
+                        class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 border border-zinc-700 shadow-sm">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> Refresh
+                    </button>
+                </div>
+            </div>
+            
+            <div id="gallery-grid" class="flex flex-col gap-10">
+                <!-- Grouped Media items will be injected here -->
+            </div>
+            <div id="gallery-loading-sentinel" class="w-full flex items-center justify-center py-6 hidden">
+                <i data-lucide="loader-2" class="w-6 h-6 animate-spin text-orange-500"></i>
+            </div>
+            <div id="gallery-empty" class="hidden flex-col items-center justify-center text-zinc-500 py-20 bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl shadow-xl">
+                <i data-lucide="image-off" class="w-16 h-16 mb-4 opacity-30"></i>
+                <p>No media generated yet.</p>
+            </div>
+        </div>
+
+        <!-- Gallery Modal UI -->
+        <div id="gallery-modal" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+            <button id="gallery-modal-close" class="absolute top-4 right-4 text-zinc-400 hover:text-white p-2 bg-zinc-900/50 rounded-full transition-colors z-10"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <button id="gallery-modal-prev" class="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-3 bg-zinc-900/50 hover:bg-zinc-800 rounded-full transition-colors z-10 hidden md:block"><i data-lucide="chevron-left" class="w-8 h-8"></i></button>
+            <button id="gallery-modal-next" class="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-3 bg-zinc-900/50 hover:bg-zinc-800 rounded-full transition-colors z-10 hidden md:block"><i data-lucide="chevron-right" class="w-8 h-8"></i></button>
+            
+            <div class="flex flex-col md:flex-row w-full max-w-6xl h-full max-h-[85vh] bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl relative" onclick="event.stopPropagation()">
+                <div class="flex-1 bg-black flex items-center justify-center p-4 relative" id="gallery-modal-media-container">
+                    <!-- Media element injected here -->
+                </div>
+                <div class="w-full md:w-80 bg-zinc-900 p-6 flex flex-col gap-6 overflow-y-auto border-t md:border-t-0 md:border-l border-zinc-800">
+                    <div>
+                        <h3 class="text-sm font-semibold text-zinc-300 flex items-center gap-2 mb-4 border-b border-zinc-800 pb-2">
+                            <i data-lucide="info" class="w-4 h-4 text-orange-500"></i> Analytics Data
+                        </h3>
+                        <div id="gallery-modal-analytics" class="space-y-4 text-sm">
+                            <!-- Analytics injected here -->
+                        </div>
+                    </div>
+                    <div class="mt-auto flex gap-3 pt-4 border-t border-zinc-800">
+                        <a id="gallery-modal-download" href="#" download class="flex-1 bg-zinc-800 hover:bg-zinc-700 text-center py-2 rounded-lg text-zinc-200 transition font-medium flex items-center justify-center gap-2">
+                            <i data-lucide="download" class="w-4 h-4"></i> Download
+                        </a>
+                        <a id="gallery-modal-open" href="#" target="_blank" class="flex-1 bg-zinc-800 hover:bg-zinc-700 text-center py-2 rounded-lg text-zinc-200 transition font-medium flex items-center justify-center gap-2">
+                            <i data-lucide="external-link" class="w-4 h-4"></i> Open
+                        </a>
                     </div>
                 </div>
             </div>
