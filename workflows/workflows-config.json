@@ -129,18 +129,13 @@
       }
     },
     {
-      "id": "seedvr2-upscale",
+      "id": "image-upscale",
       "name": "Upscale Image",
       "workflowFile": "SeedVR2 Image Upscale.json",
       "nodeMapping": {
         "image": {
           "nodeId": "16",
           "field": "image"
-        },
-        "seed": {
-          "nodeId": "21:10",
-          "field": "seed",
-          "generateRandom": true
         }
       }
     }
