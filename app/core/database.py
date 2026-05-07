@@ -27,14 +27,10 @@ def init_db():
 def log_usage(client_ip: str, tool_id: str, prompt: str = None, prompt_id: str = None, backend_url: str = None):
     try:
         with sqlite3.connect(DB_PATH) as conn:
-            if prompt_id is not None:
-                if backend_url is not None:
-                    conn.execute("INSERT INTO usage (client_ip, tool_id, prompt, prompt_id, backend_url) VALUES (?, ?, ?, ?, ?)", (client_ip, tool_id, prompt, prompt_id, backend_url))
-                else:
-                    conn.execute("INSERT INTO usage (client_ip, tool_id, prompt, prompt_id) VALUES (?, ?, ?, ?)", (client_ip, tool_id, prompt, prompt_id))
-            else:
-                # Fallback for old schema if somehow not updated
-                conn.execute("INSERT INTO usage (client_ip, tool_id, prompt) VALUES (?, ?, ?)", (client_ip, tool_id, prompt))
+            conn.execute(
+                "INSERT INTO usage (client_ip, tool_id, prompt, prompt_id, backend_url) VALUES (?, ?, ?, ?, ?)",
+                (client_ip, tool_id, prompt, prompt_id, backend_url)
+            )
     except Exception as e:
         print(f"Error logging usage: {e}")
 

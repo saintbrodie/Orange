@@ -12,7 +12,9 @@ from app.core.database import get_backend_for_prompt
 router = APIRouter()
 
 def get_comfy_url():
-    return load_config().get("comfyServerUrl", "http://127.0.0.1:8188")
+    """Fallback: returns the highest-priority configured server URL."""
+    servers = get_comfy_servers()
+    return servers[0].get("url") if servers else "http://127.0.0.1:8188"
 
 @router.get("/api/health")
 async def get_health():

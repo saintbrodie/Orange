@@ -296,16 +296,6 @@ document.addEventListener("DOMContentLoaded", () => {
         queueStatus.innerText = "Contacting Cluster...";
         generateBtn.disabled = true;
 
-        fetch('/api/backend/best').then(r => r.json()).then(data => {
-            console.log("Selected backend:", data);
-            if (data && data.priority) {
-                // Update if it's still in the initial connection phase
-                if (queueStatus.innerText.includes("Contacting Cluster")) {
-                    queueStatus.innerText = `Connecting to server ${data.priority}...`;
-                }
-            }
-        }).catch(err => console.error("Error fetching best backend:", err));
-
         try {
             const res = await fetch('/api/generate', {
                 method: 'POST',
@@ -320,7 +310,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await res.json();
             const promptId = data.prompt_id;
             const clientId = data.client_id;
-            
+
+            // Update status with the actual server that was selected (no race condition)
+            if (data.server_priority) {
+                queueStatus.innerText = `Connecting to server ${data.server_priority}...`;
+            }
+
             listenToQueue(promptId, clientId, selectedToolId);
 
         } catch (e) {

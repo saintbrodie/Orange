@@ -192,44 +192,36 @@ def delete_admin_workflow(filename: str, _=Depends(verify_admin)):
         return {"status": "success"}
     raise HTTPException(status_code=404, detail="File not found")
 
+async def _delete_single_prompt(prompt_id: str, client: httpx.AsyncClient, all_servers: list):
+    """Delete a prompt from ComfyUI history and the local usage database."""
+    backend_url = get_backend_for_prompt(prompt_id)
+    target_urls = [backend_url] if backend_url else [s.get("url") for s in all_servers]
+
+    for t_url in target_urls:
+        if not t_url:
+            continue
+        try:
+            await client.post(f"{t_url}/history", json={"delete": [prompt_id]})
+        except Exception:
+            pass
+    delete_usage(prompt_id)
+
+
 @router.post("/api/admin/bulk-delete")
 async def bulk_delete_media(payload: dict, _=Depends(verify_admin)):
     prompt_ids = payload.get("prompt_ids", [])
     servers = get_comfy_servers()
-    
-    for prompt_id in prompt_ids:
-        backend_url = get_backend_for_prompt(prompt_id)
-        target_urls = [backend_url] if backend_url else [s.get("url") for s in servers]
-        
-        for t_url in target_urls:
-            if not t_url: continue
-            try:
-                async with httpx.AsyncClient(timeout=2.0) as client:
-                    await client.post(f"{t_url}/history", json={"delete": [prompt_id]})
-            except Exception:
-                pass
-        delete_usage(prompt_id)
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        for prompt_id in prompt_ids:
+            await _delete_single_prompt(prompt_id, client, servers)
     return {"status": "success", "deleted_count": len(prompt_ids)}
+
 
 @router.delete("/api/admin/media/{prompt_id}")
 async def delete_media(prompt_id: str, _=Depends(verify_admin)):
-    backend_url = get_backend_for_prompt(prompt_id)
-    
-    if backend_url:
-        target_urls = [backend_url]
-    else:
-        servers = get_comfy_servers()
-        target_urls = [s.get("url") for s in servers]
-
-    for t_url in target_urls:
-        if not t_url: continue
-        try:
-            async with httpx.AsyncClient(timeout=2.0) as client:
-                await client.post(f"{t_url}/history", json={"delete": [prompt_id]})
-        except Exception:
-            pass
-    
-    delete_usage(prompt_id)
+    servers = get_comfy_servers()
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        await _delete_single_prompt(prompt_id, client, servers)
     return {"status": "success"}
 
 @router.post("/api/admin/workflows/upload")

@@ -1,38 +1,35 @@
-import time
+import asyncio
 import random
 import uuid
 import io
-from typing import Dict
 import httpx
 from fastapi import APIRouter, Request, Form, File, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
 
-from app.core.config import get_tool_settings, get_base_workflow, load_config
+from app.core.config import get_tool_settings, get_base_workflow, load_config, get_comfy_servers
 from app.core.database import log_usage, get_backend_for_prompt
 from app.core.utils import strip_metadata
 from app.core.backends import get_best_backend, increment_active, decrement_active
-from app.core.config import get_comfy_servers
 
 router = APIRouter()
 
-# router = APIRouter()
-router = APIRouter()
 
 def get_comfy_url():
-    return load_config().get("comfyServerUrl", "http://127.0.0.1:8188")
-
-@router.get("/api/backend/best")
-async def get_best_backend_info():
-    target_url = await get_best_backend()
-    if not target_url:
-        return {"url": None, "priority": 1}
-        
+    """Fallback: returns the highest-priority configured server URL."""
     servers = get_comfy_servers()
-    for s in servers:
-        if s.get("url") == target_url:
-            return {"url": target_url, "priority": s.get("priority", 1)}
-    
-    return {"url": target_url, "priority": 1}
+    return servers[0].get("url") if servers else "http://127.0.0.1:8188"
+
+
+async def _upload_image_to_comfy(upload_file: UploadFile, target_url: str) -> str:
+    """Upload an image file to a specific ComfyUI backend and return its server-side filename."""
+    await upload_file.seek(0)
+    async with httpx.AsyncClient() as client:
+        files = {'image': (upload_file.filename, await upload_file.read(), upload_file.content_type)}
+        res = await client.post(f"{target_url}/upload/image", files=files)
+        if res.status_code != 200:
+            raise Exception("Failed to upload image to ComfyUI backend")
+        return res.json().get("name")
+
 
 @router.post("/api/generate")
 async def generate(
@@ -45,14 +42,13 @@ async def generate(
 ):
     client_ip = request.client.host if request.client else "unknown"
 
-
     tool = get_tool_settings(tool_id)
     if not tool:
         raise HTTPException(status_code=400, detail="Invalid tool ID")
-        
+
     mapping = tool.get("nodeMapping", {})
     workflow = get_base_workflow(tool.get("workflowFile"))
-    
+
     # Validation based on mappings
     if mapping.get("prompt") and not prompt:
         raise HTTPException(status_code=400, detail="Prompt is required for this tool")
@@ -60,40 +56,31 @@ async def generate(
         raise HTTPException(status_code=400, detail="Image is required for this tool")
     if mapping.get("image2") and not image2:
         raise HTTPException(status_code=400, detail="Second image is required for this tool")
-    
+
     client_id = str(uuid.uuid4())
     exclude_urls = []
-    
+
     while True:
         target_url = await get_best_backend(exclude_urls=exclude_urls)
         if not target_url:
             raise HTTPException(status_code=503, detail="No healthy ComfyUI servers available.")
-            
+
         increment_active(target_url)
         try:
             # 1. Upload Images to ComfyUI if required
-            async def upload_image_to_comfy(upload_file: UploadFile, t_url: str) -> str:
-                await upload_file.seek(0)
-                async with httpx.AsyncClient() as client:
-                    files = {'image': (upload_file.filename, await upload_file.read(), upload_file.content_type)}
-                    res = await client.post(f"{t_url}/upload/image", files=files)
-                    if res.status_code != 200:
-                        raise Exception("Failed to upload image to ComfyUI backend")
-                    return res.json().get("name")
-
             uploaded_image_name = None
             if image and mapping.get("image"):
-                uploaded_image_name = await upload_image_to_comfy(image, target_url)
+                uploaded_image_name = await _upload_image_to_comfy(image, target_url)
 
             uploaded_image2_name = None
             if image2 and mapping.get("image2"):
-                uploaded_image2_name = await upload_image_to_comfy(image2, target_url)
-                    
+                uploaded_image2_name = await _upload_image_to_comfy(image2, target_url)
+
             # 2. Map variables into the workflow
             if prompt and mapping.get("prompt"):
                 p_map = mapping["prompt"]
                 workflow[p_map["nodeId"]]["inputs"][p_map["field"]] = prompt
-                
+
             if uploaded_image_name and mapping.get("image"):
                 i_map = mapping["image"]
                 workflow[i_map["nodeId"]]["inputs"][i_map["field"]] = uploaded_image_name
@@ -101,7 +88,7 @@ async def generate(
             if uploaded_image2_name and mapping.get("image2"):
                 i2_map = mapping["image2"]
                 workflow[i2_map["nodeId"]]["inputs"][i2_map["field"]] = uploaded_image2_name
-                
+
             if aspect_ratio and mapping.get("width") and mapping.get("height"):
                 current_config = load_config()
                 arConfig = tool.get("aspectRatios", current_config.get("aspectRatios", {})).get(aspect_ratio)
@@ -122,18 +109,32 @@ async def generate(
                 if res.status_code != 200:
                     raise Exception("Failed to queue generation in ComfyUI")
                 data = res.json()
-                
-            break # Success! Break retry loop
+
+            break  # Success — exit retry loop
         except Exception as e:
             print(f"Server {target_url} failed: {e}. Retrying next...")
             exclude_urls.append(target_url)
-        finally:
-            decrement_active(target_url)
+            decrement_active(target_url)  # Only decrement on failure
+
+    # Keep in-flight count elevated briefly so back-to-back requests see this server as busy,
+    # then release it once ComfyUI's own queue reflects the job.
+    asyncio.get_event_loop().call_later(2.0, decrement_active, target_url)
+
+    # Determine the priority number of the chosen server for the frontend display
+    server_priority = next(
+        (s.get("priority", 1) for s in get_comfy_servers() if s.get("url") == target_url),
+        1
+    )
 
     # Log successful generation request
     log_usage(client_ip, tool_id, prompt, prompt_id=data.get("prompt_id"), backend_url=target_url)
-    
-    return {"prompt_id": data.get("prompt_id"), "client_id": client_id}
+
+    return {
+        "prompt_id": data.get("prompt_id"),
+        "client_id": client_id,
+        "server_priority": server_priority
+    }
+
 
 @router.get("/api/output")
 async def get_output(prompt_id: str, type: str = "image"):
@@ -143,21 +144,21 @@ async def get_output(prompt_id: str, type: str = "image"):
     """
     target_url = get_backend_for_prompt(prompt_id)
     if not target_url:
-        target_url = get_comfy_url() # Fallback
+        target_url = get_comfy_url()  # Fallback to highest-priority server
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         hist_res = await client.get(f"{target_url}/history/{prompt_id}")
         if hist_res.status_code != 200:
             raise HTTPException(status_code=404, detail="History not found")
-            
+
         hist_data = hist_res.json()
         if prompt_id not in hist_data:
             raise HTTPException(status_code=404, detail="Prompt ID not generated yet or failed")
 
         outputs = hist_data[prompt_id].get("outputs", {})
-        
+
         file_info = None
-        
+
         if type == "video":
             for node_id, output_data in outputs.items():
                 for key in ["gifs", "video", "images"]:
@@ -189,17 +190,17 @@ async def get_output(prompt_id: str, type: str = "image"):
                         file_info = items[0]
                         break
                 if file_info: break
-                
+
         if not file_info:
             raise HTTPException(status_code=404, detail=f"No {type} output found for prompt")
-            
+
         view_url = f"{target_url}/view?filename={file_info['filename']}&subfolder={file_info.get('subfolder', '')}&type={file_info.get('type', 'output')}"
         file_res = await client.get(view_url)
         if file_res.status_code != 200:
             raise HTTPException(status_code=500, detail=f"Failed to fetch {type} from ComfyUI backend")
-            
+
         raw_bytes = file_res.content
-        
+
         if type == "image":
             try:
                 clean_bytes = strip_metadata(raw_bytes)
@@ -223,6 +224,7 @@ async def get_output(prompt_id: str, type: str = "image"):
             elif fname.endswith('.m4a'): media_type = "audio/mp4"
             else: media_type = "audio/flac"
             return StreamingResponse(io.BytesIO(raw_bytes), media_type=media_type)
+
 
 @router.get("/api/image")
 async def get_image(prompt_id: str):
