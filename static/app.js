@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let selectedImageFile = null;
     let selectedImage2File = null;
     let currentOutputType = 'image';
+    let lastResultBlob = null;
     let wavesurfer = null;
 
     // DOM Elements
@@ -45,6 +46,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const resultAudio = document.getElementById('result-audio');
     const audioUI = document.getElementById('audio-ui');
     const backBtn = document.getElementById('back-btn');
+    const useAsInputBtn = document.getElementById('use-as-input-btn');
+    const modifyBtn = document.getElementById('modify-btn');
     const downloadBtn = document.getElementById('download-btn');
     const downloadBtnText = document.getElementById('download-btn-text');
     const outputTextContainer = document.getElementById('output-text-container');
@@ -401,6 +404,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if(!outputRes.ok) throw new Error(`${typeLabel} not found`);
             
             const blob = await outputRes.blob();
+            lastResultBlob = blob;
             const url = URL.createObjectURL(blob);
             
             // Reset all result elements
@@ -493,6 +497,29 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             downloadBtnText.innerText = downloadLabel;
+
+            // Show "Use as Input" if the current tool accepts an image input and output is an image
+            const currentTool = config.tools.find(t => t.id === selectedToolId);
+            const hasImageInput = currentTool && currentTool.nodeMapping && currentTool.nodeMapping.image;
+            const outputIsImage = blob.type && blob.type.startsWith('image/');
+            if (hasImageInput && outputIsImage) {
+                useAsInputBtn.classList.remove('hidden');
+                useAsInputBtn.classList.add('flex');
+            } else {
+                useAsInputBtn.classList.add('hidden');
+                useAsInputBtn.classList.remove('flex');
+            }
+
+            // Show "Modify" for image outputs on tools WITHOUT image input, if a modify tool is configured
+            const modifyToolId = config.modifyTool;
+            const modifyToolExists = modifyToolId && config.tools.some(t => t.id === modifyToolId);
+            if (!hasImageInput && outputIsImage && modifyToolExists) {
+                modifyBtn.classList.remove('hidden');
+                modifyBtn.classList.add('flex');
+            } else {
+                modifyBtn.classList.add('hidden');
+                modifyBtn.classList.remove('flex');
+            }
             
             generatingLayer.classList.add('hidden');
             generatingLayer.classList.remove('flex');
@@ -522,11 +549,15 @@ document.addEventListener("DOMContentLoaded", () => {
         showError(msg);
     }
 
-    backBtn.addEventListener('click', () => {
+    function goBackToForm() {
         resultLayer.classList.add('hidden');
         resultLayer.classList.remove('flex');
         uiContainer.classList.remove('hidden');
         generateBtn.disabled = false;
+        useAsInputBtn.classList.add('hidden');
+        useAsInputBtn.classList.remove('flex');
+        modifyBtn.classList.add('hidden');
+        modifyBtn.classList.remove('flex');
         // Reset progress visually
         document.getElementById('progress-bar-fill').style.width = '0%';
         document.getElementById('progress-percentage').innerText = '0%';
@@ -535,6 +566,29 @@ document.addEventListener("DOMContentLoaded", () => {
         resultVideo.pause();
         resultAudio.pause();
         if (wavesurfer) wavesurfer.pause();
+    }
+
+    backBtn.addEventListener('click', goBackToForm);
+
+    useAsInputBtn.addEventListener('click', () => {
+        if (!lastResultBlob) return;
+        // Convert the output blob into a File and set it as the image input
+        const ext = lastResultBlob.type.split('/')[1] || 'png';
+        const file = new File([lastResultBlob], `output.${ext}`, { type: lastResultBlob.type });
+        handleImageSelected(file);
+        goBackToForm();
+    });
+
+    modifyBtn.addEventListener('click', () => {
+        if (!lastResultBlob || !config.modifyTool) return;
+        const modifyToolId = config.modifyTool;
+        // Switch to the modify tool first
+        selectTool(modifyToolId);
+        // Convert the output blob into a File and set it as the image input
+        const ext = lastResultBlob.type.split('/')[1] || 'png';
+        const file = new File([lastResultBlob], `output.${ext}`, { type: lastResultBlob.type });
+        handleImageSelected(file);
+        goBackToForm();
     });
 
     document.getElementById('audio-play-pause').onclick = () => {

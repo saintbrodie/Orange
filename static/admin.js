@@ -42,6 +42,22 @@ lucide.createIcons();
             [1, 2, 3].forEach(slot => handleRatioChange(slot));
         };
 
+        window.toggleModifyTool = function() {
+            const cb = document.getElementById('setting-modify-enabled');
+            const select = document.getElementById('setting-modify-tool');
+            const dot = document.getElementById('modify-toggle-dot');
+            if (cb.checked) {
+                select.disabled = false;
+                dot.classList.add('translate-x-3');
+                dot.classList.replace('bg-white', 'bg-orange-500');
+            } else {
+                select.disabled = true;
+                select.value = '';
+                dot.classList.remove('translate-x-3');
+                dot.classList.replace('bg-orange-500', 'bg-white');
+            }
+        };
+
 
         const loginContainer = document.getElementById('login-container');
         const dashboardContainer = document.getElementById('dashboard-container');
@@ -850,6 +866,30 @@ lucide.createIcons();
                             }
                         });
                     }
+
+                    // Populate Modify Image Tool dropdown
+                    const modifySelect = document.getElementById('setting-modify-tool');
+                    const modifyCb = document.getElementById('setting-modify-enabled');
+                    const modifyDot = document.getElementById('modify-toggle-dot');
+                    modifySelect.innerHTML = '<option value="">Select a tool...</option>';
+                    // Only show tools that accept image input
+                    (appConfig.tools || []).forEach(t => {
+                        if (t.nodeMapping && t.nodeMapping.image) {
+                            modifySelect.innerHTML += `<option value="${t.id}">${t.name} (${t.id})</option>`;
+                        }
+                    });
+                    if (appConfig.modifyTool) {
+                        modifyCb.checked = true;
+                        modifySelect.disabled = false;
+                        modifySelect.value = appConfig.modifyTool;
+                        modifyDot.classList.add('translate-x-3');
+                        modifyDot.classList.replace('bg-white', 'bg-orange-500');
+                    } else {
+                        modifyCb.checked = false;
+                        modifySelect.disabled = true;
+                        modifyDot.classList.remove('translate-x-3');
+                        modifyDot.classList.replace('bg-orange-500', 'bg-white');
+                    }
                 }
 
                 // Workflows
@@ -1334,6 +1374,15 @@ lucide.createIcons();
                     appConfig.aspectRatios[name] = { width: w, height: h };
                 }
             });
+
+            // Modify Image Tool setting
+            const modifyEnabled = document.getElementById('setting-modify-enabled').checked;
+            const modifyToolVal = document.getElementById('setting-modify-tool').value;
+            if (modifyEnabled && modifyToolVal) {
+                appConfig.modifyTool = modifyToolVal;
+            } else {
+                delete appConfig.modifyTool;
+            }
 
             const originalText = document.getElementById('save-settings-btn').innerHTML;
             document.getElementById('save-settings-btn').innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
