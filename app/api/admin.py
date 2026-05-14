@@ -22,7 +22,7 @@ async def verify_admin(authorization: str = Header(None)):
 
 PERIOD_FILTERS = {
     "all":       "",
-    "daily":     "WHERE date(timestamp) = date('now')",
+    "today":     "WHERE date(timestamp) = date('now')",
     "weekly":    "WHERE timestamp >= datetime('now', '-7 days')",
     "monthly":   "WHERE timestamp >= datetime('now', '-1 month')",
     "quarterly": "WHERE timestamp >= datetime('now', '-3 months')",
