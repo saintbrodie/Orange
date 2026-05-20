@@ -80,3 +80,6 @@ Out of the box, Orange is configured with these high-performance workflows:
 - **Detailed Generate**: [Qwen 2512](workflows/defaults/Qwen%20Image%202512.json) using [BF16 Model](https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/blob/main/split_files/diffusion_models/qwen_image_2512_bf16.safetensors) + [8-Step Lightning LoRA](https://huggingface.co/lightx2v/Qwen-Image-2512-Lightning/blob/main/Qwen-Image-2512-Lightning-8steps-V1.0-fp32.safetensors)
 - **Modify Image**: [Klein KV](workflows/defaults/Klein%20Edit.json) (ComfyUI Default)
 - **Upscale Image**: [SeedVR2 4k](workflows/defaults/SeedVR2%20Image%20Upscale.json) (From the [Seed2VR Extension](https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler))
+
+> [!TIP]
+> **Model Downloader Script:** On a fresh installation, the setup scripts (`run.bat` / `run.sh`) will prompt you to automatically download the models and dependencies required for these default workflows. You can also run the download script manually at any time by executing `python scripts/download_models.py` inside your virtual environment.
