@@ -8,7 +8,7 @@ import asyncio
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse
 
-from app.core.config import load_config, save_config, PROJECT_ROOT, get_comfy_servers
+from app.core.config import load_config, save_config, PROJECT_ROOT, get_comfy_servers, restore_defaults
 from app.core.database import log_usage, get_backend_for_prompt, get_db_path, delete_usage
 
 router = APIRouter()
@@ -243,6 +243,13 @@ async def upload_admin_workflow(request: Request, file: UploadFile = File(...), 
         return {"status": "success", "filename": safe_name}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid JSON file: {e}")
+
+@router.post("/api/admin/workflows/restore-defaults")
+def admin_restore_defaults(overwrite: bool = False, _=Depends(verify_admin)):
+    success = restore_defaults(overwrite=overwrite)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to restore defaults. Defaults folder might be missing.")
+    return {"status": "success", "message": "Default workflows restored."}
 
 @router.get("/api/admin/db/backup")
 def backup_db(_=Depends(verify_admin)):

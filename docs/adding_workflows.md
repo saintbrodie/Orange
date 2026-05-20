@@ -90,3 +90,11 @@ You will see an array of `tools`. To add yours, create a new object in the `tool
 ## Step 3: Enjoy!
 
 There is no need to restart the backend when creating or editing tools! Because the Orange server reads the config dynamically, simply **refresh your browser** at the main Orange URL. Your new tool will appear in the sidebar automatically!
+
+## Default Workflows
+
+Orange separates core default workflows from your user customizations. 
+- Tracked defaults live in `workflows/defaults/`.
+- Your active settings and customized tools live in `workflows/workflows-config.json`.
+
+If you ever accidentally delete a default tool, or if you want to restore the official default workflows provided with updates, you can copy the `.json` files from `workflows/defaults/` into `workflows/`, or use the **Restore Default Workflows** button in the Admin Dashboard Settings menu.

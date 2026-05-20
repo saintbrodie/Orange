@@ -318,6 +318,34 @@ lucide.createIcons();
             e.target.value = '';
         });
 
+        if(document.getElementById('restore-defaults-btn')) {
+            document.getElementById('restore-defaults-btn').addEventListener('click', async () => {
+                if (!confirm('Are you sure you want to restore default workflows? This will copy default .json files to your active folder.')) return;
+                
+                const overwrite = confirm('Do you want to overwrite existing workflows that share the same name as the defaults? (Click Cancel to only restore missing workflows)');
+                
+                const btn = document.getElementById('restore-defaults-btn');
+                const orig = btn.innerHTML;
+                btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Restoring...';
+                
+                try {
+                    const res = await adminFetch(`/api/admin/workflows/restore-defaults?overwrite=${overwrite}`, { method: 'POST' });
+                    const data = await res.json();
+                    if (res.ok) {
+                        alert('Defaults restored successfully! Refreshing tools...');
+                        await loadEditorData();
+                    } else {
+                        alert('Restore failed: ' + data.detail);
+                    }
+                } catch(e) {
+                    alert('Error restoring defaults: ' + e);
+                }
+                
+                btn.innerHTML = orig;
+                lucide.createIcons();
+            });
+        }
+
         // Added Tool Editor JS
         const tabGeneral = document.getElementById('tab-general');
         const tabAnalytics = document.getElementById('tab-analytics');

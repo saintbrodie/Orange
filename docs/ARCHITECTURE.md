@@ -30,9 +30,12 @@ Orange/
 │   ├── tailwind.min.js       # Runtime Tailwind CSS configuration
 │   └── lucide.min.js         # Icons
 │
-├── workflows/                # ComfyUI JSON Workflows & Configuration
-│   ├── workflows-config.json # Master configuration (Tool definitions, node mappings)
-│   └── *.json                # Individual ComfyUI API workflows
+├── workflows/                # User Configuration & Workflows
+│   ├── defaults/             # Tracked default workflows and config
+│   │   ├── workflows-config.json
+│   │   └── *.json
+│   ├── workflows-config.json # User's local override configuration
+│   └── *.json                # User's local workflows
 │
 ├── usage_logs.db             # SQLite database storing generation requests/IPs
 ├── run.bat                   # Windows startup & environment script
@@ -45,8 +48,9 @@ Orange/
 The backend is built using **FastAPI** to provide a fast, asynchronous middle-layer between the end-user and the ComfyUI server.
 
 ### 1. Generation Pipeline (`app/api/generate.py`)
+- **Configuration Merging:** `app/core/config.py` intelligently loads `workflows/defaults/workflows-config.json` and then merges `workflows/workflows-config.json` on top. This allows the backend to automatically receive new default features while preserving user modifications (such as custom `tools` or `adminKey`).
 - **Image Uploads:** Receives `image` or `image2` from the frontend and forwards them to ComfyUI's `/upload/image` endpoint using `httpx`.
-- **Node Mapping:** Reads the `workflows-config.json` to map frontend inputs (prompt string, uploaded image names, calculated width/height from aspect ratio, and random seeds) directly into the parsed workflow JSON's node fields.
+- **Node Mapping:** Reads the merged config to map frontend inputs (prompt string, uploaded image names, calculated width/height from aspect ratio, and random seeds) directly into the parsed workflow JSON's node fields.
 - **Queueing:** Submits the modified workflow to ComfyUI's `/prompt` endpoint.
 
 ### 2. Status & Progress Tracking (`app/api/status.py`)

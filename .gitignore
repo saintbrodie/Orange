@@ -31,6 +31,5 @@ Thumbs.db
 # output/
 
 # Workflows (Ignore all raw ComfyUI JSONs but track the main configuration)
-#workflows/*
-#!workflows/workflows-config.json
-
+workflows/*.json
+!workflows/defaults/
