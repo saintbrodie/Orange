@@ -21,7 +21,14 @@ Orange is a minimalist, dynamic web frontend wrapper around **ComfyUI**. It repl
 
 ## Installation & Running
 
-### Option 1: 1-Click Install with Pinokio (Recommended)
+### Option 1: Manual Installation (Recommended)
+
+1. **Clone this repository**
+2. **Double click `run.bat` (Windows) or execute `./run.sh` (Linux/Mac)**
+   The startup script will automatically check for Python, install it if missing, create a virtual environment, install requirements, and start the frontend server on port `7070`.
+3. Open your browser and navigate to `http://localhost:7070/`.
+
+### Option 2: 1-Click Install with Pinokio
 
 You can install and run Orange with 1-click using [Pinokio](https://pinokio.computer):
 
@@ -30,13 +37,6 @@ You can install and run Orange with 1-click using [Pinokio](https://pinokio.comp
    `https://beta.pinokio.co/apps/github-com-saintbrodie-orange-pinokio`
 3. Click **Download** and then **Install** to automatically clone the repository, set up the Python virtual environment, and install dependencies.
 4. Once installation is complete, click **Start** to run the server.
-
-### Option 2: Manual Installation
-
-1. **Clone this repository**
-2. **Double click `run.bat` (Windows) or execute `./run.sh` (Linux/Mac)**
-   The startup script will automatically check for Python, install it if missing, create a virtual environment, install requirements, and start the frontend server on port `7070`.
-3. Open your browser and navigate to `http://localhost:7070/`.
 
 ## Documentation
 - [Architecture Overview](docs/ARCHITECTURE.md): Detailed project breakdown and data flow for AI agents and developers.
