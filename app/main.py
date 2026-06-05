@@ -4,10 +4,12 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.core.database import init_db
+from app.core.config import restore_defaults
 from app.api import generate, status, admin, workflows
 
-# Initialize database
+# Initialize database and default files
 init_db()
+restore_defaults(overwrite=False)
 
 app = FastAPI(title="ComfyUI Minimal Frontend - Orange")
 

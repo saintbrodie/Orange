@@ -14,6 +14,8 @@ Orange is a minimalist, dynamic web frontend wrapper around **ComfyUI**. It repl
 - **Multi-Modal Support**: Native support for Image, Video, and Audio generations.
 - **Output Text Support**: Ability to display generated text (like lyrics, metadata, or logs) directly alongside media outputs.
 - **Intelligent Auto-Mapping**: Admin Tool Editor automatically detects and maps node fields for `RandomNoise`, `CLIPTextEncode`, `EmptyLatentImage`, and more.
+- **LLM Prompt Enhancement**: Interactively expand simple prompts into descriptive, high-quality detailed prompts using OpenAI-compatible, Ollama, Gemini, or Anthropic LLMs.
+- **Git-Safe Custom Prompts**: Configure and edit system prompts per-tool or globally. They are saved to local files that won't get overwritten when pulling updates via git.
 
 ## Requirements
 - Python 3
@@ -73,6 +75,24 @@ Orange features a secure analytics dashboard and an integrated Tool Editor that 
 - **Text Mapping**: Bind an `outputText` node to display generated text (like lyrics) in a clean, copyable interface.
 - **Node Mappings**: Manually bind frontend UI elements (Prompt input, Image dropzone) to specific ComfyUI node IDs.
 - **Resolution Overrides**: Configure tool-specific output dimensions (1:1, 16:9, 9:16) for workflows that deviate from the global defaults, or turn off resolution scaling entirely.
+
+### LLM & Prompt Enhancement Configuration
+Orange features a powerful prompt enhancement utility that turns short user prompts into rich instructions using local or cloud LLMs.
+
+1. Navigate to the **Admin Dashboard** (`http://localhost:7070/admin`) and log in.
+2. Select **General Settings** from the dashboard.
+3. Check **Enable Prompt Enhancement**.
+4. Choose a provider:
+   - **OpenAI**: Requires an API Key. You can use a custom Base URL to point to **LM Studio**, **llama.cpp**, or **OpenRouter**.
+   - **Ollama**: Connects natively to local Ollama installations (defaulting to `http://127.0.0.1:11434`).
+   - **Gemini**: Requires a Google Gemini API Key.
+   - **Anthropic**: Requires an Anthropic API Key.
+5. Provide a model name (or click **Fetch Models** to query your provider's available models).
+6. Click **Save Settings**.
+7. Navigate to the **Tool Editor** tab to configure custom system prompts per tool or globally.
+
+> [!TIP]
+> **API Keys via Environment Variables:** Rather than saving API keys in the config file, you can set `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `ANTHROPIC_API_KEY` in your system environment. Environment variables take precedence over UI-configured keys.
 
 ## Default Workflows
 Out of the box, Orange is configured with these high-performance workflows:

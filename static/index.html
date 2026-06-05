@@ -8,7 +8,7 @@
     <script src="/static/tailwind.min.js"></script>
     <script src="/static/lucide.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7"></script>
-    <link rel="stylesheet" href="/static/styles.css?v=8">
+    <link rel="stylesheet" href="/static/styles.css?v=9">
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen flex items-center justify-center p-4 font-sans selection:bg-orange-950 selection:text-orange-200">
     <div class="max-w-6xl w-full flex bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 min-h-[600px] h-[80vh]">
@@ -96,8 +96,15 @@
 
                     <!-- Prompt Input -->
                     <div id="prompt-container" class="space-y-3">
-                        <label class="text-xs font-medium text-zinc-500 uppercase tracking-widest pl-1">Prompt</label>
-                        <textarea id="prompt-input" rows="5" class="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-5 text-lg focus:outline-none focus:ring-1 focus:ring-orange-600 focus:border-orange-600 transition-all resize-none placeholder:text-zinc-700" placeholder="Describe your vision..."></textarea>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-xs font-medium text-zinc-500 uppercase tracking-widest pl-1">Prompt</label>
+                            <button id="enhance-prompt-btn" class="hidden text-xs bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 border border-orange-500/20 px-2.5 py-1 rounded-full flex items-center gap-1.5 transition-all shadow-sm focus:outline-none">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Enhance Prompt
+                            </button>
+                        </div>
+                        <div class="w-full bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden focus-within:ring-1 focus-within:ring-orange-600 focus-within:border-orange-600 transition-all flex flex-col">
+                            <textarea id="prompt-input" rows="5" class="w-full bg-transparent p-5 text-lg focus:outline-none resize-none placeholder:text-zinc-700 block" placeholder="Describe your vision..."></textarea>
+                        </div>
                     </div>
 
                     <!-- Aspect Ratios -->
@@ -218,6 +225,6 @@
         <div class="mesh-overlay"></div>
     </div>
 
-    <script src="/static/app.js?v=11"></script>
+    <script src="/static/app.js?v=13"></script>
 </body>
 </html>

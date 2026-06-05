@@ -58,6 +58,87 @@ lucide.createIcons();
             }
         };
 
+        window.toggleGlobalLlm = function() {
+            const cb = document.getElementById('setting-llm-enabled');
+            const fields = document.getElementById('llm-settings-fields');
+            const dot = document.getElementById('llm-toggle-dot');
+            if (cb.checked) {
+                fields.classList.remove('hidden');
+                dot.classList.add('translate-x-3');
+                dot.classList.replace('bg-white', 'bg-orange-500');
+            } else {
+                fields.classList.add('hidden');
+                dot.classList.remove('translate-x-3');
+                dot.classList.replace('bg-orange-500', 'bg-white');
+            }
+        };
+
+        window.handleModelSelectChange = function() {
+            const select = document.getElementById('setting-llm-model');
+            const customContainer = document.getElementById('setting-llm-model-custom-container');
+            const customInput = document.getElementById('setting-llm-model-custom');
+            if (select.value === '__custom__') {
+                customContainer.classList.remove('hidden');
+            } else {
+                customContainer.classList.add('hidden');
+                customInput.value = '';
+            }
+        };
+
+        window.handleToolModelSelectChange = function() {
+            const select = document.getElementById('edit-tool-llm-model');
+            const customContainer = document.getElementById('edit-tool-llm-model-custom-container');
+            const customInput = document.getElementById('edit-tool-llm-model-custom');
+            if (select.value === '__custom__') {
+                customContainer.classList.remove('hidden');
+            } else {
+                customContainer.classList.add('hidden');
+                customInput.value = '';
+            }
+        };
+
+        window.populateModelSelect = function(selectEl, customContainerId, customInputId, provider, activeValue, fetchedModels = []) {
+            if (!selectEl) return;
+            selectEl.innerHTML = '';
+            
+            const isOverride = selectEl.id === 'edit-tool-llm-model';
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = '';
+            defaultOpt.textContent = isOverride ? 'Use default global model' : 'Select a model...';
+            selectEl.appendChild(defaultOpt);
+
+            const allModels = Array.from(new Set([...fetchedModels]));
+
+            allModels.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                selectEl.appendChild(opt);
+            });
+
+            const customOpt = document.createElement('option');
+            customOpt.value = '__custom__';
+            customOpt.textContent = 'Custom Model...';
+            selectEl.appendChild(customOpt);
+
+            const customContainer = document.getElementById(customContainerId);
+            const customInput = document.getElementById(customInputId);
+
+            if (!activeValue) {
+                selectEl.value = '';
+                customContainer.classList.add('hidden');
+                customInput.value = '';
+            } else if (allModels.includes(activeValue)) {
+                selectEl.value = activeValue;
+                customContainer.classList.add('hidden');
+                customInput.value = '';
+            } else {
+                selectEl.value = '__custom__';
+                customContainer.classList.remove('hidden');
+                customInput.value = activeValue;
+            }
+        };
+
 
         const loginContainer = document.getElementById('login-container');
         const dashboardContainer = document.getElementById('dashboard-container');
@@ -70,6 +151,8 @@ lucide.createIcons();
         let currentKey = localStorage.getItem('orange_admin_key');
         let currentPeriod = 'all';
         let currentAnalyticsLogs = [];
+        
+        let activeFetchedModels = [];
 
         // Period filter events
         document.querySelectorAll('.period-btn').forEach(btn => {
@@ -343,6 +426,115 @@ lucide.createIcons();
                 
                 btn.innerHTML = orig;
                 lucide.createIcons();
+            });
+        }
+
+        // LLM Provider Base URL Defaults & Fetching Logic
+        const llmDefaults = {
+            openai: "https://api.openai.com/v1",
+            ollama: "http://127.0.0.1:11434",
+            gemini: "https://generativelanguage.googleapis.com",
+            anthropic: "https://api.anthropic.com"
+        };
+
+        if (document.getElementById('setting-llm-provider')) {
+            document.getElementById('setting-llm-provider').addEventListener('change', (e) => {
+                const provider = e.target.value;
+                const urlInput = document.getElementById('setting-llm-baseurl');
+                const currentUrl = urlInput.value.trim();
+                
+                const defaultUrls = Object.values(llmDefaults);
+                if (!currentUrl || defaultUrls.includes(currentUrl)) {
+                    urlInput.value = llmDefaults[provider] || '';
+                }
+
+                // Re-populate global model select with presets for the new provider
+                populateModelSelect(
+                    document.getElementById('setting-llm-model'),
+                    'setting-llm-model-custom-container',
+                    'setting-llm-model-custom',
+                    provider,
+                    document.getElementById('setting-llm-model').value,
+                    activeFetchedModels
+                );
+            });
+        }
+
+        if (document.getElementById('setting-llm-model')) {
+            document.getElementById('setting-llm-model').addEventListener('change', handleModelSelectChange);
+        }
+        if (document.getElementById('edit-tool-llm-model')) {
+            document.getElementById('edit-tool-llm-model').addEventListener('change', handleToolModelSelectChange);
+        }
+
+        if (document.getElementById('fetch-models-btn')) {
+            document.getElementById('fetch-models-btn').addEventListener('click', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('fetch-models-btn');
+                const provider = document.getElementById('setting-llm-provider').value;
+                const baseUrl = document.getElementById('setting-llm-baseurl').value.trim();
+                const apiKey = document.getElementById('setting-llm-apikey').value.trim();
+                
+                const origHTML = btn.innerHTML;
+                btn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>';
+                btn.disabled = true;
+                lucide.createIcons();
+
+                try {
+                    const res = await adminFetch('/api/admin/llm/models', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ provider, baseUrl, apiKey })
+                    });
+
+                    if (!res.ok) {
+                        const data = await res.json();
+                        throw new Error(data.detail || "Failed to fetch models");
+                    }
+
+                    const data = await res.json();
+                    if (data.models && data.models.length > 0) {
+                        activeFetchedModels = data.models;
+
+                        // Re-populate global model select with active fetched models
+                        const currentGlobalModelVal = document.getElementById('setting-llm-model').value === '__custom__'
+                            ? document.getElementById('setting-llm-model-custom').value
+                            : document.getElementById('setting-llm-model').value;
+                        populateModelSelect(
+                            document.getElementById('setting-llm-model'),
+                            'setting-llm-model-custom-container',
+                            'setting-llm-model-custom',
+                            provider,
+                            currentGlobalModelVal,
+                            activeFetchedModels
+                        );
+
+                        // If tool is actively editing, also re-populate its override select
+                        if (editingToolIndex !== -1) {
+                            const activeToolModelVal = document.getElementById('edit-tool-llm-model').value === '__custom__'
+                                ? document.getElementById('edit-tool-llm-model-custom').value
+                                : document.getElementById('edit-tool-llm-model').value;
+                            populateModelSelect(
+                                document.getElementById('edit-tool-llm-model'),
+                                'edit-tool-llm-model-custom-container',
+                                'edit-tool-llm-model-custom',
+                                provider,
+                                activeToolModelVal,
+                                activeFetchedModels
+                            );
+                        }
+
+                        alert(`Successfully loaded ${data.models.length} models! Choose one from the dropdown menu.`);
+                    } else {
+                        alert("No models returned by provider.");
+                    }
+                } catch (err) {
+                    alert("Error fetching models: " + err.message);
+                } finally {
+                    btn.innerHTML = origHTML;
+                    btn.disabled = false;
+                    lucide.createIcons();
+                }
             });
         }
 
@@ -869,6 +1061,36 @@ lucide.createIcons();
                     document.getElementById('setting-admin-key').value = appConfig.adminKey || '';
                     document.getElementById('setting-target-mp').value = appConfig.targetMegapixels || '1.0';
 
+                    // Populate global LLM settings
+                    const llm = appConfig.llm || {};
+                    document.getElementById('setting-llm-enabled').checked = !!llm.enabled;
+                    document.getElementById('setting-llm-provider').value = llm.provider || 'openai';
+                    document.getElementById('setting-llm-baseurl').value = llm.baseUrl || '';
+                    document.getElementById('setting-llm-apikey').value = llm.apiKey || '';
+                    
+                    try {
+                        const gpRes = await adminFetch('/api/admin/prompts/global');
+                        if (gpRes.ok) {
+                            const gpData = await gpRes.json();
+                            document.getElementById('setting-llm-systemprompt').value = gpData.prompt || '';
+                        } else {
+                            document.getElementById('setting-llm-systemprompt').value = '';
+                        }
+                    } catch(e) {
+                        document.getElementById('setting-llm-systemprompt').value = '';
+                    }
+
+                    populateModelSelect(
+                        document.getElementById('setting-llm-model'),
+                        'setting-llm-model-custom-container',
+                        'setting-llm-model-custom',
+                        llm.provider || 'openai',
+                        llm.model || '',
+                        activeFetchedModels
+                    );
+
+                    toggleGlobalLlm();
+
                     if (appConfig.aspectRatios) {
                         const keys = Object.keys(appConfig.aspectRatios);
                         [1, 2, 3].forEach((slot, i) => {
@@ -1076,6 +1298,32 @@ lucide.createIcons();
             document.getElementById('edit-tool-output-type').value = tool.outputType || 'image';
             document.getElementById('edit-tool-file').value = tool.workflowFile || '';
 
+            // Populate tool LLM overrides
+            const toolEnhance = tool.promptEnhance || {};
+            document.getElementById('edit-tool-llm-enabled').checked = toolEnhance.enabled !== false;
+            
+            try {
+                const tpRes = await adminFetch(`/api/admin/prompts/${encodeURIComponent(tool.id)}`);
+                if (tpRes.ok) {
+                    const tpData = await tpRes.json();
+                    document.getElementById('edit-tool-llm-systemprompt').value = tpData.prompt || '';
+                } else {
+                    document.getElementById('edit-tool-llm-systemprompt').value = '';
+                }
+            } catch(e) {
+                document.getElementById('edit-tool-llm-systemprompt').value = '';
+            }
+
+            const toolProvider = toolEnhance.provider || (appConfig.llm && appConfig.llm.provider) || 'openai';
+            populateModelSelect(
+                document.getElementById('edit-tool-llm-model'),
+                'edit-tool-llm-model-custom-container',
+                'edit-tool-llm-model-custom',
+                toolProvider,
+                toolEnhance.model || '',
+                activeFetchedModels
+            );
+
             // Trigger change to load nodes
             if (tool.workflowFile) {
                 const ev = new Event('change');
@@ -1137,6 +1385,15 @@ lucide.createIcons();
                     if (fieldInput) fieldInput.disabled = true;
                     const seedRand = document.getElementById('map-seed-rand');
                     if (type === 'seed' && seedRand) seedRand.disabled = true;
+                }
+            }
+
+            if (type === 'prompt') {
+                const overrides = document.getElementById('tool-llm-overrides-container');
+                if (isEnabled) {
+                    overrides.classList.remove('hidden');
+                } else {
+                    overrides.classList.add('hidden');
                 }
             }
         };
@@ -1268,6 +1525,16 @@ lucide.createIcons();
                     </div>
                 `;
             });
+            
+            // Show tool overrides container if prompt input is enabled
+            const promptMap = mappings.prompt;
+            const overrides = document.getElementById('tool-llm-overrides-container');
+            if (promptMap) {
+                overrides.classList.remove('hidden');
+            } else {
+                overrides.classList.add('hidden');
+            }
+
             lucide.createIcons();
         }
 
@@ -1282,6 +1549,14 @@ lucide.createIcons();
                         await adminFetch(`/api/admin/workflows/${encodeURIComponent(tool.workflowFile)}`, { method: 'DELETE' });
                     } catch (e) { console.error("Error deleting workflow file", e); }
                 }
+                // Delete prompt override file
+                try {
+                    await adminFetch(`/api/admin/prompts/${encodeURIComponent(tool.id)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: "" })
+                    });
+                } catch(e) { console.error("Error deleting prompt override", e); }
                 appConfig.tools.splice(editingToolIndex, 1);
                 document.getElementById('tool-editor-empty').classList.remove('hidden');
                 document.getElementById('tool-editor-form').classList.add('hidden');
@@ -1291,7 +1566,7 @@ lucide.createIcons();
             }
         });
 
-        document.getElementById('save-tool-btn').addEventListener('click', () => {
+        document.getElementById('save-tool-btn').addEventListener('click', async () => {
             if (editingToolIndex === -1) return;
             const tool = appConfig.tools[editingToolIndex];
             tool.id = document.getElementById('edit-tool-id').value.trim();
@@ -1344,6 +1619,39 @@ lucide.createIcons();
                 }
             });
 
+            // Save tool LLM overrides (only if prompt is mapped)
+            const promptEnabled = document.getElementById('map-prompt-enable').checked;
+            let systemPromptOverride = '';
+            if (promptEnabled) {
+                const modelSelectVal = document.getElementById('edit-tool-llm-model').value;
+                const modelOverride = modelSelectVal === '__custom__'
+                    ? document.getElementById('edit-tool-llm-model-custom').value.trim()
+                    : modelSelectVal;
+                systemPromptOverride = document.getElementById('edit-tool-llm-systemprompt').value.trim();
+                
+                tool.promptEnhance = {
+                    enabled: document.getElementById('edit-tool-llm-enabled').checked
+                };
+                if (modelOverride) {
+                    tool.promptEnhance.model = modelOverride;
+                } else {
+                    delete tool.promptEnhance.model;
+                }
+            } else {
+                delete tool.promptEnhance;
+            }
+
+            // Save the prompt text file first
+            try {
+                await adminFetch(`/api/admin/prompts/${encodeURIComponent(tool.id)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: systemPromptOverride })
+                });
+            } catch(e) {
+                console.error("Failed to save tool-specific prompt override", e);
+            }
+
             saveConfigToBackend();
         });
 
@@ -1385,8 +1693,22 @@ lucide.createIcons();
             if (!appConfig) return;
 
             appConfig.adminKey = document.getElementById('setting-admin-key').value.trim();
-
             appConfig.targetMegapixels = document.getElementById('setting-target-mp').value;
+
+            // Save global LLM settings
+            const modelSelectVal = document.getElementById('setting-llm-model').value;
+            const modelVal = modelSelectVal === '__custom__'
+                ? document.getElementById('setting-llm-model-custom').value.trim()
+                : modelSelectVal;
+
+            const globalSystemPromptVal = document.getElementById('setting-llm-systemprompt').value.trim();
+            appConfig.llm = {
+                enabled: document.getElementById('setting-llm-enabled').checked,
+                provider: document.getElementById('setting-llm-provider').value,
+                model: modelVal,
+                baseUrl: document.getElementById('setting-llm-baseurl').value.trim(),
+                apiKey: document.getElementById('setting-llm-apikey').value.trim()
+            };
 
             appConfig.aspectRatios = {};
             [1, 2, 3].forEach(slot => {
@@ -1416,6 +1738,16 @@ lucide.createIcons();
             document.getElementById('save-settings-btn').innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
 
             try {
+                // Save global system prompt first
+                const promptRes = await adminFetch('/api/admin/prompts/global', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: globalSystemPromptVal })
+                });
+                if (!promptRes.ok) {
+                    throw new Error('Failed to save global system prompt.');
+                }
+
                 const res = await adminFetch('/api/admin/config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentKey },
@@ -1431,7 +1763,7 @@ lucide.createIcons();
                     alert('Error saving config.');
                 }
             } catch (e) {
-                alert('Save failed.');
+                alert('Save failed: ' + e.message);
             }
 
             document.getElementById('save-settings-btn').innerHTML = originalText;

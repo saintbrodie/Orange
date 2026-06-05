@@ -58,12 +58,71 @@ def restore_defaults(overwrite=False):
         return False
         
     for filename in os.listdir(defaults_dir):
-        if filename.endswith(".json"):
-            src = os.path.join(defaults_dir, filename)
+        src = os.path.join(defaults_dir, filename)
+        if os.path.isfile(src) and filename.endswith(".json"):
             dst = os.path.join(workflows_dir, filename)
             if overwrite or not os.path.exists(dst):
                 shutil.copy2(src, dst)
+
+    # Copy prompts as well
+    defaults_prompts_dir = os.path.join(defaults_dir, "prompts")
+    workflows_prompts_dir = os.path.join(workflows_dir, "prompts")
+    if os.path.exists(defaults_prompts_dir):
+        os.makedirs(workflows_prompts_dir, exist_ok=True)
+        for filename in os.listdir(defaults_prompts_dir):
+            if filename.endswith(".txt"):
+                src = os.path.join(defaults_prompts_dir, filename)
+                dst = os.path.join(workflows_prompts_dir, filename)
+                if overwrite or not os.path.exists(dst):
+                    shutil.copy2(src, dst)
     return True
+
+def get_system_prompt(tool_id: str = None) -> str:
+    """
+    Retrieves the system prompt for a specific tool or falls back to global.
+    1. If tool_id is provided, checks workflows/prompts/{tool_id}.txt.
+    2. If that doesn't exist, checks defaults/prompts/{tool_id}.txt.
+    3. If neither exists (or tool_id is None/empty/global), or we want the global prompt:
+       - Checks workflows/prompts/global.txt.
+       - If that doesn't exist, checks defaults/prompts/global.txt.
+       - Otherwise, uses a hardcoded default global prompt.
+    """
+    if tool_id and tool_id.lower() == "global":
+        tool_id = None
+        
+    if tool_id:
+        # Check active tool-specific prompt override
+        active_tool_path = os.path.join(PROJECT_ROOT, "workflows", "prompts", f"{tool_id}.txt")
+        if os.path.exists(active_tool_path):
+            with open(active_tool_path, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+                if content:
+                    return content
+                    
+        # Check default tool-specific prompt override
+        default_tool_path = os.path.join(PROJECT_ROOT, "workflows", "defaults", "prompts", f"{tool_id}.txt")
+        if os.path.exists(default_tool_path):
+            with open(default_tool_path, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+                if content:
+                    return content
+                    
+    # Fallback to global
+    active_global_path = os.path.join(PROJECT_ROOT, "workflows", "prompts", "global.txt")
+    if os.path.exists(active_global_path):
+        with open(active_global_path, "r", encoding="utf-8") as f:
+            content = f.read().strip()
+            if content:
+                return content
+                
+    default_global_path = os.path.join(PROJECT_ROOT, "workflows", "defaults", "prompts", "global.txt")
+    if os.path.exists(default_global_path):
+        with open(default_global_path, "r", encoding="utf-8") as f:
+            content = f.read().strip()
+            if content:
+                return content
+                
+    return "You are a prompt enhancer for text-to-image models. Expand the user's prompt with rich details, style, lighting, and composition. Keep it under 80 words. Respond with ONLY the enhanced prompt."
 
 def save_config(config_data):
     global _config_cache, _config_mtime

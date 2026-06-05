@@ -5,6 +5,13 @@
       "priority": 1
     }
   ],
+  "llm": {
+    "enabled": false,
+    "provider": "openai",
+    "baseUrl": "https://api.openai.com/v1",
+    "apiKey": "",
+    "model": ""
+  },
   "adminKey": "orangeadmin",
   "aspectRatios": {
     "1:1": {

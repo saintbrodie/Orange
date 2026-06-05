@@ -21,6 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     const promptContainer = document.getElementById('prompt-container');
     const promptInput = document.getElementById('prompt-input');
+    const enhancePromptBtn = document.getElementById('enhance-prompt-btn');
     
     const imageUploadContainer = document.getElementById('image-upload-container');
     const image1Box = document.getElementById('image1-box');
@@ -165,8 +166,18 @@ document.addEventListener("DOMContentLoaded", () => {
         // Prompt
         if(mapping.prompt) {
             promptContainer.classList.remove('hidden');
+            
+            const toolEnhance = tool.promptEnhance || {};
+            const isToolEnabled = toolEnhance.enabled !== false;
+            
+            if (config.llmEnabled && isToolEnabled) {
+                enhancePromptBtn.classList.remove('hidden');
+            } else {
+                enhancePromptBtn.classList.add('hidden');
+            }
         } else {
             promptContainer.classList.add('hidden');
+            enhancePromptBtn.classList.add('hidden');
         }
 
         // Aspect Ratio
@@ -175,6 +186,112 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             aspectRatioContainer.classList.add('hidden');
         }
+        
+        // Trigger adjust height because layout changed
+        setTimeout(() => {
+            if (promptInput) promptInput.dispatchEvent(new Event('input'));
+        }, 10);
+    }
+
+    // Prompt Enhancement Logic
+    if (enhancePromptBtn) {
+        enhancePromptBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            errorBanner.classList.add('hidden');
+            
+            const originalText = promptInput.value.trim();
+            if (!originalText) {
+                showError("Please enter a short prompt to enhance.");
+                return;
+            }
+
+            // Enter loading state
+            enhancePromptBtn.disabled = true;
+            enhancePromptBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            const originalBtnHTML = enhancePromptBtn.innerHTML;
+            enhancePromptBtn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Enhancing...';
+            lucide.createIcons();
+            promptInput.disabled = true;
+            promptInput.classList.add('opacity-50');
+
+            try {
+                const formData = new FormData();
+                formData.append('prompt', originalText);
+                formData.append('tool_id', selectedToolId);
+
+                const res = await fetch('/api/enhance-prompt', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.detail || "Failed to enhance prompt");
+                }
+
+                const data = await res.json();
+                promptInput.value = data.enhanced_prompt;
+            } catch (err) {
+                showError(err.message || "Failed to connect to LLM server.");
+            } finally {
+                // Exit loading state
+                enhancePromptBtn.disabled = false;
+                enhancePromptBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                enhancePromptBtn.innerHTML = originalBtnHTML;
+                lucide.createIcons();
+                promptInput.disabled = false;
+                promptInput.classList.remove('opacity-50');
+            }
+        });
+    }
+
+    // Auto-resize prompt textarea reactively
+    if (promptInput) {
+        const minHeight = 120; // approximate height for rows="5"
+        
+        const adjustHeight = () => {
+            // Calculate max height based on current layout state BEFORE setting height to auto
+            const uiContainer = document.getElementById('ui-container');
+            const currentPromptHeight = promptInput.offsetHeight;
+            const otherElementsHeight = uiContainer.offsetHeight - currentPromptHeight;
+            
+            // Available space in the flex-1 container: window.innerHeight * 0.8
+            // Subtract ~160px for padding and buffer to avoid triggering the outer scrollbar
+            const availableSpace = (window.innerHeight * 0.8) - 160; 
+            
+            let maxHeight = availableSpace - otherElementsHeight;
+            maxHeight = Math.max(120, maxHeight); // Ensure a sensible minimum max-height
+            
+            promptInput.style.height = 'auto';
+            let nextHeight = promptInput.scrollHeight;
+            
+            if (nextHeight < minHeight) nextHeight = minHeight;
+            if (nextHeight > maxHeight) {
+                nextHeight = maxHeight;
+                promptInput.style.overflowY = 'auto';
+            } else {
+                promptInput.style.overflowY = 'hidden';
+            }
+            promptInput.style.height = nextHeight + 'px';
+        };
+        
+        promptInput.addEventListener('input', adjustHeight);
+        window.addEventListener('resize', adjustHeight);
+        
+        // Intercept programmatic value changes to trigger auto-resize
+        const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+        Object.defineProperty(promptInput, 'value', {
+            get: function() {
+                return descriptor.get.call(this);
+            },
+            set: function(val) {
+                descriptor.set.call(this, val);
+                adjustHeight();
+            }
+        });
+        
+        // Initial adjust
+        adjustHeight();
     }
 
     // Image 1 Upload Logic

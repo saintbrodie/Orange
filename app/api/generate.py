@@ -6,7 +6,8 @@ import httpx
 from fastapi import APIRouter, Request, Form, File, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
 
-from app.core.config import get_tool_settings, get_base_workflow, load_config, get_comfy_servers
+from app.core.config import get_tool_settings, get_base_workflow, load_config, get_comfy_servers, get_system_prompt
+from app.core.llm import call_llm
 from app.core.database import log_usage, get_backend_for_prompt
 from app.core.utils import strip_metadata
 from app.core.backends import get_best_backend, increment_active, decrement_active
@@ -230,3 +231,67 @@ async def get_output(prompt_id: str, type: str = "image"):
 async def get_image(prompt_id: str):
     """Backward-compatible alias for /api/output?type=image"""
     return await get_output(prompt_id, type="image")
+
+
+@router.post("/api/enhance-prompt")
+async def enhance_prompt(
+    prompt: str = Form(...),
+    tool_id: str = Form(...)
+):
+    tool = get_tool_settings(tool_id)
+    if not tool:
+        raise HTTPException(status_code=400, detail="Invalid tool ID")
+
+    # Check if this tool maps a prompt input
+    mapping = tool.get("nodeMapping", {})
+    if not mapping.get("prompt"):
+        raise HTTPException(
+            status_code=400,
+            detail="Prompt enhancement is not supported for this tool (no prompt input mapped)."
+        )
+
+    # Load configurations
+    config = load_config()
+    global_llm = config.get("llm", {})
+
+    # Tool-specific overrides
+    tool_enhance = tool.get("promptEnhance", {})
+
+    # Check if enabled globally and not disabled in tool
+    global_enabled = global_llm.get("enabled", False)
+    tool_enabled = tool_enhance.get("enabled", True)
+
+    if not global_enabled:
+        raise HTTPException(status_code=400, detail="Prompt enhancement is disabled globally.")
+    if not tool_enabled:
+        raise HTTPException(status_code=400, detail="Prompt enhancement is disabled for this tool.")
+
+    # Resolve settings
+    provider = tool_enhance.get("provider", global_llm.get("provider", "openai"))
+    base_url = tool_enhance.get("baseUrl", global_llm.get("baseUrl"))
+    api_key = tool_enhance.get("apiKey", global_llm.get("apiKey"))
+    model = tool_enhance.get("model", global_llm.get("model"))
+    system_prompt = get_system_prompt(tool_id)
+
+    if not provider or not model or not system_prompt:
+        raise HTTPException(
+            status_code=400,
+            detail="Prompt enhancement is not fully configured. Please configure it in General Settings."
+        )
+
+    try:
+        enhanced = await call_llm(
+            provider=provider,
+            base_url=base_url,
+            api_key=api_key,
+            model=model,
+            system_prompt=system_prompt,
+            prompt=prompt
+        )
+        return {"enhanced_prompt": enhanced}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        error_msg = str(e) or "Unknown error occurred"
+        raise HTTPException(status_code=500, detail=f"LLM Error ({type(e).__name__}): {error_msg}")
+

@@ -1,4 +1,5 @@
 import os
+import re
 import sqlite3
 import subprocess
 import shutil
@@ -8,7 +9,7 @@ import asyncio
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse
 
-from app.core.config import load_config, save_config, PROJECT_ROOT, get_comfy_servers, restore_defaults
+from app.core.config import load_config, save_config, PROJECT_ROOT, get_comfy_servers, restore_defaults, get_system_prompt
 from app.core.database import log_usage, get_backend_for_prompt, get_db_path, delete_usage
 
 router = APIRouter()
@@ -290,3 +291,91 @@ async def restore_db(request: Request, file: UploadFile = File(...), _=Depends(v
     
     shutil.move(tmp_path, db_path)
     return {"status": "success"}
+
+
+@router.post("/api/admin/llm/models")
+async def get_llm_models(payload: dict, _=Depends(verify_admin)):
+    provider = payload.get("provider", "").lower()
+    base_url = payload.get("baseUrl")
+    api_key = payload.get("apiKey")
+
+    # Resolve API Key from env if not provided
+    resolved_key = None
+    if provider == "openai":
+        resolved_key = os.environ.get("OPENAI_API_KEY")
+    elif provider == "gemini":
+        resolved_key = os.environ.get("GEMINI_API_KEY")
+    elif provider == "anthropic":
+        resolved_key = os.environ.get("ANTHROPIC_API_KEY")
+
+    if not resolved_key and api_key:
+        resolved_key = api_key
+
+    models = []
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            if provider == "ollama":
+                target_url = f"{base_url.rstrip('/')}/api/tags" if base_url else "http://127.0.0.1:11434/api/tags"
+                res = await client.get(target_url)
+                if res.status_code == 200:
+                    data = res.json()
+                    models = [m["name"] for m in data.get("models", [])]
+            elif provider == "openai":
+                target_url = f"{base_url.rstrip('/')}/models" if base_url else "https://api.openai.com/v1/models"
+                headers = {}
+                if resolved_key:
+                    headers["Authorization"] = f"Bearer {resolved_key}"
+                res = await client.get(target_url, headers=headers)
+                if res.status_code == 200:
+                    data = res.json()
+                    models = [m["id"] for m in data.get("data", [])]
+            elif provider == "gemini":
+                if resolved_key:
+                    url_base = base_url.rstrip('/') if base_url else "https://generativelanguage.googleapis.com"
+                    target_url = f"{url_base}/v1beta/models?key={resolved_key}"
+                    res = await client.get(target_url)
+                    if res.status_code == 200:
+                        data = res.json()
+                        models = [m["name"].replace("models/", "") for m in data.get("models", [])]
+                if not models:
+                    models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-exp", "gemini-2.5-flash", "gemini-2.5-pro"]
+            elif provider == "anthropic":
+                models = ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest"]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch models: {str(e)}")
+
+    return {"models": models}
+
+@router.get("/api/admin/prompts/{tool_id}")
+def get_admin_prompt(tool_id: str, _=Depends(verify_admin)):
+    if not re.match(r'^[a-zA-Z0-9_\-]+$', tool_id):
+        raise HTTPException(status_code=400, detail="Invalid tool ID format")
+    return {"prompt": get_system_prompt(tool_id)}
+
+@router.post("/api/admin/prompts/{tool_id}")
+def save_admin_prompt(tool_id: str, payload: dict, _=Depends(verify_admin)):
+    if not re.match(r'^[a-zA-Z0-9_\-]+$', tool_id):
+        raise HTTPException(status_code=400, detail="Invalid tool ID format")
+    prompt = payload.get("prompt", "")
+    
+    prompts_dir = os.path.join(PROJECT_ROOT, "workflows", "prompts")
+    os.makedirs(prompts_dir, exist_ok=True)
+    
+    file_path = os.path.join(prompts_dir, f"{tool_id}.txt")
+    
+    if not prompt.strip() and tool_id.lower() != "global":
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
+        return {"status": "success", "message": "Prompt override removed."}
+        
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(prompt)
+        return {"status": "success", "message": "Prompt saved successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save prompt: {str(e)}")
+
+

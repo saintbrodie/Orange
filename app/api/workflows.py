@@ -8,7 +8,8 @@ def get_workflows():
     current_config = load_config()
     result = {
         "tools": current_config.get("tools", []),
-        "aspectRatios": current_config.get("aspectRatios", {})
+        "aspectRatios": current_config.get("aspectRatios", {}),
+        "llmEnabled": current_config.get("llm", {}).get("enabled", False)
     }
     if current_config.get("modifyTool"):
         result["modifyTool"] = current_config["modifyTool"]
