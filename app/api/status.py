@@ -1,20 +1,24 @@
 import asyncio
+import base64
 import json
-import websockets
+
 import httpx
+import websockets
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
-from app.core.config import get_tool_settings, get_base_workflow, load_config, get_comfy_servers
+from app.core.config import get_base_workflow, get_comfy_servers, get_tool_settings
 from app.core.database import get_backend_for_prompt
 
 router = APIRouter()
+
 
 def get_comfy_url():
     """Fallback: returns the highest-priority configured server URL."""
     servers = get_comfy_servers()
     return servers[0].get("url") if servers else "http://127.0.0.1:8188"
+
 
 @router.get("/api/health")
 async def get_health():
@@ -22,7 +26,6 @@ async def get_health():
     if not servers:
         return JSONResponse(status_code=503, content={"status": "offline"})
 
-    # Check all servers concurrently
     async def check_server(url: str):
         try:
             async with httpx.AsyncClient(timeout=2.0) as client:
@@ -42,39 +45,31 @@ async def get_health():
             pass
         return {"status": "offline", "vram_warning": False}
 
-    tasks = [check_server(s.get("url")) for s in servers]
-    results = await asyncio.gather(*tasks)
-
-    any_ready = False
-    any_vram_warning = False
-    
-    for r in results:
-        if r["status"] == "ready":
-            any_ready = True
-        if r["vram_warning"]:
-            any_vram_warning = True
+    results = await asyncio.gather(*(check_server(s.get("url")) for s in servers))
+    any_ready = any(r["status"] == "ready" for r in results)
+    any_vram_warning = any(r["vram_warning"] for r in results)
 
     if any_ready:
         return {"status": "ready", "vram_warning": any_vram_warning}
-    else:
-        return JSONResponse(status_code=503, content={"status": "offline"})
+    return JSONResponse(status_code=503, content={"status": "offline"})
+
 
 async def status_generator(request: Request, prompt_id: str, client_id: str, tool_id: str = None):
-    q = asyncio.Queue()
+    queue = asyncio.Queue()
 
     node_map = {}
     if tool_id:
         tool = get_tool_settings(tool_id)
         if tool and tool.get("workflowFile"):
             try:
-                wf = get_base_workflow(tool["workflowFile"])
-                for nid, ndata in wf.items():
-                    if isinstance(ndata, dict):
-                        node_map[str(nid)] = ndata.get("class_type", "")
+                workflow = get_base_workflow(tool["workflowFile"])
+                for node_id, node_data in workflow.items():
+                    if isinstance(node_data, dict):
+                        node_map[str(node_id)] = node_data.get("class_type", "")
             except Exception:
                 pass
 
-    FRIENDLY_NAMES = {
+    friendly_names = {
         "CheckpointLoaderSimple": "Loading AI Models...",
         "UNETLoader": "Loading AI Models...",
         "LoraLoader": "Loading AI Models...",
@@ -102,96 +97,106 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
         "SaveAudio": "Saving Audio...",
     }
 
-    target_url = get_backend_for_prompt(prompt_id)
-    if not target_url:
-        target_url = get_comfy_url()
+    target_url = get_backend_for_prompt(prompt_id) or get_comfy_url()
 
-    async with httpx.AsyncClient() as client:
+    async def history_has_prompt(client):
         try:
-            hist_res = await client.get(f"{target_url}/history/{prompt_id}")
-            if hist_res.status_code == 200 and prompt_id in hist_res.json():
-                yield json.dumps({"status": "completed"})
-                return
+            response = await client.get(f"{target_url}/history/{prompt_id}")
+            return response.status_code == 200 and prompt_id in response.json()
         except Exception:
-            pass
+            return False
 
-    async def poll_queue():
-        async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        if await history_has_prompt(client):
+            yield json.dumps({"status": "completed"})
+            return
+
+    async def poll_queue_and_history():
+        async with httpx.AsyncClient(timeout=5.0) as client:
             while True:
                 if await request.is_disconnected():
-                    break
+                    return
                 try:
                     queue_res = await client.get(f"{target_url}/queue")
                     if queue_res.status_code == 200:
                         queue_data = queue_res.json()
                         pending = queue_data.get("queue_pending", [])
-                        for index, p in enumerate(pending):
-                            if p[1] == prompt_id:
-                                await q.put({"status": "queue", "position": index + 1})
+                        for index, pending_item in enumerate(pending):
+                            if pending_item[1] == prompt_id:
+                                await queue.put({"status": "queue", "position": index + 1})
+                                break
+
+                    if await history_has_prompt(client):
+                        await queue.put({"status": "completed"})
+                        return
                 except Exception:
                     pass
                 await asyncio.sleep(2)
-                
+
     async def listen_ws():
-        import base64
         ws_url = target_url.replace("http://", "ws://").replace("https://", "wss://") + f"/ws?clientId={client_id}"
         try:
             async with websockets.connect(ws_url) as websocket:
                 while True:
                     if await request.is_disconnected():
-                        break
+                        return
                     msg = await websocket.recv()
                     if isinstance(msg, bytes):
                         image_data = msg[8:]
-                        b64_img = base64.b64encode(image_data).decode('utf-8')
-                        await q.put({"status": "preview", "image": b64_img})
-                    elif isinstance(msg, str):
-                        data = json.loads(msg)
-                        t = data.get("type")
-                        if t == "executing":
-                            node_id = data.get("data", {}).get("node")
-                            if node_id is None:
-                                await q.put({"status": "completed"})
-                                break
-                            else:
-                                c_type = node_map.get(str(node_id))
-                                friendly = FRIENDLY_NAMES.get(c_type)
-                                if friendly:
-                                    await q.put({"status": "executing", "message": friendly})
-                        elif t == "progress":
-                            val = data["data"]["value"]
-                            m = data["data"]["max"]
-                            await q.put({"status": "progress", "value": val, "max": m})
-                        elif t == "execution_start":
-                            await q.put({"status": "generating"})
-        except Exception:
-            try:
-                async with httpx.AsyncClient(timeout=3.0) as client:
-                    r = await client.get(f"{target_url}/history/{prompt_id}")
-                    if r.status_code == 200 and prompt_id in r.json():
-                        await q.put({"status": "completed"})
-                        return
-            except Exception:
-                pass
-            await q.put({"status": "error", "detail": "Lost WebSocket connection to processing server."})
+                        await queue.put({"status": "preview", "image": base64.b64encode(image_data).decode("utf-8")})
+                        continue
 
-    task1 = asyncio.create_task(poll_queue())
-    task2 = asyncio.create_task(listen_ws())
-    
+                    data = json.loads(msg)
+                    event_type = data.get("type")
+                    event_data = data.get("data", {})
+
+                    if event_type == "executing":
+                        node_id = event_data.get("node")
+                        if node_id is None:
+                            await queue.put({"status": "completed"})
+                            return
+                        class_type = node_map.get(str(node_id))
+                        friendly = friendly_names.get(class_type)
+                        if friendly:
+                            await queue.put({"status": "executing", "message": friendly})
+                    elif event_type == "progress":
+                        await queue.put(
+                            {
+                                "status": "progress",
+                                "value": event_data.get("value", 0),
+                                "max": event_data.get("max", 1),
+                            }
+                        )
+                    elif event_type == "execution_start":
+                        await queue.put({"status": "generating"})
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # Do not immediately mark the job failed. The polling task continues
+            # checking queue/history and can still observe successful completion.
+            await queue.put({"status": "connection_lost"})
+
+    poll_task = asyncio.create_task(poll_queue_and_history())
+    ws_task = asyncio.create_task(listen_ws())
+
     try:
         while True:
             if await request.is_disconnected():
                 break
             try:
-                msg = await asyncio.wait_for(q.get(), timeout=1.0)
+                msg = await asyncio.wait_for(queue.get(), timeout=1.0)
+                # connection_lost is intentionally internal; polling continues.
+                if msg.get("status") == "connection_lost":
+                    continue
                 yield json.dumps(msg)
-                if msg["status"] in ["completed", "error"]:
+                if msg.get("status") in ["completed", "error"]:
                     break
             except asyncio.TimeoutError:
                 pass
     finally:
-        task1.cancel()
-        task2.cancel()
+        poll_task.cancel()
+        ws_task.cancel()
+        await asyncio.gather(poll_task, ws_task, return_exceptions=True)
 
 
 @router.get("/api/status")
