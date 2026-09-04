@@ -131,6 +131,20 @@ def get_system_prompt(tool_id: str = None) -> str:
 def save_config(config_data):
     global _config_cache, _config_mtime_ns
 
+    # Import lazily to keep config loading independent from the heavier workflow
+    # validation module during application startup.
+    from app.core.config_validation import validate_config
+
+    validation = validate_config(config_data)
+    if validation["errors"]:
+        details = "; ".join(
+            f"{issue['path']}: {issue['message']}" for issue in validation["errors"][:8]
+        )
+        remaining = len(validation["errors"]) - 8
+        if remaining > 0:
+            details += f"; plus {remaining} more error(s)"
+        raise ValueError(f"Config validation failed: {details}")
+
     os.makedirs(os.path.dirname(USER_CONFIG_PATH), exist_ok=True)
     tmp_path = USER_CONFIG_PATH + ".tmp"
 
@@ -152,6 +166,10 @@ def save_config(config_data):
         _config_cache = config_data
         _config_mtime_ns = _get_config_mtime_ns()
 
+    for warning in validation["warnings"]:
+        print(f"Config warning [{warning['path']}]: {warning['message']}")
+    return validation
+
 
 def get_tool_settings(tool_id: str):
     config = load_config()
@@ -162,11 +180,17 @@ def get_tool_settings(tool_id: str):
 
 
 def get_base_workflow(workflow_file: str):
-    path = os.path.join(PROJECT_ROOT, "workflows", workflow_file)
+    if not isinstance(workflow_file, str) or not workflow_file.lower().endswith(".json"):
+        raise FileNotFoundError("Invalid workflow filename.")
+    safe_name = os.path.basename(workflow_file)
+    if safe_name != workflow_file:
+        raise FileNotFoundError("Workflow files must live directly inside Orange's workflows folder.")
+
+    path = os.path.join(PROJECT_ROOT, "workflows", safe_name)
     if not os.path.exists(path):
-        path = os.path.join(PROJECT_ROOT, "workflows", "defaults", workflow_file)
+        path = os.path.join(PROJECT_ROOT, "workflows", "defaults", safe_name)
         if not os.path.exists(path):
-            raise FileNotFoundError(f"Workflow file {workflow_file} not found.")
+            raise FileNotFoundError(f"Workflow file {safe_name} not found.")
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
