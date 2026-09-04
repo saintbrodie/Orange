@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -50,20 +51,32 @@ class GenerationStatusDatabaseTests(unittest.TestCase):
 
         self.assertEqual(len(row["error"]), 8000)
 
-    def test_init_db_migrates_legacy_usage_table(self):
+    def _replace_with_legacy_usage_table(self):
         os.remove(self.db_path)
-        import sqlite3
-
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "CREATE TABLE usage (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, client_ip TEXT, tool_id TEXT, prompt TEXT)"
             )
+
+    def test_init_db_migrates_legacy_usage_table(self):
+        self._replace_with_legacy_usage_table()
 
         database.init_db()
         database.log_usage("127.0.0.1", "test-tool", prompt_id="prompt-4")
         row = database.get_generation_record("prompt-4")
 
         self.assertEqual(row["status"], "queued")
+        self.assertIn("backend_url", row)
+        self.assertIn("error", row)
+
+    def test_logging_self_repairs_legacy_database_after_live_restore(self):
+        self._replace_with_legacy_usage_table()
+
+        database.log_usage("127.0.0.1", "test-tool", prompt_id="prompt-5")
+        database.update_usage_status("prompt-5", "completed")
+        row = database.get_generation_record("prompt-5")
+
+        self.assertEqual(row["status"], "completed")
         self.assertIn("backend_url", row)
         self.assertIn("error", row)
 
