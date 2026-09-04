@@ -16,7 +16,7 @@ In practice, that means Orange prefers semantic inputs such as:
 - Aspect ratio or resolution choice
 - Generate
 
-A new frontend mapping should be added only when it represents a real, recurring user decision that cannot reasonably be handled inside the workflow. Technical controls should stay in ComfyUI whenever possible.
+The existing `nodeMapping` names should be treated as a curated product API, not an unfinished list of controls waiting to be generalized. A new frontend mapping should be added only when it represents a real, recurring user decision that cannot reasonably be handled inside the workflow.
 
 **The goal is smarter internals, not a more complicated frontend.** Workflow validation, backend routing, recovery, dependency checks, and diagnostics can become more capable while the Generate page remains deliberately simple.
 
