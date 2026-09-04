@@ -178,8 +178,8 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
         return
     if initial_state in {"error", "interrupted"}:
         _record_failure(prompt_id, target_url, initial_state, initial_error)
-        message = "Generation was interrupted." if initial_state == "interrupted" else "Generation failed in the processing workflow."
-        yield json.dumps({"status": "error", "message": message})
+        detail = "Generation was interrupted." if initial_state == "interrupted" else "Generation failed in the processing workflow."
+        yield json.dumps({"status": "error", "detail": detail})
         return
 
     async def poll_queue_and_history():
@@ -216,8 +216,8 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
                     return
                 if history_state in {"error", "interrupted"}:
                     _record_failure(prompt_id, target_url, history_state, technical_error)
-                    message = "Generation was interrupted." if history_state == "interrupted" else "Generation failed in the processing workflow."
-                    await queue.put({"status": "error", "message": message})
+                    detail = "Generation was interrupted." if history_state == "interrupted" else "Generation failed in the processing workflow."
+                    await queue.put({"status": "error", "detail": detail})
                     return
             except Exception:
                 pass
@@ -267,12 +267,12 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
                     elif event_type == "execution_error":
                         technical_error = _technical_execution_error(event_data)
                         _record_failure(prompt_id, target_url, "error", technical_error)
-                        await queue.put({"status": "error", "message": "Generation failed in the processing workflow."})
+                        await queue.put({"status": "error", "detail": "Generation failed in the processing workflow."})
                         return
                     elif event_type == "execution_interrupted":
                         technical_error = json.dumps(event_data, ensure_ascii=False, default=str)[:8000]
                         _record_failure(prompt_id, target_url, "interrupted", technical_error)
-                        await queue.put({"status": "error", "message": "Generation was interrupted."})
+                        await queue.put({"status": "error", "detail": "Generation was interrupted."})
                         return
         except asyncio.CancelledError:
             raise
@@ -294,7 +294,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
                 yield json.dumps(
                     {
                         "status": "error",
-                        "message": "Generation monitoring timed out. The backend may still be working; check the admin dashboard.",
+                        "detail": "Generation monitoring timed out. The backend may still be working; check the admin dashboard.",
                     }
                 )
                 break
