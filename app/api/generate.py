@@ -4,12 +4,19 @@ import os
 import random
 import uuid
 
-import httpx
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from PIL import Image, UnidentifiedImageError
 
-from app.core.backends import decrement_active, get_best_backend, increment_active
+from app.core.backends import (
+    decrement_active,
+    get_backend_client,
+    get_best_backend,
+    increment_active,
+    report_backend_failure,
+    report_backend_success,
+    workflow_compatibility_key,
+)
 from app.core.config import get_base_workflow, get_comfy_servers, get_system_prompt, get_tool_settings, load_config
 from app.core.database import get_backend_for_prompt, log_usage
 from app.core.llm import call_llm
@@ -60,12 +67,12 @@ async def _read_validated_image(upload_file: UploadFile) -> tuple[str, bytes, st
 async def _upload_image_to_comfy(upload_file: UploadFile, target_url: str) -> str:
     """Upload an image file to a specific ComfyUI backend and return its server-side filename."""
     filename, image_bytes, content_type = await _read_validated_image(upload_file)
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        files = {"image": (filename, image_bytes, content_type)}
-        res = await client.post(f"{target_url}/upload/image", files=files)
-        if res.status_code != 200:
-            raise RuntimeError("Failed to upload image to ComfyUI backend")
-        return res.json().get("name")
+    client = await get_backend_client()
+    files = {"image": (filename, image_bytes, content_type)}
+    res = await client.post(f"{target_url}/upload/image", files=files, timeout=30.0)
+    if res.status_code != 200:
+        raise RuntimeError("Failed to upload image to ComfyUI backend")
+    return res.json().get("name")
 
 
 @router.post("/api/generate")
@@ -87,7 +94,9 @@ async def generate(
         raise HTTPException(status_code=400, detail="Invalid tool ID")
 
     mapping = tool.get("nodeMapping", {})
-    workflow = get_base_workflow(tool.get("workflowFile"))
+    workflow_file = tool.get("workflowFile")
+    workflow = get_base_workflow(workflow_file)
+    compatibility_key = workflow_compatibility_key(workflow_file, workflow, mapping)
 
     if mapping.get("prompt") and not prompt:
         raise HTTPException(status_code=400, detail="Prompt is required for this tool")
@@ -100,9 +109,12 @@ async def generate(
     exclude_urls = []
 
     while True:
-        target_url = await get_best_backend(exclude_urls=exclude_urls)
+        target_url = await get_best_backend(
+            exclude_urls=exclude_urls,
+            compatibility_key=compatibility_key,
+        )
         if not target_url:
-            raise HTTPException(status_code=503, detail="No healthy ComfyUI servers available.")
+            raise HTTPException(status_code=503, detail="No healthy compatible ComfyUI servers available.")
 
         increment_active(target_url)
         try:
@@ -140,25 +152,26 @@ async def generate(
                 workflow[s_map["nodeId"]]["inputs"][s_map["field"]] = random.randint(1, 1125899906)
 
             payload = {"prompt": workflow, "client_id": client_id}
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                res = await client.post(f"{target_url}/prompt", json=payload)
-                if res.status_code != 200:
-                    raise RuntimeError("Failed to queue generation in ComfyUI")
-                data = res.json()
-
+            client = await get_backend_client()
+            res = await client.post(f"{target_url}/prompt", json=payload, timeout=30.0)
+            if res.status_code != 200:
+                raise RuntimeError("Failed to queue generation in ComfyUI")
+            data = res.json()
+            report_backend_success(target_url)
             break
         except HTTPException:
             decrement_active(target_url)
             raise
         except Exception as exc:
             print(f"Server {target_url} failed: {exc}. Retrying next...")
+            report_backend_failure(target_url, str(exc))
             exclude_urls.append(target_url)
             decrement_active(target_url)
 
     asyncio.get_running_loop().call_later(2.0, decrement_active, target_url)
 
     server_priority = next(
-        (s.get("priority", 1) for s in get_comfy_servers() if s.get("url") == target_url),
+        (s.get("priority", 1) for s in get_comfy_servers() if str(s.get("url", "")).rstrip("/") == target_url),
         1,
     )
 
@@ -174,101 +187,105 @@ async def generate(
 @router.get("/api/output")
 async def get_output(prompt_id: str, type: str = "image"):
     """Generalized output endpoint for image, video, audio, or text output."""
-    target_url = get_backend_for_prompt(prompt_id) or get_comfy_url()
+    target_url = (get_backend_for_prompt(prompt_id) or get_comfy_url()).rstrip("/")
+    client = await get_backend_client()
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        hist_res = await client.get(f"{target_url}/history/{prompt_id}")
-        if hist_res.status_code != 200:
-            raise HTTPException(status_code=404, detail="History not found")
+    hist_res = await client.get(f"{target_url}/history/{prompt_id}", timeout=30.0)
+    if hist_res.status_code != 200:
+        raise HTTPException(status_code=404, detail="History not found")
 
-        hist_data = hist_res.json()
-        if prompt_id not in hist_data:
-            raise HTTPException(status_code=404, detail="Prompt ID not generated yet or failed")
+    hist_data = hist_res.json()
+    if prompt_id not in hist_data:
+        raise HTTPException(status_code=404, detail="Prompt ID not generated yet or failed")
 
-        outputs = hist_data[prompt_id].get("outputs", {})
-        file_info = None
+    outputs = hist_data[prompt_id].get("outputs", {})
+    file_info = None
 
-        if type == "video":
-            for output_data in outputs.values():
-                for key in ["gifs", "video", "images"]:
-                    items = output_data.get(key, [])
-                    if items:
-                        file_info = items[0]
-                        break
-                if file_info:
+    if type == "video":
+        for output_data in outputs.values():
+            for key in ["gifs", "video", "images"]:
+                items = output_data.get(key, [])
+                if items:
+                    file_info = items[0]
                     break
-        elif type == "audio":
-            for output_data in outputs.values():
-                audios = output_data.get("audio", [])
-                if audios:
-                    file_info = audios[0]
+            if file_info:
+                break
+    elif type == "audio":
+        for output_data in outputs.values():
+            audios = output_data.get("audio", [])
+            if audios:
+                file_info = audios[0]
+                break
+    elif type == "text":
+        for output_data in outputs.values():
+            for key in ["text", "string", "messages"]:
+                txt = output_data.get(key)
+                if txt:
+                    final_text = txt[0] if isinstance(txt, list) else txt
+                    return {"text": final_text}
+        raise HTTPException(status_code=404, detail="No text output found for prompt")
+    else:
+        for output_data in outputs.values():
+            for key in ["images", "gifs"]:
+                items = output_data.get(key, [])
+                if items:
+                    file_info = items[0]
                     break
-        elif type == "text":
-            for output_data in outputs.values():
-                for key in ["text", "string", "messages"]:
-                    txt = output_data.get(key)
-                    if txt:
-                        final_text = txt[0] if isinstance(txt, list) else txt
-                        return {"text": final_text}
-            raise HTTPException(status_code=404, detail="No text output found for prompt")
+            if file_info:
+                break
+
+    if not file_info:
+        raise HTTPException(status_code=404, detail=f"No {type} output found for prompt")
+
+    file_res = await client.get(
+        f"{target_url}/view",
+        params={
+            "filename": file_info["filename"],
+            "subfolder": file_info.get("subfolder", ""),
+            "type": file_info.get("type", "output"),
+        },
+        timeout=30.0,
+    )
+    if file_res.status_code != 200:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch {type} from ComfyUI backend")
+
+    raw_bytes = file_res.content
+
+    if type == "image":
+        try:
+            clean_bytes, media_type = strip_metadata(raw_bytes)
+            return StreamingResponse(io.BytesIO(clean_bytes), media_type=media_type)
+        except Exception:
+            content_type = file_res.headers.get("content-type", "image/png").split(";", 1)[0]
+            return StreamingResponse(io.BytesIO(raw_bytes), media_type=content_type)
+    if type == "video":
+        fname = file_info["filename"].lower()
+        if fname.endswith(".webp"):
+            media_type = "image/webp"
+        elif fname.endswith(".gif"):
+            media_type = "image/gif"
+        elif fname.endswith(".webm"):
+            media_type = "video/webm"
+        elif fname.endswith(".mkv"):
+            media_type = "video/x-matroska"
+        elif fname.endswith(".mov"):
+            media_type = "video/quicktime"
         else:
-            for output_data in outputs.values():
-                for key in ["images", "gifs"]:
-                    items = output_data.get(key, [])
-                    if items:
-                        file_info = items[0]
-                        break
-                if file_info:
-                    break
-
-        if not file_info:
-            raise HTTPException(status_code=404, detail=f"No {type} output found for prompt")
-
-        view_url = (
-            f"{target_url}/view?filename={file_info['filename']}"
-            f"&subfolder={file_info.get('subfolder', '')}&type={file_info.get('type', 'output')}"
-        )
-        file_res = await client.get(view_url)
-        if file_res.status_code != 200:
-            raise HTTPException(status_code=500, detail=f"Failed to fetch {type} from ComfyUI backend")
-
-        raw_bytes = file_res.content
-
-        if type == "image":
-            try:
-                clean_bytes, media_type = strip_metadata(raw_bytes)
-                return StreamingResponse(io.BytesIO(clean_bytes), media_type=media_type)
-            except Exception:
-                content_type = file_res.headers.get("content-type", "image/png").split(";", 1)[0]
-                return StreamingResponse(io.BytesIO(raw_bytes), media_type=content_type)
-        if type == "video":
-            fname = file_info["filename"].lower()
-            if fname.endswith(".webp"):
-                media_type = "image/webp"
-            elif fname.endswith(".gif"):
-                media_type = "image/gif"
-            elif fname.endswith(".webm"):
-                media_type = "video/webm"
-            elif fname.endswith(".mkv"):
-                media_type = "video/x-matroska"
-            elif fname.endswith(".mov"):
-                media_type = "video/quicktime"
-            else:
-                media_type = "video/mp4"
-            return StreamingResponse(io.BytesIO(raw_bytes), media_type=media_type)
-        if type == "audio":
-            fname = file_info["filename"].lower()
-            if fname.endswith(".wav"):
-                media_type = "audio/wav"
-            elif fname.endswith(".mp3"):
-                media_type = "audio/mpeg"
-            elif fname.endswith(".ogg"):
-                media_type = "audio/ogg"
-            elif fname.endswith(".m4a"):
-                media_type = "audio/mp4"
-            else:
-                media_type = "audio/flac"
-            return StreamingResponse(io.BytesIO(raw_bytes), media_type=media_type)
+            media_type = "video/mp4"
+        return StreamingResponse(io.BytesIO(raw_bytes), media_type=media_type)
+    if type == "audio":
+        fname = file_info["filename"].lower()
+        if fname.endswith(".wav"):
+            media_type = "audio/wav"
+        elif fname.endswith(".mp3"):
+            media_type = "audio/mpeg"
+        elif fname.endswith(".ogg"):
+            media_type = "audio/ogg"
+        elif fname.endswith(".m4a"):
+            media_type = "audio/mp4"
+        else:
+            media_type = "audio/flac"
+        return StreamingResponse(io.BytesIO(raw_bytes), media_type=media_type)
 
 
 @router.get("/api/image")

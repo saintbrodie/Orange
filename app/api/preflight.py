@@ -3,6 +3,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.admin import verify_admin
+from app.core.backends import backend_manager, workflow_compatibility_key
 from app.core.config import PROJECT_ROOT, get_comfy_servers
 from app.core.preflight import run_preflight
 
@@ -37,9 +38,17 @@ async def preflight_workflow(payload: dict, _=Depends(verify_admin)):
     except (OSError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=f"Could not read workflow JSON: {exc}")
 
-    return await run_preflight(
+    result = await run_preflight(
         workflow_file=workflow_file,
         workflow=workflow,
         node_mapping=node_mapping,
         servers=get_comfy_servers(),
     )
+
+    compatibility_key = workflow_compatibility_key(workflow_file, workflow, node_mapping)
+    backend_manager.record_preflight(compatibility_key, result.get("backends", []))
+    result["routing"] = {
+        "compatibility_cached": True,
+        "compatibility_key": compatibility_key[:12],
+    }
+    return result
