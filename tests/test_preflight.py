@@ -92,3 +92,12 @@ def test_mapped_required_field_can_be_injected_by_orange():
         _object_info(),
     )
     assert not any(issue["code"] == "required_input_missing" for issue in result["errors"])
+
+
+def test_output_text_mapping_is_not_treated_as_node_input():
+    mapping = {"outputText": {"nodeId": "2", "field": "text_output"}}
+    local = validate_mappings(_workflow(), mapping)
+    backend = validate_backend(_workflow(), mapping, _object_info())
+
+    assert not any(issue["code"] == "mapping_field_not_in_workflow" for issue in local["warnings"])
+    assert not any(issue["code"] == "mapped_field_missing" for issue in backend["errors"])
