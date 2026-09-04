@@ -156,5 +156,11 @@
         });
     }
 
+    ensurePanel();
+    const settingsContainer = document.getElementById('settings-container');
+    if (settingsContainer && !settingsContainer.classList.contains('hidden')) {
+        window.setTimeout(() => loadBackendHealth(false), 0);
+    }
+
     window.loadBackendHealth = loadBackendHealth;
 })();
