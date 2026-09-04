@@ -26,7 +26,7 @@ See [Architecture Overview](docs/ARCHITECTURE.md) for the engineering boundary i
 - **Idiot-Proof UI**: Minimalistic design focused on clear inputs rather than backend complexity.
 - **Curated Dynamic Capabilities**: Tool availability adapts to configured workflows while keeping the user-facing control surface deliberately small.
 - **Real-Time Feedback**: Progress bars, queue positions, and system status directly inherited from ComfyUI websockets.
-- **Extensible**: Simply drop in ComfyUI API workflows to add new generation paths without exposing the workflow's technical controls to users.
+- **Extensible**: Drop in ComfyUI API workflows to add new generation paths without exposing the workflow's technical controls to users.
 - **Auto-Installer**: Simple `run.bat` and `run.sh` scripts manage the environment on Windows/Mac/Linux.
 - **Admin Tracking**: Secure built-in dashboard to monitor platform usage metrics, IPs, and tool popularity.
 - **Multi-Modal Support**: Native support for Image, Video, and Audio generations.
