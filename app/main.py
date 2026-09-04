@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.database import init_db
 from app.core.config import restore_defaults
-from app.api import generate, status, admin, workflows
+from app.api import generate, status, admin, workflows, preflight
 
 # Initialize database and default files
 init_db()
@@ -25,6 +25,8 @@ app.include_router(generate.router)
 app.include_router(status.router)
 app.include_router(admin.router)
 app.include_router(workflows.router)
+app.include_router(preflight.router)
+
 
 @app.get("/")
 def serve_index():
@@ -34,10 +36,18 @@ def serve_index():
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="UI not found. Ensure static/index.html exists.")
 
+
 @app.get("/admin")
 def serve_admin():
     try:
         with open(os.path.join(STATIC_DIR, "admin.html"), "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+            content = f.read()
+        # Keep preflight UI isolated from the main admin bundle so it can evolve
+        # without expanding Orange's user-facing generator code.
+        content = content.replace(
+            "</body>",
+            '    <script src="/static/preflight.js?v=1"></script>\n</body>',
+        )
+        return HTMLResponse(content=content)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Admin UI not found. Ensure static/admin.html exists.")
