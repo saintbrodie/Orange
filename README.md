@@ -4,11 +4,29 @@
 
 Orange is a minimalist, dynamic web frontend wrapper around **ComfyUI**. It replaces the complex node-graph interface with a user-friendly, responsive experience that allows anyone to generate, edit, and upscale media via your local ComfyUI instance without knowing the node-spaghetti underneath.
 
+## Design Philosophy
+
+Orange is intentionally **not** a generic ComfyUI parameter editor.
+
+The ComfyUI workflow author is responsible for the complicated parts: models, samplers, steps, CFG, LoRAs, conditioning, negative prompts, node-specific settings, and other implementation details. Orange should expose only the small number of choices that a user genuinely needs to make for a generation.
+
+In practice, that means Orange prefers semantic inputs such as:
+- Prompt
+- Image / reference image
+- Aspect ratio or resolution choice
+- Generate
+
+The existing `nodeMapping` names should be treated as a curated product API, not an unfinished list of controls waiting to be generalized. A new frontend mapping should be added only when it represents a real, recurring user decision that cannot reasonably be handled inside the workflow.
+
+**The goal is smarter internals, not a more complicated frontend.** Workflow validation, backend routing, recovery, dependency checks, and diagnostics can become more capable while the Generate page remains deliberately simple.
+
+See [Architecture Overview](docs/ARCHITECTURE.md) for the engineering boundary in more detail.
+
 ## Features
 - **Idiot-Proof UI**: Minimalistic design focused on clear inputs rather than backend complexity.
-- **Dynamic Capabilities**: Tool availability and frontend UI adapt dynamically based on your configured workflows.
+- **Curated Dynamic Capabilities**: Tool availability adapts to configured workflows while keeping the user-facing control surface deliberately small.
 - **Real-Time Feedback**: Progress bars, queue positions, and system status directly inherited from ComfyUI websockets.
-- **Extensible**: Simply drop in ComfyUI API workflows to add new generation paths.
+- **Extensible**: Drop in ComfyUI API workflows to add new generation paths without exposing the workflow's technical controls to users.
 - **Auto-Installer**: Simple `run.bat` and `run.sh` scripts manage the environment on Windows/Mac/Linux.
 - **Admin Tracking**: Secure built-in dashboard to monitor platform usage metrics, IPs, and tool popularity.
 - **Multi-Modal Support**: Native support for Image, Video, and Audio generations.
@@ -41,8 +59,8 @@ You can install and run Orange with 1-click using [Pinokio](https://pinokio.comp
 4. Once installation is complete, click **Start** to run the server.
 
 ## Documentation
-- [Architecture Overview](docs/ARCHITECTURE.md): Detailed project breakdown and data flow for AI agents and developers.
-- [Adding Workflows](docs/adding_workflows.md): Guide on how to export and use your own ComfyUI node graphs.
+- [Architecture Overview](docs/ARCHITECTURE.md): Detailed project breakdown, design boundaries, and data flow for AI agents and developers.
+- [Adding Workflows](docs/adding_workflows.md): Guide on how to export and use your own ComfyUI node graphs while keeping the Orange UI intentionally simple.
 
 ## Admin Dashboard
 <table border="0">
@@ -73,7 +91,7 @@ Orange features a secure analytics dashboard and an integrated Tool Editor that 
 - **Workflow Uploads**: Drag and drop ComfyUI API JSON workflows directly into the browser to automatically parse them. Orange will intelligently map your Prompt, Image, Resolution, and Seed inputs based on common nodes.
 - **Multi-Modal Output Types**: Configure tools as `Image`, `Video`, or `Audio` to unlock specific playback interfaces (like the Waveform visualizer).
 - **Text Mapping**: Bind an `outputText` node to display generated text (like lyrics) in a clean, copyable interface.
-- **Node Mappings**: Manually bind frontend UI elements (Prompt input, Image dropzone) to specific ComfyUI node IDs.
+- **Node Mappings**: Manually bind Orange's deliberately small set of frontend inputs to specific ComfyUI node IDs.
 - **Resolution Overrides**: Configure tool-specific output dimensions (1:1, 16:9, 9:16) for workflows that deviate from the global defaults, or turn off resolution scaling entirely.
 
 ### LLM & Prompt Enhancement Configuration
