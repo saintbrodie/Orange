@@ -23,6 +23,8 @@ jobs:
       - name: Compile Python sources
         run: python -m compileall -q app scripts tests
       - name: Check JavaScript syntax
-        run: node --check static/preflight.js
+        run: |
+          node --check static/preflight.js
+          node --check static/backend-status.js
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
