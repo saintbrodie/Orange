@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, backend_status, generate, preflight, status, workflows
+from app.api import admin, backend_status, generate, generation_debug, preflight, status, workflows
 from app.core.backends import backend_manager
 from app.core.config import restore_defaults
 from app.core.database import init_db
@@ -38,6 +38,7 @@ app.include_router(admin.router)
 app.include_router(workflows.router)
 app.include_router(preflight.router)
 app.include_router(backend_status.router)
+app.include_router(generation_debug.router)
 
 
 @app.get("/")
