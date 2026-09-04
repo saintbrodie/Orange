@@ -105,6 +105,11 @@ def validate_mappings(workflow: dict, node_mapping: Any) -> dict:
             )
             continue
 
+        # outputText describes a value Orange reads from a completed node's output;
+        # it is not an input that should exist in node INPUT_TYPES metadata.
+        if mapping_name == "outputText":
+            continue
+
         inputs = node.get("inputs")
         if isinstance(inputs, dict) and field not in inputs:
             # Orange can inject a valid field even when the exported workflow omitted it,
@@ -156,7 +161,9 @@ def validate_backend(workflow: dict, node_mapping: dict, object_info: Any) -> di
         }
 
     mapped_fields_by_node = defaultdict(set)
-    for mapping in (node_mapping or {}).values():
+    for mapping_name, mapping in (node_mapping or {}).items():
+        if mapping_name == "outputText":
+            continue
         if isinstance(mapping, dict):
             node_id = str(mapping.get("nodeId", "")).strip()
             field = str(mapping.get("field", "")).strip()
