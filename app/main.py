@@ -54,11 +54,13 @@ def serve_admin():
     try:
         with open(os.path.join(STATIC_DIR, "admin.html"), "r", encoding="utf-8") as f:
             content = f.read()
-        # Keep preflight UI isolated from the main admin bundle so it can evolve
-        # without expanding Orange's user-facing generator code.
+        # Keep engineering diagnostics isolated from the main admin bundle and the
+        # intentionally small end-user generator UI.
         content = content.replace(
             "</body>",
-            '    <script src="/static/preflight.js?v=1"></script>\n</body>',
+            '    <script src="/static/preflight.js?v=1"></script>\n'
+            '    <script src="/static/backend-status.js?v=1"></script>\n'
+            "</body>",
         )
         return HTMLResponse(content=content)
     except FileNotFoundError:
