@@ -59,6 +59,8 @@ A useful architectural test for new features is:
 
 If the engineer can decide it, it normally should not become an Orange control.
 
+When extending `nodeMapping`, treat the existing mapping names as a curated product API rather than an open-ended list. Add a new mapping type only when a new first-class user interaction is intentionally being added to Orange.
+
 ## Project Structure
 
 The project has recently been refactored into a more professional, modular layout:
