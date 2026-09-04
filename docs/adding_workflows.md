@@ -16,6 +16,8 @@ A good rule is:
 
 The mapping system is deliberately small. It is not intended to become a generic form builder for every ComfyUI node input.
 
+Before asking for a new Orange mapping type, first try to solve the requirement inside the workflow. Add a new mapping only when the interaction is genuinely part of the user's creative intent rather than a technical tuning parameter.
+
 ## Step 1: Exporting an API Workflow from ComfyUI
 
 By default, saving a workflow in ComfyUI saves the GUI structure (node positions, colors, etc.). Orange requires the **API format**, which strips the visuals and only leaves the execution graph.
