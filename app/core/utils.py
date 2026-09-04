@@ -1,8 +1,10 @@
 import io
-from PIL import Image, ImageSequence
+from typing import Tuple
+
+from PIL import Image
 
 
-def strip_metadata(image_bytes: bytes) -> tuple[bytes, str]:
+def strip_metadata(image_bytes: bytes) -> Tuple[bytes, str]:
     """Strip metadata while preserving the source image format where practical.
 
     Returns a tuple of (clean_bytes, media_type).
