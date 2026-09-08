@@ -20,6 +20,8 @@ class BackendState:
     queue_running: int = 0
     queue_pending: int = 0
     latency_ms: Optional[int] = None
+    # Short-lived routing reservation used between backend selection and Comfy's
+    # next queue poll. This is not the number of actively executing Comfy jobs.
     active_requests: int = 0
     consecutive_failures: int = 0
     circuit_open_until: float = 0.0
@@ -42,6 +44,7 @@ class BackendManager:
         self._states: Dict[str, BackendState] = {}
         self._client: Optional[httpx.AsyncClient] = None
         self._poll_task: Optional[asyncio.Task] = None
+        self._refresh_lock = asyncio.Lock()
         self._workflow_compatibility: Dict[str, Dict[str, bool]] = {}
 
     def _sync_servers(self) -> None:
@@ -136,17 +139,22 @@ class BackendManager:
             state.last_checked = time.time()
 
     async def refresh_all(self) -> None:
-        self._sync_servers()
-        states = list(self._states.values())
-        if states:
-            await asyncio.gather(*(self._probe(state) for state in states))
+        # The admin health panel can request one-second live probes while the
+        # background monitor is also running. Serialize refreshes so those two
+        # callers never double-probe a down server or inflate failure counts.
+        async with self._refresh_lock:
+            self._sync_servers()
+            states = list(self._states.values())
+            if states:
+                await asyncio.gather(*(self._probe(state) for state in states))
 
     async def refresh_url(self, url: str) -> None:
-        self._sync_servers()
-        normalized = str(url).rstrip("/")
-        state = self._states.get(normalized)
-        if state is not None:
-            await self._probe(state)
+        async with self._refresh_lock:
+            self._sync_servers()
+            normalized = str(url).rstrip("/")
+            state = self._states.get(normalized)
+            if state is not None:
+                await self._probe(state)
 
     def record_failure(self, url: str, error: Optional[str] = None) -> None:
         normalized = str(url).rstrip("/")
