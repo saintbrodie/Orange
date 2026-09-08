@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, backend_status, generate, generation_debug, generation_v2, outputs, preflight, status, workflow_assets, workflows
+from app.api import admin, backend_status, db_admin, generate, generation_debug, generation_v2, outputs, preflight, status, workflow_assets, workflows
 from app.core.backends import backend_manager
 from app.core.config import restore_defaults
 from app.core.database import init_db
@@ -31,12 +31,13 @@ app = FastAPI(title="ComfyUI Minimal Frontend - Orange", lifespan=lifespan)
 # Mount Static Files
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# Prefer the focused v2 routes before the legacy aliases that remain in
-# generate.py while the older module is gradually decomposed.
+# Prefer focused replacement routes before legacy aliases that remain in older
+# modules while Orange is gradually decomposed into smaller pieces.
 app.include_router(outputs.router)
 app.include_router(generation_v2.router)
 app.include_router(generate.router)
 app.include_router(status.router)
+app.include_router(db_admin.router)
 app.include_router(admin.router)
 app.include_router(workflows.router)
 app.include_router(preflight.router)
