@@ -1,5 +1,7 @@
 import asyncio
+import copy
 import io
+import mimetypes
 import os
 import random
 import uuid
@@ -21,6 +23,7 @@ from app.core.config import get_base_workflow, get_comfy_servers, get_system_pro
 from app.core.database import get_backend_for_prompt, log_usage
 from app.core.llm import call_llm
 from app.core.utils import strip_metadata
+from app.core.workflow_assets import find_managed_asset_references
 
 router = APIRouter()
 
@@ -64,15 +67,48 @@ async def _read_validated_image(upload_file: UploadFile) -> tuple[str, bytes, st
     return filename, bytes(data), upload_file.content_type
 
 
-async def _upload_image_to_comfy(upload_file: UploadFile, target_url: str) -> str:
-    """Upload an image file to a specific ComfyUI backend and return its server-side filename."""
-    filename, image_bytes, content_type = await _read_validated_image(upload_file)
+async def _upload_image_bytes_to_comfy(filename: str, image_bytes: bytes, content_type: str, target_url: str) -> str:
     client = await get_backend_client()
     files = {"image": (filename, image_bytes, content_type)}
     res = await client.post(f"{target_url}/upload/image", files=files, timeout=30.0)
     if res.status_code != 200:
-        raise RuntimeError("Failed to upload image to ComfyUI backend")
-    return res.json().get("name")
+        raise RuntimeError(f"Failed to upload image '{filename}' to ComfyUI backend")
+    uploaded_name = res.json().get("name")
+    if not uploaded_name:
+        raise RuntimeError(f"ComfyUI did not return a filename for uploaded image '{filename}'")
+    return uploaded_name
+
+
+async def _upload_image_to_comfy(upload_file: UploadFile, target_url: str) -> str:
+    """Upload a user image to a specific ComfyUI backend and return its server-side filename."""
+    filename, image_bytes, content_type = await _read_validated_image(upload_file)
+    return await _upload_image_bytes_to_comfy(filename, image_bytes, content_type, target_url)
+
+
+async def _stage_workflow_assets(workflow: dict, mapping: dict, workflow_file: str, target_url: str) -> None:
+    """Stage Orange-managed fixed images and rewrite their workflow inputs for this backend."""
+    references = find_managed_asset_references(workflow, mapping, workflow_file)
+    if not references:
+        return
+
+    uploaded_names = {}
+    for node_id, field, asset_name, asset_path in references:
+        uploaded_name = uploaded_names.get(asset_name)
+        if uploaded_name is None:
+            if os.path.getsize(asset_path) > MAX_UPLOAD_BYTES:
+                raise RuntimeError(f"Workflow asset '{asset_name}' exceeds the {MAX_UPLOAD_MB} MB upload limit")
+            with open(asset_path, "rb") as handle:
+                image_bytes = handle.read()
+            content_type = mimetypes.guess_type(asset_name)[0] or "application/octet-stream"
+            uploaded_name = await _upload_image_bytes_to_comfy(
+                asset_name,
+                image_bytes,
+                content_type,
+                target_url,
+            )
+            uploaded_names[asset_name] = uploaded_name
+
+        workflow[node_id]["inputs"][field] = uploaded_name
 
 
 @router.post("/api/generate")
@@ -95,8 +131,8 @@ async def generate(
 
     mapping = tool.get("nodeMapping", {})
     workflow_file = tool.get("workflowFile")
-    workflow = get_base_workflow(workflow_file)
-    compatibility_key = workflow_compatibility_key(workflow_file, workflow, mapping)
+    base_workflow = get_base_workflow(workflow_file)
+    compatibility_key = workflow_compatibility_key(workflow_file, base_workflow, mapping)
 
     if mapping.get("prompt") and not prompt:
         raise HTTPException(status_code=400, detail="Prompt is required for this tool")
@@ -118,6 +154,12 @@ async def generate(
 
         increment_active(target_url)
         try:
+            # Each retry starts from the untouched workflow. Backend-specific asset
+            # filenames and user uploads from a failed attempt must never leak into
+            # the next backend attempt.
+            workflow = copy.deepcopy(base_workflow)
+            await _stage_workflow_assets(workflow, mapping, workflow_file, target_url)
+
             uploaded_image_name = None
             if image and mapping.get("image"):
                 uploaded_image_name = await _upload_image_to_comfy(image, target_url)
@@ -270,6 +312,10 @@ async def get_output(prompt_id: str, type: str = "image"):
             media_type = "video/x-matroska"
         elif fname.endswith(".mov"):
             media_type = "video/quicktime"
+        elif fname.endswith(".png"):
+            media_type = "image/png"
+        elif fname.endswith((".jpg", ".jpeg")):
+            media_type = "image/jpeg"
         else:
             media_type = "video/mp4"
         return StreamingResponse(io.BytesIO(raw_bytes), media_type=media_type)

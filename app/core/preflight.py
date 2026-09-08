@@ -1,9 +1,12 @@
 import asyncio
+import os
 import time
 from collections import defaultdict
 from typing import Any
 
 import httpx
+
+from app.core.workflow_assets import managed_asset_values
 
 
 def _issue(code: str, message: str, **context) -> dict:
@@ -149,10 +152,16 @@ def _enum_options(spec: Any) -> list | None:
     return None
 
 
-def validate_backend(workflow: dict, node_mapping: dict, object_info: Any) -> dict:
+def validate_backend(
+    workflow: dict,
+    node_mapping: dict,
+    object_info: Any,
+    managed_asset_names: set[str] | None = None,
+) -> dict:
     """Compare one API workflow with one ComfyUI server's /object_info response."""
     errors = []
     warnings = []
+    managed_asset_names = managed_asset_names or set()
 
     if not isinstance(object_info, dict):
         return {
@@ -240,6 +249,12 @@ def validate_backend(workflow: dict, node_mapping: dict, object_info: Any) -> di
             if field in mapped_fields:
                 continue
 
+            # Fixed workflow images managed by Orange are also portable even when
+            # they do not currently exist in this backend's LoadImage dropdown:
+            # generation stages them through /upload/image before queueing.
+            if isinstance(value, str) and os.path.basename(value) in managed_asset_names:
+                continue
+
             spec = required.get(field)
             if spec is None:
                 spec = optional.get(field)
@@ -261,7 +276,13 @@ def validate_backend(workflow: dict, node_mapping: dict, object_info: Any) -> di
     return {"errors": errors, "warnings": warnings}
 
 
-async def _check_backend(client: httpx.AsyncClient, server: dict, workflow: dict, node_mapping: dict) -> dict:
+async def _check_backend(
+    client: httpx.AsyncClient,
+    server: dict,
+    workflow: dict,
+    node_mapping: dict,
+    managed_asset_names: set[str],
+) -> dict:
     url = str(server.get("url", "")).strip().rstrip("/")
     priority = server.get("priority", 1)
     result = {
@@ -293,7 +314,7 @@ async def _check_backend(client: httpx.AsyncClient, server: dict, workflow: dict
 
     result["reachable"] = True
     result["available_node_classes"] = len(object_info)
-    validation = validate_backend(workflow, node_mapping, object_info)
+    validation = validate_backend(workflow, node_mapping, object_info, managed_asset_names)
     result["errors"] = validation["errors"]
     result["warnings"] = validation["warnings"]
     if result["errors"]:
@@ -310,13 +331,17 @@ async def run_preflight(workflow_file: str, workflow: dict, node_mapping: dict, 
     mappings = validate_mappings(workflow, node_mapping)
     local_errors = structure["errors"] + mappings["errors"]
     local_warnings = structure["warnings"] + mappings["warnings"]
+    managed_assets = managed_asset_values(workflow_file)
 
     backend_results = []
     if not local_errors and servers:
         timeout = httpx.Timeout(12.0, connect=5.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
             backend_results = await asyncio.gather(
-                *(_check_backend(client, server, workflow, node_mapping) for server in servers)
+                *(
+                    _check_backend(client, server, workflow, node_mapping, managed_assets)
+                    for server in servers
+                )
             )
 
     compatible_backends = sum(1 for backend in backend_results if backend["reachable"] and not backend["errors"])
