@@ -68,7 +68,8 @@
             if (document.body.classList.contains('orange-mobile-menu-open')) closeMenus();
             else openMenu(menuButton);
         });
-        sidebar.appendChild(menuButton);
+        const vramWarning = document.getElementById('vram-warning');
+        sidebar.insertBefore(menuButton, vramWarning || sidebar.lastElementChild);
 
         toolTabs.addEventListener('click', event => {
             if (event.target.closest('button')) closeMenus();
