@@ -25,6 +25,16 @@ class RoutePrecedenceTests(unittest.TestCase):
             "app.api.outputs",
         )
 
+    def test_wal_safe_backup_route_precedes_legacy_admin_route(self):
+        self.assertEqual(
+            self._first_endpoint_module("/api/admin/db/backup", "GET"),
+            "app.api.db_admin",
+        )
+        self.assertEqual(
+            self._first_endpoint_module("/api/admin/db/restore", "POST"),
+            "app.api.db_admin",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
