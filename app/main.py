@@ -45,7 +45,16 @@ app.include_router(generation_debug.router)
 def serve_index():
     try:
         with open(os.path.join(STATIC_DIR, "index.html"), "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+            content = f.read()
+        content = content.replace(
+            "</head>",
+            '    <link rel="stylesheet" href="/static/responsive.css?v=1">\n</head>',
+        )
+        content = content.replace(
+            "</body>",
+            '    <script src="/static/result-actions.js?v=1"></script>\n</body>',
+        )
+        return HTMLResponse(content=content)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="UI not found. Ensure static/index.html exists.")
 
@@ -59,8 +68,9 @@ def serve_admin():
         # intentionally small end-user generator UI.
         content = content.replace(
             "</body>",
-            '    <script src="/static/preflight.js?v=1"></script>\n'
-            '    <script src="/static/backend-status.js?v=1"></script>\n'
+            '    <script src="/static/preflight.js?v=2"></script>\n'
+            '    <script src="/static/backend-status.js?v=2"></script>\n'
+            '    <script src="/static/tool-ratios.js?v=1"></script>\n'
             "</body>",
         )
         return HTMLResponse(content=content)
