@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, backend_status, generate, generation_debug, preflight, status, workflow_assets, workflows
+from app.api import admin, backend_status, generate, generation_debug, outputs, preflight, status, workflow_assets, workflows
 from app.core.backends import backend_manager
 from app.core.config import restore_defaults
 from app.core.database import init_db
@@ -33,6 +33,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # Include Routers
 app.include_router(generate.router)
+app.include_router(outputs.router)
 app.include_router(status.router)
 app.include_router(admin.router)
 app.include_router(workflows.router)
@@ -55,7 +56,7 @@ def serve_index():
         )
         content = content.replace(
             "</body>",
-            '    <script src="/static/result-actions.js?v=2"></script>\n'
+            '    <script src="/static/result-actions.js?v=3"></script>\n'
             '    <script src="/static/mobile-navigation.js?v=1"></script>\n'
             "</body>",
         )
