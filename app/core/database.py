@@ -48,7 +48,7 @@ def init_db():
 def _run_with_schema_retry(action, label: str):
     try:
         return action()
-    except sqlite3.OperationalError as exc:
+    except sqlite3.OperationalError:
         # An older database can be restored while Orange is running. Re-apply the
         # additive schema migrations and retry once instead of requiring a restart.
         try:
@@ -69,12 +69,16 @@ def log_usage(
     prompt_id: str = None,
     backend_url: str = None,
     status: str = "queued",
+    error: str = None,
 ):
+    technical_error = error[:8000] if isinstance(error, str) else error
+
     def action():
         with _connect() as conn:
             conn.execute(
-                "INSERT INTO usage (client_ip, tool_id, prompt, prompt_id, backend_url, status) VALUES (?, ?, ?, ?, ?, ?)",
-                (client_ip, tool_id, prompt, prompt_id, backend_url, status),
+                "INSERT INTO usage (client_ip, tool_id, prompt, prompt_id, backend_url, status, error) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (client_ip, tool_id, prompt, prompt_id, backend_url, status, technical_error),
             )
 
     _run_with_schema_retry(action, "logging usage")
