@@ -153,13 +153,7 @@ def _enum_options(spec: Any) -> list | None:
 
 
 def _is_upload_selector(class_type: str, field: str, spec: Any) -> bool:
-    """Return True when an enum-like input is really a forced file picker.
-
-    ComfyUI's LoadImage node cannot export with an empty image value, so the
-    workflow often contains a junk/default filename that says nothing about
-    backend compatibility. Some upload-style custom nodes expose the same
-    behavior through `image_upload` metadata.
-    """
+    """Return True when an enum-like input represents an uploaded image/file picker."""
     if class_type == "LoadImage" and field == "image":
         return True
     if isinstance(spec, (list, tuple)) and len(spec) > 1 and isinstance(spec[1], dict):
@@ -258,9 +252,7 @@ def validate_backend(
                 )
 
         for field, value in node_inputs.items():
-            # A mapped field's workflow value is only a placeholder/default. Orange
-            # replaces it before submission (prompt, uploaded image, seed, size, etc.),
-            # so backend enum availability of that placeholder is irrelevant.
+            # A mapped field is owned by Orange and will be replaced before queueing.
             if field in mapped_fields:
                 continue
 
@@ -268,16 +260,27 @@ def validate_backend(
             if spec is None:
                 spec = optional.get(field)
 
-            # Upload selectors are not meaningful compatibility checks. ComfyUI
-            # requires a filename to be serialized even when the workflow author
-            # only needed some disposable placeholder in the node.
-            if _is_upload_selector(class_type, field, spec):
+            # A matching Workflow Asset is also owned by Orange and will be staged
+            # onto whichever backend actually receives the generation.
+            if isinstance(value, str) and os.path.basename(value) in managed_asset_names:
                 continue
 
-            # Fixed workflow images managed by Orange are also portable even when
-            # they do not currently exist in this backend's dropdown: generation
-            # stages them through /upload/image before queueing.
-            if isinstance(value, str) and os.path.basename(value) in managed_asset_names:
+            # Upload-style image selectors need an explicit source. ComfyUI forces a
+            # serialized filename into LoadImage even when it is just a junk/default
+            # placeholder. If Orange neither maps that field nor owns a Workflow
+            # Asset with the same filename, the workflow is relying on backend-local
+            # state and is therefore not portable across failover.
+            if _is_upload_selector(class_type, field, spec):
+                warnings.append(
+                    _issue(
+                        "unmanaged_image_input",
+                        f"Node {node_id} ({class_type}) image input '{value}' is not mapped to an Orange image input or attached as a Workflow Asset.",
+                        node_id=str(node_id),
+                        class_type=class_type,
+                        field=field,
+                        value=value,
+                    )
+                )
                 continue
 
             options = _enum_options(spec)
