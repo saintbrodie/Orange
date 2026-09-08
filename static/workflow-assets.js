@@ -1,6 +1,8 @@
 (() => {
     const workflowField = document.getElementById('edit-tool-file');
-    if (!workflowField || !workflowField.parentElement) return;
+    const mappingsContainer = document.getElementById('node-mappings-container');
+    const mappingSection = mappingsContainer?.parentElement;
+    if (!workflowField || !mappingSection) return;
 
     const panel = document.createElement('div');
     panel.id = 'workflow-assets-panel';
@@ -19,7 +21,7 @@
 
     const help = document.createElement('p');
     help.className = 'text-xs text-zinc-500 mt-1 max-w-xl leading-relaxed';
-    help.textContent = 'Fixed images that are part of this workflow. Keep the same filename in an unmapped workflow image input; Orange will upload it automatically to whichever backend runs the job.';
+    help.textContent = 'Fixed images that belong to this workflow. Match the filename used by an unmapped image node and Orange will stage it automatically on whichever backend runs the job.';
     titleWrap.append(title, help);
 
     const uploadButton = document.createElement('button');
@@ -45,7 +47,10 @@
     assetList.className = 'space-y-2';
 
     panel.append(header, status, assetList);
-    workflowField.parentElement.insertAdjacentElement('afterend', panel);
+    // Preflight is inserted after this mapping section earlier in the script load
+    // order, so inserting here places Workflow Assets directly below mappings and
+    // immediately above preflight.
+    mappingSection.insertAdjacentElement('afterend', panel);
 
     let requestVersion = 0;
 
@@ -113,7 +118,7 @@
             status.textContent = 'No fixed images attached to this workflow.';
             const empty = document.createElement('div');
             empty.className = 'text-[11px] text-zinc-600 bg-zinc-900/40 border border-dashed border-zinc-800 rounded-lg p-3';
-            empty.textContent = 'Example: if an unmapped LoadImage node references style-reference.png, upload style-reference.png here.';
+            empty.textContent = 'If an unmapped image node is intentional, attach the matching image here. Otherwise preflight will flag it as a backend-local dependency.';
             assetList.appendChild(empty);
         } else {
             status.textContent = `${names.length} fixed workflow image${names.length === 1 ? '' : 's'} managed by Orange.`;
