@@ -207,8 +207,9 @@ def validate_backend(workflow: dict, node_mapping: dict, object_info: Any) -> di
         required, optional, hidden = sections
         available_fields = set(required) | set(optional) | set(hidden)
         node_inputs = node.get("inputs") if isinstance(node.get("inputs"), dict) else {}
+        mapped_fields = mapped_fields_by_node.get(str(node_id), set())
 
-        for field in mapped_fields_by_node.get(str(node_id), set()):
+        for field in mapped_fields:
             if field not in available_fields:
                 errors.append(
                     _issue(
@@ -221,7 +222,7 @@ def validate_backend(workflow: dict, node_mapping: dict, object_info: Any) -> di
                 )
 
         for required_field in required:
-            if required_field not in node_inputs and required_field not in mapped_fields_by_node.get(str(node_id), set()):
+            if required_field not in node_inputs and required_field not in mapped_fields:
                 errors.append(
                     _issue(
                         "required_input_missing",
@@ -233,6 +234,12 @@ def validate_backend(workflow: dict, node_mapping: dict, object_info: Any) -> di
                 )
 
         for field, value in node_inputs.items():
+            # A mapped field's workflow value is only a placeholder/default. Orange
+            # replaces it before submission (prompt, uploaded image, seed, size, etc.),
+            # so backend enum availability of that placeholder is irrelevant.
+            if field in mapped_fields:
+                continue
+
             spec = required.get(field)
             if spec is None:
                 spec = optional.get(field)
