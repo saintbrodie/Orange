@@ -152,6 +152,21 @@ def _enum_options(spec: Any) -> list | None:
     return None
 
 
+def _is_upload_selector(class_type: str, field: str, spec: Any) -> bool:
+    """Return True when an enum-like input is really a forced file picker.
+
+    ComfyUI's LoadImage node cannot export with an empty image value, so the
+    workflow often contains a junk/default filename that says nothing about
+    backend compatibility. Some upload-style custom nodes expose the same
+    behavior through `image_upload` metadata.
+    """
+    if class_type == "LoadImage" and field == "image":
+        return True
+    if isinstance(spec, (list, tuple)) and len(spec) > 1 and isinstance(spec[1], dict):
+        return bool(spec[1].get("image_upload"))
+    return False
+
+
 def validate_backend(
     workflow: dict,
     node_mapping: dict,
@@ -249,15 +264,22 @@ def validate_backend(
             if field in mapped_fields:
                 continue
 
-            # Fixed workflow images managed by Orange are also portable even when
-            # they do not currently exist in this backend's LoadImage dropdown:
-            # generation stages them through /upload/image before queueing.
-            if isinstance(value, str) and os.path.basename(value) in managed_asset_names:
-                continue
-
             spec = required.get(field)
             if spec is None:
                 spec = optional.get(field)
+
+            # Upload selectors are not meaningful compatibility checks. ComfyUI
+            # requires a filename to be serialized even when the workflow author
+            # only needed some disposable placeholder in the node.
+            if _is_upload_selector(class_type, field, spec):
+                continue
+
+            # Fixed workflow images managed by Orange are also portable even when
+            # they do not currently exist in this backend's dropdown: generation
+            # stages them through /upload/image before queueing.
+            if isinstance(value, str) and os.path.basename(value) in managed_asset_names:
+                continue
+
             options = _enum_options(spec)
             if options is None or isinstance(value, list):
                 continue
