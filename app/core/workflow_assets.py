@@ -2,12 +2,12 @@ import hashlib
 import os
 import re
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from app.core.config import PROJECT_ROOT
 
 ASSETS_ROOT = os.path.join(PROJECT_ROOT, "workflows", "assets")
-IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"}
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 
 def _safe_workflow_filename(workflow_file: str) -> str:
@@ -36,7 +36,7 @@ def safe_asset_name(asset_name: str) -> str:
     if not name or name != str(asset_name or "").strip():
         raise ValueError("Invalid asset filename")
     if Path(name).suffix.lower() not in IMAGE_EXTENSIONS:
-        raise ValueError("Workflow assets must be image files")
+        raise ValueError("Workflow assets must be JPEG, PNG, WebP, or GIF images")
     return name
 
 
