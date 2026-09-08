@@ -49,11 +49,15 @@ def serve_index():
             content = f.read()
         content = content.replace(
             "</head>",
-            '    <link rel="stylesheet" href="/static/responsive.css?v=1">\n</head>',
+            '    <link rel="stylesheet" href="/static/responsive.css?v=1">\n'
+            '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=1">\n'
+            "</head>",
         )
         content = content.replace(
             "</body>",
-            '    <script src="/static/result-actions.js?v=1"></script>\n</body>',
+            '    <script src="/static/result-actions.js?v=2"></script>\n'
+            '    <script src="/static/mobile-navigation.js?v=1"></script>\n'
+            "</body>",
         )
         return HTMLResponse(content=content)
     except FileNotFoundError:
@@ -65,14 +69,19 @@ def serve_admin():
     try:
         with open(os.path.join(STATIC_DIR, "admin.html"), "r", encoding="utf-8") as f:
             content = f.read()
+        content = content.replace(
+            "</head>",
+            '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=1">\n</head>',
+        )
         # Keep engineering diagnostics isolated from the main admin bundle and the
         # intentionally small end-user generator UI.
         content = content.replace(
             "</body>",
             '    <script src="/static/preflight.js?v=2"></script>\n'
-            '    <script src="/static/backend-status.js?v=2"></script>\n'
+            '    <script src="/static/backend-status.js?v=3"></script>\n'
             '    <script src="/static/tool-ratios.js?v=1"></script>\n'
-            '    <script src="/static/workflow-assets.js?v=1"></script>\n'
+            '    <script src="/static/workflow-assets.js?v=2"></script>\n'
+            '    <script src="/static/mobile-navigation.js?v=1"></script>\n'
             "</body>",
         )
         return HTMLResponse(content=content)
