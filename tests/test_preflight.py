@@ -123,6 +123,58 @@ class WorkflowPreflightTests(unittest.TestCase):
 
         self.assertTrue(any(issue["code"] == "value_unavailable" for issue in result["warnings"]))
 
+    def test_managed_static_media_is_treated_as_portable(self):
+        workflow = {
+            "734": {
+                "class_type": "LoadImage",
+                "inputs": {"image": "bundled-reference.jpg"},
+            }
+        }
+        object_info = {
+            "LoadImage": {
+                "input": {
+                    "required": {
+                        "image": [["different-file.jpg"]],
+                    }
+                }
+            }
+        }
+
+        result = validate_backend(
+            workflow,
+            {},
+            object_info,
+            managed_asset_names={"bundled-reference.jpg"},
+        )
+
+        self.assertFalse(any(issue["code"] == "value_unavailable" for issue in result["warnings"]))
+
+    def test_managed_asset_matches_basename_of_workflow_reference(self):
+        workflow = {
+            "734": {
+                "class_type": "LoadImage",
+                "inputs": {"image": "reference/bundled-reference.jpg"},
+            }
+        }
+        object_info = {
+            "LoadImage": {
+                "input": {
+                    "required": {
+                        "image": [["different-file.jpg"]],
+                    }
+                }
+            }
+        }
+
+        result = validate_backend(
+            workflow,
+            {},
+            object_info,
+            managed_asset_names={"bundled-reference.jpg"},
+        )
+
+        self.assertFalse(any(issue["code"] == "value_unavailable" for issue in result["warnings"]))
+
     def test_mapped_required_field_can_be_injected_by_orange(self):
         workflow = _workflow()
         del workflow["2"]["inputs"]["text"]
