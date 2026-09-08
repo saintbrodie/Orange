@@ -35,6 +35,18 @@ class RoutePrecedenceTests(unittest.TestCase):
             "app.api.db_admin",
         )
 
+    def test_hardened_prompt_enhancement_route_precedes_legacy_generate(self):
+        self.assertEqual(
+            self._first_endpoint_module("/api/enhance-prompt", "POST"),
+            "app.api.llm_api",
+        )
+
+    def test_hardened_model_list_route_precedes_legacy_admin(self):
+        self.assertEqual(
+            self._first_endpoint_module("/api/admin/llm/models", "POST"),
+            "app.api.llm_api",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
