@@ -45,6 +45,7 @@
     if (window.lucide) lucide.createIcons();
 
     const MAPPING_NAMES = ['prompt', 'image', 'image2', 'resolution', 'seed', 'outputText'];
+    let contextVersion = 0;
 
     function collectNodeMapping() {
         const mapping = {};
@@ -185,7 +186,14 @@
         results.appendChild(card);
     }
 
+    function clearResults() {
+        contextVersion += 1;
+        results.replaceChildren();
+        results.classList.add('hidden');
+    }
+
     function markStale() {
+        contextVersion += 1;
         if (results.classList.contains('hidden') || results.childElementCount === 0) return;
         results.replaceChildren(
             makeElement('div', 'bg-zinc-950/60 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-500', 'Workflow or mappings changed. Run preflight again to refresh diagnostics.')
@@ -199,6 +207,18 @@
         if (event.target.closest('#node-mappings-container') || event.target.id === 'edit-tool-file') markStale();
     });
 
+    // Tool selection is a change of context, not merely a stale version of the
+    // previous result. Clear the panel entirely and invalidate any in-flight
+    // preflight response so diagnostics can never appear under the wrong tool.
+    if (typeof window.selectTool === 'function') {
+        const originalSelectTool = window.selectTool;
+        window.selectTool = async function (...args) {
+            clearResults();
+            return await originalSelectTool.apply(this, args);
+        };
+    }
+    window.resetWorkflowPreflight = clearResults;
+
     runButton.addEventListener('click', async () => {
         const workflowFile = document.getElementById('edit-tool-file')?.value.trim();
         if (!workflowFile) {
@@ -206,6 +226,7 @@
             return;
         }
 
+        const requestContextVersion = contextVersion;
         const originalText = runButton.textContent;
         runButton.disabled = true;
         runButton.classList.add('opacity-60', 'cursor-wait');
@@ -226,10 +247,13 @@
                 }),
             });
             const data = await response.json().catch(() => ({}));
+            if (requestContextVersion !== contextVersion) return;
             if (!response.ok) throw new Error(data.detail || `Preflight failed (${response.status})`);
             renderPreflight(data);
         } catch (error) {
-            renderFailure(error.message || 'Workflow preflight failed.');
+            if (requestContextVersion === contextVersion) {
+                renderFailure(error.message || 'Workflow preflight failed.');
+            }
         } finally {
             runButton.disabled = false;
             runButton.classList.remove('opacity-60', 'cursor-wait');
