@@ -49,11 +49,44 @@
         return wrap;
     }
 
-    function runningLabel(count) {
+    function generatingLabel(count) {
         const running = Number(count) || 0;
         if (running <= 0) return 'No';
         if (running === 1) return 'Yes';
         return `${running} jobs`;
+    }
+
+    function makeGeneratingMetric(count) {
+        const running = Number(count) || 0;
+        if (running <= 0) return makeMetric('Generating', 'No');
+
+        const wrap = document.createElement('div');
+        wrap.className = 'bg-orange-950/25 border border-orange-800/50 rounded-lg p-2 shadow-[0_0_12px_rgba(249,115,22,0.08)]';
+
+        const key = document.createElement('div');
+        key.className = 'text-[9px] uppercase tracking-wider text-orange-500/80 font-bold';
+        key.textContent = 'Generating';
+
+        const valueRow = document.createElement('div');
+        valueRow.className = 'flex items-center gap-2 mt-0.5 min-h-4';
+
+        const value = document.createElement('span');
+        value.className = 'text-xs text-orange-300 font-mono';
+        value.textContent = generatingLabel(running);
+
+        const activity = document.createElement('span');
+        activity.className = 'flex items-end gap-0.5 h-3';
+        activity.setAttribute('aria-hidden', 'true');
+        [0, 120, 240].forEach(delay => {
+            const dot = document.createElement('span');
+            dot.className = 'w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce';
+            dot.style.animationDelay = `${delay}ms`;
+            activity.appendChild(dot);
+        });
+
+        valueRow.append(value, activity);
+        wrap.append(key, valueRow);
+        return wrap;
     }
 
     function makeBackendCard(backend) {
@@ -89,7 +122,7 @@
             const metrics = document.createElement('div');
             metrics.className = 'grid grid-cols-3 gap-2';
             metrics.append(
-                makeMetric('Running', runningLabel(backend.queue_running)),
+                makeGeneratingMetric(backend.queue_running),
                 makeMetric('Queued', backend.queue_pending ?? 0),
                 makeMetric('Latency', backend.latency_ms == null ? '—' : `${backend.latency_ms} ms`),
             );
