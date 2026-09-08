@@ -1,9 +1,8 @@
-import io
 from urllib.parse import quote
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import Response
 
 from app.core.backends import get_backend_client
 from app.core.database import get_backend_for_prompt
@@ -58,6 +57,7 @@ async def list_outputs(prompt_id: str, type: str = Query("image")):
     return {"count": len(items), "type": output_type, "items": items}
 
 
+@router.get("/api/output")
 @router.get("/api/media")
 async def get_media(prompt_id: str, type: str = Query("image"), index: int = Query(0, ge=0)):
     output_type = type.lower()
@@ -107,3 +107,8 @@ async def get_media(prompt_id: str, type: str = Query("image"), index: int = Que
     safe_filename = quote(item["filename"], safe="")
     headers = {"Content-Disposition": f"inline; filename*=UTF-8''{safe_filename}"}
     return Response(content=raw_bytes, media_type=media_type, headers=headers)
+
+
+@router.get("/api/image")
+async def get_image(prompt_id: str, index: int = Query(0, ge=0)):
+    return await get_media(prompt_id=prompt_id, type="image", index=index)
