@@ -86,7 +86,18 @@ async def generate_v2(
 
     mapping = tool.get("nodeMapping", {})
     workflow_file = tool.get("workflowFile")
-    base_workflow = get_base_workflow(workflow_file)
+    try:
+        base_workflow = get_base_workflow(workflow_file)
+    except Exception as exc:
+        log_usage(
+            client_ip,
+            tool_id,
+            prompt,
+            status="submission_failed",
+            error=f"Workflow load failure: {type(exc).__name__}: {exc}",
+        )
+        raise HTTPException(status_code=500, detail="This tool's workflow could not be loaded. Check it in the admin dashboard.")
+
     compatibility_key = workflow_compatibility_key(workflow_file, base_workflow, mapping)
 
     if mapping.get("prompt") and not prompt:
@@ -100,13 +111,27 @@ async def generate_v2(
     # same bytes to another backend without depending on a consumed UploadFile.
     image_payload = await _read_validated_image(image) if image and mapping.get("image") else None
     image2_payload = await _read_validated_image(image2) if image2 and mapping.get("image2") else None
-    asset_references, asset_payloads = _prepare_asset_payloads(base_workflow, mapping, workflow_file)
+    try:
+        asset_references, asset_payloads = _prepare_asset_payloads(base_workflow, mapping, workflow_file)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log_usage(
+            client_ip,
+            tool_id,
+            prompt,
+            status="submission_failed",
+            error=f"Workflow asset preparation failure: {type(exc).__name__}: {exc}",
+        )
+        raise HTTPException(status_code=500, detail="This tool's fixed workflow assets could not be prepared.")
 
     config = load_config()
     ratio_values = None
     if aspect_ratio and mapping.get("width") and mapping.get("height"):
         ratio_values = tool.get("aspectRatios", config.get("aspectRatios", {})).get(aspect_ratio)
 
+    # One Orange generation has one seed. Safe backend failover must not silently
+    # turn the retry into a different creative request.
     generated_seed = None
     if mapping.get("seed") and mapping["seed"].get("generateRandom"):
         generated_seed = random.randint(1, 1125899906)
@@ -206,6 +231,20 @@ async def generate_v2(
                 error=exc.technical_message,
             )
             raise HTTPException(status_code=exc.status_code, detail=exc.public_message)
+        except Exception as exc:
+            technical = f"Local workflow preparation failure: {type(exc).__name__}: {exc}"
+            log_usage(
+                client_ip,
+                tool_id,
+                prompt,
+                backend_url=target_url,
+                status="submission_failed",
+                error=technical,
+            )
+            raise HTTPException(
+                status_code=422,
+                detail="Orange could not prepare this workflow. Run Workflow Preflight or check the tool mappings.",
+            )
         finally:
             if not queued:
                 decrement_active(target_url)
