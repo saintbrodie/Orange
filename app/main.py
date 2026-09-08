@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, backend_status, db_admin, generate, generation_debug, generation_v2, outputs, preflight, status, workflow_assets, workflows
+from app.api import admin, backend_status, db_admin, generate, generation_debug, generation_v2, llm_api, outputs, preflight, status, workflow_assets, workflows
 from app.core.backends import backend_manager
 from app.core.config import restore_defaults
 from app.core.database import init_db
@@ -35,6 +35,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 # modules while Orange is gradually decomposed into smaller pieces.
 app.include_router(outputs.router)
 app.include_router(generation_v2.router)
+app.include_router(llm_api.router)
 app.include_router(generate.router)
 app.include_router(status.router)
 app.include_router(db_admin.router)
