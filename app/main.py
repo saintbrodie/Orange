@@ -31,9 +31,10 @@ app = FastAPI(title="ComfyUI Minimal Frontend - Orange", lifespan=lifespan)
 # Mount Static Files
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# Include Routers
-app.include_router(generate.router)
+# Include normalized output routes before the legacy aliases still present in
+# generate.py so /api/output and /api/image use the safer implementation.
 app.include_router(outputs.router)
+app.include_router(generate.router)
 app.include_router(status.router)
 app.include_router(admin.router)
 app.include_router(workflows.router)
