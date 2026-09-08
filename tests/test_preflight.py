@@ -36,6 +36,18 @@ def _object_info():
     }
 
 
+def _load_image_info(files=None):
+    return {
+        "LoadImage": {
+            "input": {
+                "required": {
+                    "image": [files or ["different-file.jpg"]],
+                }
+            }
+        }
+    }
+
+
 class WorkflowPreflightTests(unittest.TestCase):
     def test_ui_workflow_format_is_rejected(self):
         result = validate_workflow_structure({"nodes": [], "links": []})
@@ -80,50 +92,40 @@ class WorkflowPreflightTests(unittest.TestCase):
         self.assertEqual(len(warnings), 1)
         self.assertEqual(warnings[0]["field"], "ckpt_name")
 
-    def test_mapped_enum_value_is_treated_as_replaceable_placeholder(self):
+    def test_mapped_loadimage_placeholder_is_owned_by_orange(self):
         workflow = {
             "734": {
                 "class_type": "LoadImage",
                 "inputs": {"image": "temp-placeholder.jpg"},
             }
         }
-        object_info = {
-            "LoadImage": {
-                "input": {
-                    "required": {
-                        "image": [["different-file.jpg"]],
-                    }
-                }
-            }
-        }
         mapping = {"image": {"nodeId": "734", "field": "image"}}
 
-        result = validate_backend(workflow, mapping, object_info)
+        result = validate_backend(workflow, mapping, _load_image_info())
 
+        self.assertFalse(any(issue["code"] == "unmanaged_image_input" for issue in result["warnings"]))
         self.assertFalse(any(issue["code"] == "value_unavailable" for issue in result["warnings"]))
 
-    def test_unmapped_loadimage_placeholder_is_not_warned(self):
+    def test_unmapped_loadimage_without_asset_warns_even_if_backend_has_file(self):
         workflow = {
             "734": {
                 "class_type": "LoadImage",
                 "inputs": {"image": "junk-image-required-by-comfy.jpg"},
             }
         }
-        object_info = {
-            "LoadImage": {
-                "input": {
-                    "required": {
-                        "image": [["different-file.jpg"]],
-                    }
-                }
-            }
-        }
 
-        result = validate_backend(workflow, {}, object_info)
+        result = validate_backend(
+            workflow,
+            {},
+            _load_image_info(["junk-image-required-by-comfy.jpg"]),
+        )
 
-        self.assertFalse(any(issue["code"] == "value_unavailable" for issue in result["warnings"]))
+        warnings = [issue for issue in result["warnings"] if issue["code"] == "unmanaged_image_input"]
+        self.assertEqual(len(warnings), 1)
+        self.assertEqual(warnings[0]["node_id"], "734")
+        self.assertEqual(warnings[0]["field"], "image")
 
-    def test_custom_image_upload_selector_placeholder_is_not_warned(self):
+    def test_custom_image_upload_selector_without_mapping_or_asset_warns(self):
         workflow = {
             "12": {
                 "class_type": "CustomImagePicker",
@@ -142,32 +144,24 @@ class WorkflowPreflightTests(unittest.TestCase):
 
         result = validate_backend(workflow, {}, object_info)
 
-        self.assertFalse(any(issue["code"] == "value_unavailable" for issue in result["warnings"]))
+        self.assertTrue(any(issue["code"] == "unmanaged_image_input" for issue in result["warnings"]))
 
-    def test_managed_static_media_is_treated_as_portable(self):
+    def test_managed_static_media_is_owned_by_orange(self):
         workflow = {
             "734": {
                 "class_type": "LoadImage",
                 "inputs": {"image": "bundled-reference.jpg"},
             }
         }
-        object_info = {
-            "LoadImage": {
-                "input": {
-                    "required": {
-                        "image": [["different-file.jpg"]],
-                    }
-                }
-            }
-        }
 
         result = validate_backend(
             workflow,
             {},
-            object_info,
+            _load_image_info(),
             managed_asset_names={"bundled-reference.jpg"},
         )
 
+        self.assertFalse(any(issue["code"] == "unmanaged_image_input" for issue in result["warnings"]))
         self.assertFalse(any(issue["code"] == "value_unavailable" for issue in result["warnings"]))
 
     def test_managed_asset_matches_basename_of_workflow_reference(self):
@@ -177,23 +171,15 @@ class WorkflowPreflightTests(unittest.TestCase):
                 "inputs": {"image": "reference/bundled-reference.jpg"},
             }
         }
-        object_info = {
-            "LoadImage": {
-                "input": {
-                    "required": {
-                        "image": [["different-file.jpg"]],
-                    }
-                }
-            }
-        }
 
         result = validate_backend(
             workflow,
             {},
-            object_info,
+            _load_image_info(),
             managed_asset_names={"bundled-reference.jpg"},
         )
 
+        self.assertFalse(any(issue["code"] == "unmanaged_image_input" for issue in result["warnings"]))
         self.assertFalse(any(issue["code"] == "value_unavailable" for issue in result["warnings"]))
 
     def test_mapped_required_field_can_be_injected_by_orange(self):
