@@ -80,6 +80,49 @@ class WorkflowPreflightTests(unittest.TestCase):
         self.assertEqual(len(warnings), 1)
         self.assertEqual(warnings[0]["field"], "ckpt_name")
 
+    def test_mapped_enum_value_is_treated_as_replaceable_placeholder(self):
+        workflow = {
+            "734": {
+                "class_type": "LoadImage",
+                "inputs": {"image": "temp-placeholder.jpg"},
+            }
+        }
+        object_info = {
+            "LoadImage": {
+                "input": {
+                    "required": {
+                        "image": [["different-file.jpg"]],
+                    }
+                }
+            }
+        }
+        mapping = {"image": {"nodeId": "734", "field": "image"}}
+
+        result = validate_backend(workflow, mapping, object_info)
+
+        self.assertFalse(any(issue["code"] == "value_unavailable" for issue in result["warnings"]))
+
+    def test_unmapped_static_media_value_is_still_checked(self):
+        workflow = {
+            "734": {
+                "class_type": "LoadImage",
+                "inputs": {"image": "bundled-reference.jpg"},
+            }
+        }
+        object_info = {
+            "LoadImage": {
+                "input": {
+                    "required": {
+                        "image": [["different-file.jpg"]],
+                    }
+                }
+            }
+        }
+
+        result = validate_backend(workflow, {}, object_info)
+
+        self.assertTrue(any(issue["code"] == "value_unavailable" for issue in result["warnings"]))
+
     def test_mapped_required_field_can_be_injected_by_orange(self):
         workflow = _workflow()
         del workflow["2"]["inputs"]["text"]
