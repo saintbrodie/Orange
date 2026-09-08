@@ -70,6 +70,22 @@
         });
     }
 
+    function syncEnabledState() {
+        const resolutionEnabled = !!document.getElementById('map-resolution-enable')?.checked;
+        const checkbox = document.getElementById('map-res-custom-ar');
+        const arInputs = document.getElementById('ar-inputs');
+        if (!checkbox || !arInputs) return;
+        if (!resolutionEnabled) {
+            checkbox.disabled = true;
+            arInputs.classList.add('hidden');
+            arInputs.querySelectorAll('input, select').forEach(control => { control.disabled = true; });
+            return;
+        }
+        checkbox.disabled = false;
+        arInputs.querySelectorAll('input, select').forEach(control => { control.disabled = !checkbox.checked; });
+        arInputs.classList.toggle('hidden', !checkbox.checked);
+    }
+
     function enhanceRatioEditor() {
         const arInputs = document.getElementById('ar-inputs');
         const checkbox = document.getElementById('map-res-custom-ar');
@@ -141,13 +157,17 @@
         arInputs.appendChild(slots);
         arInputs.addEventListener('change', () => updateCalculatedValues(arInputs));
         arInputs.addEventListener('input', () => updateCalculatedValues(arInputs));
+        checkbox.addEventListener('change', syncEnabledState);
+        document.getElementById('map-resolution-enable')?.addEventListener('change', () => queueMicrotask(syncEnabledState));
         updateCalculatedValues(arInputs);
+        syncEnabledState();
     }
 
     function collectRatioOverride() {
+        const resolutionEnabled = !!document.getElementById('map-resolution-enable')?.checked;
         const checkbox = document.getElementById('map-res-custom-ar');
         const arInputs = document.getElementById('ar-inputs');
-        if (!checkbox?.checked || !arInputs || arInputs.dataset.smartRatioUi !== '1') return null;
+        if (!resolutionEnabled || !checkbox?.checked || !arInputs || arInputs.dataset.smartRatioUi !== '1') return null;
 
         const result = {};
         arInputs.querySelectorAll('[data-ratio-slot]').forEach(slot => {
