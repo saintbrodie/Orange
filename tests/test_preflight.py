@@ -102,11 +102,11 @@ class WorkflowPreflightTests(unittest.TestCase):
 
         self.assertFalse(any(issue["code"] == "value_unavailable" for issue in result["warnings"]))
 
-    def test_unmapped_static_media_value_is_still_checked(self):
+    def test_unmapped_loadimage_placeholder_is_not_warned(self):
         workflow = {
             "734": {
                 "class_type": "LoadImage",
-                "inputs": {"image": "bundled-reference.jpg"},
+                "inputs": {"image": "junk-image-required-by-comfy.jpg"},
             }
         }
         object_info = {
@@ -121,7 +121,28 @@ class WorkflowPreflightTests(unittest.TestCase):
 
         result = validate_backend(workflow, {}, object_info)
 
-        self.assertTrue(any(issue["code"] == "value_unavailable" for issue in result["warnings"]))
+        self.assertFalse(any(issue["code"] == "value_unavailable" for issue in result["warnings"]))
+
+    def test_custom_image_upload_selector_placeholder_is_not_warned(self):
+        workflow = {
+            "12": {
+                "class_type": "CustomImagePicker",
+                "inputs": {"source": "placeholder.png"},
+            }
+        }
+        object_info = {
+            "CustomImagePicker": {
+                "input": {
+                    "required": {
+                        "source": [["backend-file.png"], {"image_upload": True}],
+                    }
+                }
+            }
+        }
+
+        result = validate_backend(workflow, {}, object_info)
+
+        self.assertFalse(any(issue["code"] == "value_unavailable" for issue in result["warnings"]))
 
     def test_managed_static_media_is_treated_as_portable(self):
         workflow = {
