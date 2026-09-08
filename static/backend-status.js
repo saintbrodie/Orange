@@ -1,8 +1,12 @@
 (() => {
+    const AUTO_REFRESH_MS = 1000;
+
     let statusPanel = null;
     let cardsContainer = null;
     let summaryText = null;
     let refreshButton = null;
+    let refreshTimer = null;
+    let requestInFlight = false;
 
     function ensurePanel() {
         if (statusPanel) return statusPanel;
@@ -23,14 +27,14 @@
         title.textContent = 'Backend Health';
         summaryText = document.createElement('p');
         summaryText.className = 'text-xs text-zinc-500 mt-1';
-        summaryText.textContent = 'Cached ComfyUI health and queue state used for routing.';
+        summaryText.textContent = 'Live ComfyUI health and queue state used for routing.';
         titleWrap.append(title, summaryText);
 
         refreshButton = document.createElement('button');
         refreshButton.type = 'button';
         refreshButton.className = 'text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg flex items-center gap-1 transition border border-zinc-700 shadow-sm';
-        refreshButton.textContent = 'Refresh';
-        refreshButton.addEventListener('click', () => loadBackendHealth(true));
+        refreshButton.textContent = 'Refresh Now';
+        refreshButton.addEventListener('click', () => loadBackendHealth(true, false));
 
         header.append(titleWrap, refreshButton);
 
@@ -56,6 +60,7 @@
     }
 
     function makeBackendCard(backend) {
+        const available = !!backend.healthy && !backend.circuit_open;
         const card = document.createElement('div');
         card.className = 'bg-zinc-800/35 border border-zinc-700/50 rounded-xl p-4 space-y-3';
 
@@ -73,56 +78,49 @@
 
         const badge = document.createElement('span');
         badge.className = 'text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded border';
-        if (backend.circuit_open) {
-            badge.classList.add('text-amber-300', 'bg-amber-950/30', 'border-amber-900/50');
-            badge.textContent = 'Backoff';
-        } else if (backend.healthy) {
+        if (available) {
             badge.classList.add('text-emerald-300', 'bg-emerald-950/30', 'border-emerald-900/50');
             badge.textContent = 'Healthy';
         } else {
             badge.classList.add('text-red-300', 'bg-red-950/30', 'border-red-900/50');
-            badge.textContent = 'Offline';
+            badge.textContent = 'Down';
         }
         header.append(identity, badge);
+        card.appendChild(header);
 
-        const metrics = document.createElement('div');
-        metrics.className = 'grid grid-cols-4 gap-2';
-        metrics.append(
-            makeMetric('Queue', backend.queue_total ?? 0),
-            makeMetric('Active', backend.active_requests ?? 0),
-            makeMetric('Latency', backend.latency_ms == null ? '—' : `${backend.latency_ms} ms`),
-            makeMetric('Failures', backend.consecutive_failures ?? 0),
-        );
-
-        card.append(header, metrics);
-
-        if (backend.circuit_open) {
-            const backoff = document.createElement('p');
-            backoff.className = 'text-xs text-amber-400';
-            backoff.textContent = `Temporarily skipped for about ${backend.circuit_seconds_remaining ?? 0}s.`;
-            card.appendChild(backoff);
-        } else if (backend.last_error) {
-            const error = document.createElement('p');
-            error.className = 'text-xs text-red-400 break-words';
-            error.textContent = backend.last_error;
-            card.appendChild(error);
-        }
-
-        if (backend.last_checked_age_seconds != null) {
-            const checked = document.createElement('p');
-            checked.className = 'text-[10px] text-zinc-600';
-            checked.textContent = `Checked ${backend.last_checked_age_seconds}s ago`;
-            card.appendChild(checked);
+        if (available) {
+            const metrics = document.createElement('div');
+            metrics.className = 'grid grid-cols-3 gap-2';
+            metrics.append(
+                makeMetric('Queue', backend.queue_total ?? 0),
+                makeMetric('Active', backend.active_requests ?? 0),
+                makeMetric('Latency', backend.latency_ms == null ? '—' : `${backend.latency_ms} ms`),
+            );
+            card.appendChild(metrics);
+        } else {
+            const message = document.createElement('p');
+            message.className = 'text-xs text-zinc-500';
+            message.textContent = 'Not responding. Orange will route around this backend until it recovers.';
+            card.appendChild(message);
         }
 
         return card;
     }
 
-    async function loadBackendHealth(forceRefresh = false) {
-        if (!ensurePanel() || typeof adminFetch !== 'function') return;
+    function settingsAreVisible() {
+        const settingsContainer = document.getElementById('settings-container');
+        return !!settingsContainer && !settingsContainer.classList.contains('hidden') && !document.hidden;
+    }
 
-        refreshButton.disabled = true;
-        refreshButton.textContent = 'Checking...';
+    async function loadBackendHealth(forceRefresh = false, silent = true) {
+        if (!ensurePanel() || typeof adminFetch !== 'function' || requestInFlight) return;
+
+        requestInFlight = true;
+        if (!silent) {
+            refreshButton.disabled = true;
+            refreshButton.textContent = 'Checking...';
+        }
+
         try {
             const res = await adminFetch(`/api/admin/backends/status?refresh=${forceRefresh ? 'true' : 'false'}`);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -131,7 +129,7 @@
 
             cardsContainer.replaceChildren();
             const healthyCount = backends.filter(item => item.healthy && !item.circuit_open).length;
-            summaryText.textContent = `${healthyCount} of ${backends.length} backends currently available for routing.`;
+            summaryText.textContent = `${healthyCount} of ${backends.length} backends available for routing.`;
 
             if (!backends.length) {
                 const empty = document.createElement('p');
@@ -142,24 +140,43 @@
                 backends.forEach(backend => cardsContainer.appendChild(makeBackendCard(backend)));
             }
         } catch (error) {
-            summaryText.textContent = `Could not load backend health: ${error.message}`;
+            if (!silent) summaryText.textContent = `Could not load backend health: ${error.message}`;
         } finally {
-            refreshButton.disabled = false;
-            refreshButton.textContent = 'Refresh';
+            requestInFlight = false;
+            if (!silent) {
+                refreshButton.disabled = false;
+                refreshButton.textContent = 'Refresh Now';
+            }
         }
+    }
+
+    function startLiveMonitor() {
+        if (refreshTimer) return;
+        refreshTimer = window.setInterval(() => {
+            if (settingsAreVisible()) {
+                // Force a fresh queue/health probe while this panel is visible so
+                // short-lived queue changes are visible instead of waiting for the
+                // background monitor's next cached update.
+                loadBackendHealth(true, true);
+            }
+        }, AUTO_REFRESH_MS);
     }
 
     const generalTab = document.getElementById('tab-general');
     if (generalTab) {
         generalTab.addEventListener('click', () => {
-            window.setTimeout(() => loadBackendHealth(false), 0);
+            window.setTimeout(() => loadBackendHealth(true, true), 0);
         });
     }
 
+    document.addEventListener('visibilitychange', () => {
+        if (settingsAreVisible()) loadBackendHealth(true, true);
+    });
+
     ensurePanel();
-    const settingsContainer = document.getElementById('settings-container');
-    if (settingsContainer && !settingsContainer.classList.contains('hidden')) {
-        window.setTimeout(() => loadBackendHealth(false), 0);
+    startLiveMonitor();
+    if (settingsAreVisible()) {
+        window.setTimeout(() => loadBackendHealth(true, true), 0);
     }
 
     window.loadBackendHealth = loadBackendHealth;
