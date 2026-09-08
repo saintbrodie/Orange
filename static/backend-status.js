@@ -4,7 +4,6 @@
     let statusPanel = null;
     let cardsContainer = null;
     let summaryText = null;
-    let refreshButton = null;
     let refreshTimer = null;
     let requestInFlight = false;
 
@@ -19,24 +18,15 @@
         statusPanel.className = 'pt-4 border-t border-zinc-800/50';
 
         const header = document.createElement('div');
-        header.className = 'flex justify-between items-center gap-3 mb-3';
+        header.className = 'mb-3';
 
-        const titleWrap = document.createElement('div');
         const title = document.createElement('h3');
         title.className = 'text-sm font-semibold text-zinc-300';
         title.textContent = 'Backend Health';
         summaryText = document.createElement('p');
         summaryText.className = 'text-xs text-zinc-500 mt-1';
-        summaryText.textContent = 'Live ComfyUI health and queue state used for routing.';
-        titleWrap.append(title, summaryText);
-
-        refreshButton = document.createElement('button');
-        refreshButton.type = 'button';
-        refreshButton.className = 'text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg flex items-center gap-1 transition border border-zinc-700 shadow-sm';
-        refreshButton.textContent = 'Refresh Now';
-        refreshButton.addEventListener('click', () => loadBackendHealth(true, false));
-
-        header.append(titleWrap, refreshButton);
+        summaryText.textContent = 'Live ComfyUI execution state. Updates every second while this page is open.';
+        header.append(title, summaryText);
 
         cardsContainer = document.createElement('div');
         cardsContainer.className = 'grid grid-cols-1 md:grid-cols-2 gap-3';
@@ -57,6 +47,13 @@
         val.textContent = String(value);
         wrap.append(key, val);
         return wrap;
+    }
+
+    function runningLabel(count) {
+        const running = Number(count) || 0;
+        if (running <= 0) return 'No';
+        if (running === 1) return 'Yes';
+        return `${running} jobs`;
     }
 
     function makeBackendCard(backend) {
@@ -92,8 +89,8 @@
             const metrics = document.createElement('div');
             metrics.className = 'grid grid-cols-3 gap-2';
             metrics.append(
-                makeMetric('Queue', backend.queue_total ?? 0),
-                makeMetric('Active', backend.active_requests ?? 0),
+                makeMetric('Running', runningLabel(backend.queue_running)),
+                makeMetric('Queued', backend.queue_pending ?? 0),
                 makeMetric('Latency', backend.latency_ms == null ? '—' : `${backend.latency_ms} ms`),
             );
             card.appendChild(metrics);
@@ -112,24 +109,21 @@
         return !!settingsContainer && !settingsContainer.classList.contains('hidden') && !document.hidden;
     }
 
-    async function loadBackendHealth(forceRefresh = false, silent = true) {
+    async function loadBackendHealth() {
         if (!ensurePanel() || typeof adminFetch !== 'function' || requestInFlight) return;
 
         requestInFlight = true;
-        if (!silent) {
-            refreshButton.disabled = true;
-            refreshButton.textContent = 'Checking...';
-        }
-
         try {
-            const res = await adminFetch(`/api/admin/backends/status?refresh=${forceRefresh ? 'true' : 'false'}`);
+            // This panel is already live; a fresh queue probe each tick makes
+            // short running/queued transitions visible without a manual button.
+            const res = await adminFetch('/api/admin/backends/status?refresh=true');
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             const backends = Array.isArray(data.backends) ? data.backends : [];
 
             cardsContainer.replaceChildren();
             const healthyCount = backends.filter(item => item.healthy && !item.circuit_open).length;
-            summaryText.textContent = `${healthyCount} of ${backends.length} backends available for routing.`;
+            summaryText.textContent = `${healthyCount} of ${backends.length} available · live updates every second`;
 
             if (!backends.length) {
                 const empty = document.createElement('p');
@@ -140,43 +134,34 @@
                 backends.forEach(backend => cardsContainer.appendChild(makeBackendCard(backend)));
             }
         } catch (error) {
-            if (!silent) summaryText.textContent = `Could not load backend health: ${error.message}`;
+            summaryText.textContent = `Backend health unavailable: ${error.message}`;
         } finally {
             requestInFlight = false;
-            if (!silent) {
-                refreshButton.disabled = false;
-                refreshButton.textContent = 'Refresh Now';
-            }
         }
     }
 
     function startLiveMonitor() {
         if (refreshTimer) return;
         refreshTimer = window.setInterval(() => {
-            if (settingsAreVisible()) {
-                // Force a fresh queue/health probe while this panel is visible so
-                // short-lived queue changes are visible instead of waiting for the
-                // background monitor's next cached update.
-                loadBackendHealth(true, true);
-            }
+            if (settingsAreVisible()) loadBackendHealth();
         }, AUTO_REFRESH_MS);
     }
 
     const generalTab = document.getElementById('tab-general');
     if (generalTab) {
         generalTab.addEventListener('click', () => {
-            window.setTimeout(() => loadBackendHealth(true, true), 0);
+            window.setTimeout(loadBackendHealth, 0);
         });
     }
 
     document.addEventListener('visibilitychange', () => {
-        if (settingsAreVisible()) loadBackendHealth(true, true);
+        if (settingsAreVisible()) loadBackendHealth();
     });
 
     ensurePanel();
     startLiveMonitor();
     if (settingsAreVisible()) {
-        window.setTimeout(() => loadBackendHealth(true, true), 0);
+        window.setTimeout(loadBackendHealth, 0);
     }
 
     window.loadBackendHealth = loadBackendHealth;
