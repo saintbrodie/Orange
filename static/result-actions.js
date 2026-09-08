@@ -8,6 +8,9 @@
 
     if (!resultLayer || !backButton || !generateButton || !downloadButton) return;
 
+    const actionRow = backButton.parentElement;
+    if (actionRow) actionRow.id = 'result-actions-bar';
+
     const promptCard = document.createElement('div');
     promptCard.id = 'result-prompt-card';
     promptCard.className = 'hidden w-full max-w-2xl bg-zinc-950/45 border border-zinc-800 rounded-2xl px-5 py-4';
@@ -29,7 +32,6 @@
     if (outputTextContainer) {
         resultLayer.insertBefore(promptCard, outputTextContainer);
     } else {
-        const actionRow = backButton.parentElement;
         resultLayer.insertBefore(promptCard, actionRow || null);
     }
 
@@ -42,7 +44,7 @@
     regenIcon.className = 'w-5 h-5';
     regenerateButton.append(regenIcon, document.createTextNode(' Regenerate'));
 
-    downloadButton.parentElement?.insertBefore(regenerateButton, downloadButton);
+    actionRow?.insertBefore(regenerateButton, downloadButton);
 
     function updatePromptCard() {
         const prompt = promptInput?.value?.trim() || '';
