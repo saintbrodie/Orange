@@ -34,3 +34,4 @@ Thumbs.db
 workflows/*.json
 !workflows/defaults/
 workflows/prompts/
+workflows/branding/
