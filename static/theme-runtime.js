@@ -155,7 +155,9 @@
     setVar('--orange-accent-2', accent2);
     setVar('--orange-bg', bg);
     setVar('--orange-panel', panel);
-    setVar('--orange-panel-2', `color-mix(in srgb, ${panel} 80%, white)`);
+    // A very small lift preserves the zinc-900 -> zinc-800 contrast of Classic
+    // without washing out darker presets.
+    setVar('--orange-panel-2', `color-mix(in srgb, ${panel} 94%, white)`);
     setVar('--orange-text', text);
     setVar('--orange-muted', muted);
     setVar('--orange-radius', `${radius}px`);
@@ -163,7 +165,7 @@
 
     applyBranding(config, selected);
     replaceIcon('generate-btn', semanticIcon);
-    replaceContainerIcon('#loading-spinner .absolute.inset-0.flex', semanticIcon === 'gamepad-2' ? 'gamepad-2' : semanticIcon, 'w-8 h-8 text-orange-500 animate-pulse');
+    replaceContainerIcon('#loading-spinner .absolute.inset-0.flex', semanticIcon, 'w-8 h-8 text-orange-500 animate-pulse');
 
     if (window.lucide) window.lucide.createIcons();
     window.dispatchEvent(new CustomEvent('orange:personalization-applied', { detail: { config, preset: selected } }));
