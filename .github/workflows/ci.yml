@@ -30,5 +30,17 @@ jobs:
           node --check static/result-actions.js
           node --check static/workflow-assets.js
           node --check static/mobile-navigation.js
+          node --check static/theme-runtime.js
+          node --check static/personalization.js
+      - name: Validate theme manifests and SVGs
+        run: |
+          python -m json.tool static/themes/presets.json >/dev/null
+          python - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          for path in Path('static/themes').glob('*/*.svg'):
+              ET.parse(path)
+              print(path)
+          PY
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
