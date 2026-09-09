@@ -148,6 +148,7 @@
         const items = [
             ['tab-general', 'settings'],
             ['tab-tools', 'wrench'],
+            ['tab-personalization', 'palette'],
             ['tab-analytics', 'bar-chart-2'],
             ['tab-gallery', 'image'],
         ];
