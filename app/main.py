@@ -96,6 +96,7 @@ def serve_admin():
             '    <script src="/static/tool-ratios.js?v=1"></script>\n'
             '    <script src="/static/workflow-assets.js?v=2"></script>\n'
             '    <script src="/static/personalization.js?v=1"></script>\n'
+            '    <script src="/static/personalization-tab-state.js?v=1"></script>\n'
             '    <script src="/static/mobile-navigation.js?v=1"></script>\n'
             "</body>",
         )
