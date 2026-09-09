@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, backend_status, db_admin, generate, generation_debug, generation_v2, llm_api, outputs, preflight, status, workflow_assets, workflows
+from app.api import admin, backend_status, db_admin, generate, generation_debug, generation_v2, llm_api, outputs, personalization, preflight, status, workflow_assets, workflows
 from app.core.backends import backend_manager
 from app.core.config import restore_defaults
 from app.core.database import init_db
@@ -36,6 +36,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(outputs.router)
 app.include_router(generation_v2.router)
 app.include_router(llm_api.router)
+app.include_router(personalization.router)
 app.include_router(generate.router)
 app.include_router(status.router)
 app.include_router(db_admin.router)
@@ -47,6 +48,12 @@ app.include_router(generation_debug.router)
 app.include_router(workflow_assets.router)
 
 
+THEME_HEAD = (
+    '    <link rel="stylesheet" href="/static/theme.css?v=1">\n'
+    '    <script src="/static/theme-runtime.js?v=1" defer></script>\n'
+)
+
+
 @app.get("/")
 def serve_index():
     try:
@@ -54,9 +61,10 @@ def serve_index():
             content = f.read()
         content = content.replace(
             "</head>",
-            '    <link rel="stylesheet" href="/static/responsive.css?v=1">\n'
-            '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=1">\n'
-            "</head>",
+            THEME_HEAD
+            + '    <link rel="stylesheet" href="/static/responsive.css?v=1">\n'
+            + '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=1">\n'
+            + "</head>",
         )
         content = content.replace(
             "</body>",
@@ -76,9 +84,10 @@ def serve_admin():
             content = f.read()
         content = content.replace(
             "</head>",
-            '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=1">\n</head>',
+            THEME_HEAD
+            + '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=1">\n</head>',
         )
-        # Keep engineering diagnostics isolated from the main admin bundle and the
+        # Keep engineering diagnostics and admin-only editors isolated from the
         # intentionally small end-user generator UI.
         content = content.replace(
             "</body>",
@@ -86,6 +95,7 @@ def serve_admin():
             '    <script src="/static/backend-status.js?v=3"></script>\n'
             '    <script src="/static/tool-ratios.js?v=1"></script>\n'
             '    <script src="/static/workflow-assets.js?v=2"></script>\n'
+            '    <script src="/static/personalization.js?v=1"></script>\n'
             '    <script src="/static/mobile-navigation.js?v=1"></script>\n'
             "</body>",
         )
