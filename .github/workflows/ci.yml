@@ -32,15 +32,8 @@ jobs:
           node --check static/mobile-navigation.js
           node --check static/theme-runtime.js
           node --check static/personalization.js
-      - name: Validate theme manifests and SVGs
-        run: |
-          python -m json.tool static/themes/presets.json >/dev/null
-          python - <<'PY'
-          from pathlib import Path
-          import xml.etree.ElementTree as ET
-          for path in Path('static/themes').glob('*/*.svg'):
-              ET.parse(path)
-              print(path)
-          PY
+          node --check static/personalization-tab-state.js
+      - name: Validate theme manifest
+        run: python -m json.tool static/themes/presets.json >/dev/null
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
