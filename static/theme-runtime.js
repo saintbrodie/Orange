@@ -26,15 +26,26 @@
     return presets;
   }
 
-  function replaceIcon(buttonId, iconName) {
+  function replaceIcon(buttonId, iconName, className = 'w-5 h-5') {
     const button = document.getElementById(buttonId);
     if (!button) return;
     const existing = button.querySelector('svg, i');
     if (existing) existing.remove();
     const icon = document.createElement('i');
     icon.setAttribute('data-lucide', iconName);
-    icon.className = 'w-5 h-5';
+    icon.className = className;
     button.insertBefore(icon, button.firstChild);
+  }
+
+  function replaceContainerIcon(selector, iconName, className) {
+    const container = document.querySelector(selector);
+    if (!container) return;
+    const existing = container.querySelector('svg, i');
+    if (existing) existing.remove();
+    const icon = document.createElement('i');
+    icon.setAttribute('data-lucide', iconName);
+    icon.className = className;
+    container.appendChild(icon);
   }
 
   function ensureFooter(text) {
@@ -59,12 +70,30 @@
     }
   }
 
+  function ensureTagline(brandContainer, tagline) {
+    if (!brandContainer) return;
+    let el = brandContainer.querySelector('.orange-brand-tagline');
+    if (!tagline) {
+      el?.remove();
+      return;
+    }
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'orange-brand-tagline text-[11px] text-zinc-500 text-center -mt-2';
+      const heading = brandContainer.querySelector('h1');
+      if (heading) heading.insertAdjacentElement('afterend', el);
+      else brandContainer.appendChild(el);
+    }
+    el.textContent = tagline;
+  }
+
   function applyBranding(config, preset) {
     const branding = config.branding || DEFAULTS.branding;
     const assets = config.brandingAssets || {};
     const appName = branding.appName || 'Orange';
     const logo = assets.logo || preset.mascot || '/static/orange.svg';
     const icon = assets.icon || preset.head || '/static/orange-head.svg';
+    window.__orangeLastPersonalizationName = appName;
 
     document.title = location.pathname.startsWith('/admin') ? `${appName} - Admin Dashboard` : appName;
     let favicon = document.querySelector('link[rel="icon"]');
@@ -73,7 +102,7 @@
       favicon.rel = 'icon';
       document.head.appendChild(favicon);
     }
-    favicon.href = `${icon}${icon.includes('?') ? '&' : '?'}v=${Date.now()}`;
+    favicon.href = icon;
 
     document.querySelectorAll('img[src$="/orange.svg"], img.orange-theme-mascot').forEach(img => {
       img.src = logo;
@@ -81,8 +110,12 @@
       img.alt = `${appName} logo`;
     });
 
-    const generatorBrand = document.querySelector('img.orange-theme-mascot')?.parentElement?.querySelector('h1');
-    if (generatorBrand && !location.pathname.startsWith('/admin')) generatorBrand.textContent = appName;
+    if (!location.pathname.startsWith('/admin')) {
+      const brandContainer = document.querySelector('img.orange-theme-mascot')?.parentElement;
+      const generatorBrand = brandContainer?.querySelector('h1');
+      if (generatorBrand) generatorBrand.textContent = appName;
+      ensureTagline(brandContainer, branding.tagline || '');
+    }
 
     const adminHeading = document.querySelector('nav h1');
     if (adminHeading && location.pathname.startsWith('/admin')) adminHeading.textContent = `${appName} Admin`;
@@ -113,6 +146,7 @@
     const radius = Number.isFinite(Number(palette.radius)) ? Number(palette.radius) : DEFAULTS.custom.radius;
     const effect = selected.effect || config.theme || 'classic';
     const motion = config.theme === 'custom' ? config.custom.motion : (effect === 'princess' || effect === 'arcade' ? 'playful' : 'normal');
+    const semanticIcon = selected.generateIcon || 'wand-2';
 
     document.documentElement.dataset.orangeTheme = config.theme || 'classic';
     document.documentElement.dataset.orangeEffect = effect;
@@ -128,12 +162,8 @@
     setVar('--orange-glow', `color-mix(in srgb, ${accent} 24%, transparent)`);
 
     applyBranding(config, selected);
-    replaceIcon('generate-btn', selected.generateIcon || 'wand-2');
-
-    const loadingCenter = document.querySelector('#loading-spinner .absolute.inset-0.flex i, #loading-spinner .absolute.inset-0.flex svg');
-    if (loadingCenter && loadingCenter.tagName.toLowerCase() === 'i') {
-      loadingCenter.setAttribute('data-lucide', selected.generateIcon || 'flame');
-    }
+    replaceIcon('generate-btn', semanticIcon);
+    replaceContainerIcon('#loading-spinner .absolute.inset-0.flex', semanticIcon === 'gamepad-2' ? 'gamepad-2' : semanticIcon, 'w-8 h-8 text-orange-500 animate-pulse');
 
     if (window.lucide) window.lucide.createIcons();
     window.dispatchEvent(new CustomEvent('orange:personalization-applied', { detail: { config, preset: selected } }));
