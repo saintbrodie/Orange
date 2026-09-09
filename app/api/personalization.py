@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from PIL import Image
 
 from app.api.admin import verify_admin
@@ -12,6 +12,7 @@ from app.core.personalization import (
     branding_path,
     clear_branding,
     load_personalization,
+    render_theme_svg,
     save_personalization,
 )
 from app.core.utils import strip_metadata
@@ -71,6 +72,19 @@ def _public_payload() -> dict:
 @router.get("/api/personalization")
 def get_personalization_public():
     return _public_payload()
+
+
+@router.get("/api/theme-assets/{theme}/{kind}.svg")
+def get_theme_asset(theme: str, kind: str):
+    try:
+        svg = render_theme_svg(theme, kind)
+    except (ValueError, OSError):
+        raise HTTPException(status_code=404, detail="Theme asset not found.")
+    return Response(
+        content=svg,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @router.get("/api/admin/personalization")
