@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from unittest.mock import patch
 
 from app.core import personalization
@@ -77,6 +78,28 @@ class PersonalizationTests(unittest.TestCase):
                 self.assertEqual(personalization.branding_path("logo"), logo)
                 personalization.clear_branding("logo")
                 self.assertIsNone(personalization.branding_path("logo"))
+
+    def test_all_preset_mascots_are_self_contained_valid_svg(self):
+        for theme in ("classic", "cyber", "princess", "arcade", "botanical", "midnight"):
+            for kind in ("full", "head"):
+                svg = personalization.render_theme_svg(theme, kind)
+                ET.fromstring(svg)
+                self.assertNotIn('href="../../', svg)
+                self.assertIn("<svg", svg)
+
+    def test_theme_mascots_preserve_geometry_and_add_identity(self):
+        cyber = personalization.render_theme_svg("cyber", "head")
+        princess = personalization.render_theme_svg("princess", "head")
+        self.assertIn("#22d3ee", cyber)
+        self.assertIn("orangeCyberScan", cyber)
+        self.assertIn("#f472b6", princess)
+        self.assertIn("orangeTwinkle", princess)
+
+    def test_custom_uses_classic_mascot_geometry(self):
+        self.assertEqual(
+            personalization.render_theme_svg("custom", "head"),
+            personalization.render_theme_svg("classic", "head"),
+        )
 
 
 if __name__ == "__main__":
