@@ -7,6 +7,7 @@ from app.core.config import PROJECT_ROOT
 
 PERSONALIZATION_PATH = os.path.join(PROJECT_ROOT, "workflows", "personalization.json")
 BRANDING_DIR = os.path.join(PROJECT_ROOT, "workflows", "branding")
+STATIC_DIR = os.path.join(PROJECT_ROOT, "static")
 THEME_IDS = {"classic", "cyber", "princess", "arcade", "botanical", "midnight", "custom"}
 HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
@@ -27,6 +28,18 @@ DEFAULT_PERSONALIZATION = {
         "radius": 24,
         "motion": "normal",
     },
+}
+
+# Themed mascot rendering deliberately reuses Orange's original vector geometry.
+# Only palette tokens and small decorative overlays change, so every preset stays
+# recognizably the same mascot and automatically follows future geometry updates.
+BASE_SVG_COLORS = ["#77310a", "#13171f", "#f67a04", "#625649", "#9f978b", "#fcbd67", "#ea5205", "#fdfdfd"]
+THEME_SVG_PALETTES = {
+    "cyber": ["#07111f", "#020617", "#22d3ee", "#334155", "#64748b", "#a5f3fc", "#d946ef", "#ecfeff"],
+    "princess": ["#6b214f", "#2a1228", "#f472b6", "#8f5d83", "#d8a8cc", "#fde1f1", "#c084fc", "#fff7fb"],
+    "arcade": ["#4c1d95", "#111827", "#facc15", "#4b5563", "#a78bfa", "#fde68a", "#22c55e", "#f9fafb"],
+    "botanical": ["#4b3929", "#172019", "#d97745", "#526055", "#8fa091", "#d8c8a8", "#84a98c", "#f4f3ea"],
+    "midnight": ["#111827", "#030712", "#172554", "#334155", "#64748b", "#8ea6c9", "#d6b76b", "#f8fafc"],
 }
 
 
@@ -149,3 +162,57 @@ def clear_branding(kind: str) -> None:
         candidate = os.path.join(BRANDING_DIR, kind + extension)
         if os.path.isfile(candidate):
             os.remove(candidate)
+
+
+def _decoration(theme: str, kind: str) -> str:
+    head = kind == "head"
+    if theme == "cyber":
+        return (
+            '<style>@keyframes orangeCyberScan{0%,100%{opacity:.35}50%{opacity:1}}</style>'
+            + ('<g><path d="M82 205h271l22 35-28 53H91l-29-48z" fill="#03151e" fill-opacity=".82" stroke="#22d3ee" stroke-width="6"/><path d="M103 235h226" stroke="#d946ef" stroke-width="5" stroke-linecap="round" style="animation:orangeCyberScan 1.6s ease-in-out infinite"/><circle cx="151" cy="253" r="9" fill="#22d3ee"/><circle cx="286" cy="253" r="9" fill="#d946ef"/></g>' if head else '<g><path d="M265 215h270l32 42-33 58H271l-35-55z" fill="#03151e" fill-opacity=".8" stroke="#22d3ee" stroke-width="8"/><path d="M282 247h236" stroke="#d946ef" stroke-width="6" stroke-linecap="round" style="animation:orangeCyberScan 1.6s ease-in-out infinite"/><circle cx="342" cy="267" r="12" fill="#22d3ee"/><circle cx="463" cy="267" r="12" fill="#d946ef"/></g>')
+        )
+    if theme == "princess":
+        return (
+            '<style>@keyframes orangeTwinkle{0%,100%{opacity:.25}50%{opacity:1}}</style>'
+            + ('<g><path d="M157 75l23-42 39 48 38-55 35 50 28-35 10 70H145z" fill="#faccf4" stroke="#f472b6" stroke-width="5"/><circle cx="181" cy="81" r="6" fill="#fff"/><circle cx="219" cy="82" r="7" fill="#c084fc"/><circle cx="258" cy="80" r="6" fill="#fff"/><path d="M371 145l7 17 17 7-17 7-7 17-7-17-17-7 17-7z" fill="#fff1f7" style="animation:orangeTwinkle 1.7s ease-in-out infinite"/></g>' if head else '<g><path d="M315 82l38-52 48 58 50-67 48 64 42-47 14 84H300z" fill="#faccf4" stroke="#f472b6" stroke-width="7"/><circle cx="354" cy="89" r="9" fill="#fff"/><circle cx="402" cy="92" r="10" fill="#c084fc"/><circle cx="458" cy="88" r="9" fill="#fff"/><path d="M610 155l9 22 22 9-22 9-9 22-9-22-22-9 22-9z" fill="#fff1f7" style="animation:orangeTwinkle 1.7s ease-in-out infinite"/></g>')
+        )
+    if theme == "arcade":
+        return (
+            '<style>@keyframes orangePixelHop{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}</style>'
+            + ('<g style="animation:orangePixelHop .9s steps(2,end) infinite;transform-origin:center"><rect x="96" y="206" width="94" height="58" rx="2" fill="#111827"/><rect x="246" y="206" width="94" height="58" rx="2" fill="#111827"/><rect x="190" y="226" width="56" height="17" fill="#111827"/><rect x="110" y="217" width="22" height="17" fill="#22c55e"/><rect x="151" y="237" width="24" height="15" fill="#facc15"/><rect x="260" y="217" width="22" height="17" fill="#f43f5e"/><rect x="301" y="237" width="24" height="15" fill="#22d3ee"/></g>' if head else '<g style="animation:orangePixelHop .9s steps(2,end) infinite;transform-origin:center"><rect x="275" y="218" width="110" height="70" rx="2" fill="#111827"/><rect x="418" y="218" width="110" height="70" rx="2" fill="#111827"/><rect x="385" y="240" width="33" height="18" fill="#111827"/><rect x="290" y="230" width="25" height="20" fill="#22c55e"/><rect x="330" y="250" width="28" height="18" fill="#facc15"/><rect x="435" y="230" width="25" height="20" fill="#f43f5e"/><rect x="476" y="250" width="28" height="18" fill="#22d3ee"/></g>')
+        )
+    if theme == "botanical":
+        return (
+            '<style>@keyframes orangeLeafSway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(4deg)}}</style>'
+            + ('<g style="animation:orangeLeafSway 3s ease-in-out infinite;transform-origin:338px 78px"><path d="M322 86c18-43 48-60 88-58-7 37-31 63-74 72z" fill="#84a98c" stroke="#52715b" stroke-width="4"/><path d="M326 92c11-31 29-55 62-73" fill="none" stroke="#52715b" stroke-width="4" stroke-linecap="round"/></g>' if head else '<g style="animation:orangeLeafSway 3s ease-in-out infinite;transform-origin:565px 110px"><path d="M548 114c28-54 67-74 112-71-8 45-39 78-94 91z" fill="#84a98c" stroke="#52715b" stroke-width="5"/><path d="M555 120c13-38 34-71 75-94" fill="none" stroke="#52715b" stroke-width="5" stroke-linecap="round"/></g>')
+        )
+    if theme == "midnight":
+        return (
+            '<style>@keyframes orangeStarTwinkle{0%,100%{opacity:.2}50%{opacity:1}}</style>'
+            + ('<g><path d="M344 57c-26 11-40 34-36 60 5 26 26 42 52 42-22 13-51 9-68-12-24-30-14-73 19-91 11-6 22-8 33-7z" fill="#d6b76b"/><path d="M75 105l5 12 12 5-12 5-5 12-5-12-12-5 12-5z" fill="#8ea6c9" style="animation:orangeStarTwinkle 2.6s ease-in-out infinite"/></g>' if head else '<g><path d="M610 80c-34 14-52 44-47 78 7 35 34 56 68 56-28 17-66 12-88-16-31-39-18-95 25-118 14-8 29-10 42-9z" fill="#d6b76b"/><path d="M177 132l6 14 14 6-14 6-6 14-6-14-14-6 14-6z" fill="#8ea6c9" style="animation:orangeStarTwinkle 2.6s ease-in-out infinite"/></g>')
+        )
+    return ""
+
+
+def render_theme_svg(theme: str, kind: str) -> str:
+    if kind not in {"full", "head"}:
+        raise ValueError("Mascot kind must be full or head.")
+    normalized_theme = str(theme or "classic").lower()
+    if normalized_theme == "custom":
+        normalized_theme = "classic"
+    if normalized_theme not in THEME_IDS:
+        raise ValueError("Unknown theme.")
+
+    filename = "orange.svg" if kind == "full" else "orange-head.svg"
+    with open(os.path.join(STATIC_DIR, filename), "r", encoding="utf-8") as handle:
+        svg = handle.read()
+
+    palette = THEME_SVG_PALETTES.get(normalized_theme)
+    if palette:
+        for source, target in zip(BASE_SVG_COLORS, palette):
+            svg = svg.replace(source, target)
+
+    decoration = _decoration(normalized_theme, kind)
+    if decoration:
+        svg = svg.replace("</svg>", decoration + "</svg>")
+    return svg
