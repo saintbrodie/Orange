@@ -3,6 +3,7 @@ import os
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from unittest.mock import patch
 
 from app.core import personalization
@@ -100,6 +101,17 @@ class PersonalizationTests(unittest.TestCase):
             personalization.render_theme_svg("custom", "head"),
             personalization.render_theme_svg("classic", "head"),
         )
+
+    def test_theme_runtime_does_not_watch_the_entire_document(self):
+        """A DOM-wide observer can self-trigger and make Tailwind rescan forever."""
+        runtime = (Path(__file__).resolve().parents[1] / "static" / "theme-runtime.js").read_text(encoding="utf-8")
+        self.assertNotIn("observer.observe(document.documentElement", runtime)
+        self.assertNotIn("subtree: true", runtime)
+
+    def test_mobile_branding_uses_personalization_event(self):
+        mobile = (Path(__file__).resolve().parents[1] / "static" / "mobile-navigation.js").read_text(encoding="utf-8")
+        self.assertIn("orange:personalization-applied", mobile)
+        self.assertIn("setAdminDrawerTitle", mobile)
 
 
 if __name__ == "__main__":
