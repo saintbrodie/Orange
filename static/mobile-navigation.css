@@ -1,23 +1,41 @@
 #mobile-nav-backdrop,
 .mobile-menu-trigger,
-#mobile-tool-drawer-head,
-#mobile-admin-drawer {
+#mobile-tool-drawer,
+#mobile-admin-drawer,
+#mobile-current-tool {
     display: none;
 }
 
 @media (max-width: 640px) {
+    body {
+        padding: 0 !important;
+    }
+
     body.orange-mobile-menu-open {
         overflow: hidden !important;
+    }
+
+    /* Mobile should feel like a native full-screen app, not a desktop card squeezed
+       into a phone. Remove the outer rounded frame and let the header separator do
+       the visual work instead. */
+    body > .max-w-6xl {
+        width: 100% !important;
+        min-height: 100dvh !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        overflow: visible !important;
     }
 
     #mobile-nav-backdrop {
         display: block;
         position: fixed;
         inset: 0;
-        z-index: 70;
+        z-index: 1000;
         border: 0;
-        background: rgba(0, 0, 0, 0.62);
+        background: rgba(0, 0, 0, 0.58);
         backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
         opacity: 0;
         pointer-events: none;
         transition: opacity 160ms ease;
@@ -34,47 +52,132 @@
         width: 2.75rem;
         height: 2.75rem;
         flex: 0 0 2.75rem;
-        color: rgb(212 212 216);
-        background: rgb(39 39 42 / 0.82);
-        border: 1px solid rgb(63 63 70);
-        border-radius: 0.85rem;
+        color: var(--orange-text, rgb(212 212 216));
+        background: color-mix(in srgb, var(--orange-panel, #18181b) 88%, white 4%);
+        border: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 34%, transparent);
+        border-radius: min(var(--orange-radius, 14px), 14px);
     }
 
-    /* Generator mobile header / tool drawer */
+    /* Generator mobile header */
+    body > .max-w-6xl > div:first-child {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 60;
+        width: 100% !important;
+        min-height: 4.75rem;
+        padding: 0.7rem 1rem !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 0.8rem !important;
+        overflow: visible !important;
+        border: 0 !important;
+        border-bottom: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 22%, transparent) !important;
+        background: color-mix(in srgb, var(--orange-bg, #09090b) 94%, transparent) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+    }
+
+    body > .max-w-6xl > div:first-child > div:first-child {
+        width: auto !important;
+        min-width: 0;
+        margin: 0 !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        flex: 0 1 auto;
+    }
+
+    body > .max-w-6xl > div:first-child img {
+        width: 2.55rem !important;
+        height: 2.55rem !important;
+        flex: 0 0 2.55rem;
+    }
+
+    body > .max-w-6xl > div:first-child h1 {
+        font-size: 1.2rem !important;
+        line-height: 1.2 !important;
+        padding: 0 !important;
+        white-space: nowrap;
+    }
+
+    /* The desktop tagline becomes awkward three-line filler in a narrow header.
+       The active tool is more useful context on mobile. */
+    body > .max-w-6xl > div:first-child .orange-brand-tagline {
+        display: none !important;
+    }
+
+    #mobile-current-tool {
+        display: flex;
+        min-width: 0;
+        flex: 1 1 auto;
+        flex-direction: column;
+        justify-content: center;
+        padding-left: 0.8rem;
+        border-left: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 20%, transparent);
+    }
+
+    .mobile-current-tool-label,
+    .mobile-drawer-eyebrow {
+        display: block;
+        color: var(--orange-muted, #71717a);
+        font-size: 0.58rem;
+        line-height: 1;
+        font-weight: 700;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+    }
+
+    #mobile-current-tool-name {
+        display: block;
+        margin-top: 0.28rem;
+        min-width: 0;
+        overflow: hidden;
+        color: var(--orange-text, #f4f4f5);
+        font-size: 0.8rem;
+        line-height: 1.1rem;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
     #mobile-tool-menu-btn {
         display: flex;
-        margin-left: auto;
+        margin-left: 0;
     }
 
-    body > .max-w-6xl > div:first-child {
-        position: sticky;
-        top: 0.5rem;
-        z-index: 60;
-        justify-content: space-between !important;
-        overflow: visible !important;
+    /* The original tool list remains the desktop source of truth. */
+    .orange-desktop-tool-list {
+        display: none !important;
     }
 
+    /* Body-level proxy drawer: sits above the backdrop and stays fully clickable. */
     #mobile-tool-drawer {
-        display: block !important;
+        display: flex !important;
         position: fixed !important;
         top: 0 !important;
         right: 0 !important;
         bottom: 0 !important;
-        width: min(86vw, 21rem) !important;
+        width: min(86vw, 22rem) !important;
         height: 100dvh !important;
-        z-index: 80 !important;
+        z-index: 1010 !important;
         margin: 0 !important;
         padding: 1rem !important;
-        background: rgb(9 9 11 / 0.98) !important;
-        border-left: 1px solid rgb(39 39 42) !important;
-        box-shadow: -20px 0 50px rgba(0, 0, 0, 0.45);
+        flex-direction: column;
+        background: color-mix(in srgb, var(--orange-bg, #09090b) 96%, var(--orange-panel, #18181b)) !important;
+        border: 0 !important;
+        border-left: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 25%, transparent) !important;
+        box-shadow: -24px 0 60px rgba(0, 0, 0, 0.48);
         overflow-y: auto !important;
         transform: translateX(105%);
         transition: transform 180ms ease;
+        pointer-events: none;
     }
 
     body.orange-mobile-menu-open #mobile-tool-drawer {
         transform: translateX(0);
+        pointer-events: auto;
     }
 
     #mobile-tool-drawer-head {
@@ -83,8 +186,16 @@
         justify-content: space-between;
         gap: 1rem;
         margin-bottom: 1rem;
-        padding-bottom: 0.8rem;
-        border-bottom: 1px solid rgb(39 39 42);
+        padding-bottom: 0.9rem;
+        border-bottom: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 24%, transparent);
+    }
+
+    .mobile-drawer-title {
+        margin-top: 0.25rem;
+        color: var(--orange-text, #f4f4f5);
+        font-size: 1rem;
+        line-height: 1.25rem;
+        font-weight: 650;
     }
 
     #mobile-tool-menu-close,
@@ -92,25 +203,72 @@
         display: flex;
     }
 
-    #mobile-tool-drawer > label {
-        display: block !important;
-        padding-left: 0.25rem !important;
-        margin-bottom: 0.6rem;
+    #mobile-tool-drawer-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
     }
 
-    #tool-tabs {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 0.55rem !important;
-        width: 100% !important;
-        margin-top: 0 !important;
+    .mobile-tool-drawer-item {
+        display: flex;
+        width: 100%;
+        min-height: 3.1rem;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.8rem 0.95rem;
+        color: color-mix(in srgb, var(--orange-text, #f4f4f5) 72%, var(--orange-muted, #71717a));
+        background: color-mix(in srgb, var(--orange-panel, #18181b) 82%, transparent);
+        border: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 22%, transparent);
+        border-radius: min(var(--orange-radius, 14px), 14px);
+        text-align: left;
+        font-size: 0.9rem;
+        font-weight: 500;
     }
 
-    #tool-tabs button {
-        width: 100% !important;
-        min-width: 0 !important;
-        padding: 0.85rem 1rem !important;
-        white-space: normal !important;
+    .mobile-tool-drawer-item.active {
+        color: var(--orange-accent, #f97316);
+        background: color-mix(in srgb, var(--orange-accent, #f97316) 10%, var(--orange-panel, #18181b));
+        border-color: color-mix(in srgb, var(--orange-accent, #f97316) 42%, transparent);
+    }
+
+    /* Give the form a little more deliberate mobile breathing room now that the
+       tool selector has moved into the header. */
+    body > .max-w-6xl > div:nth-child(2) {
+        padding: 2rem 1.25rem 2.5rem !important;
+    }
+
+    #ui-container {
+        max-width: 100% !important;
+    }
+
+    #ui-container,
+    #dynamic-inputs {
+        gap: 1.6rem !important;
+    }
+
+    #prompt-container textarea {
+        min-height: 10.5rem;
+    }
+
+    #aspect-ratios {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 0.7rem !important;
+    }
+
+    #aspect-ratios > button {
+        min-height: 3.25rem;
+    }
+
+    #generate-btn {
+        min-height: 4.5rem;
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+    }
+
+    #vram-warning,
+    body > .max-w-6xl > div:first-child > div:last-child {
+        display: none !important;
     }
 
     /* Result actions: one clear primary action, compact secondary row. */
@@ -199,19 +357,21 @@
         right: 0;
         bottom: 0;
         width: min(86vw, 21rem);
-        z-index: 80;
+        z-index: 1010;
         padding: 1rem;
         flex-direction: column;
         gap: 0.45rem;
-        background: rgb(9 9 11 / 0.99);
-        border-left: 1px solid rgb(39 39 42);
+        background: color-mix(in srgb, var(--orange-bg, #09090b) 96%, var(--orange-panel, #18181b));
+        border-left: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 25%, transparent);
         box-shadow: -20px 0 50px rgba(0, 0, 0, 0.45);
         transform: translateX(105%);
         transition: transform 180ms ease;
+        pointer-events: none;
     }
 
     body.orange-mobile-menu-open #mobile-admin-drawer {
         transform: translateX(0);
+        pointer-events: auto;
     }
 
     .mobile-admin-drawer-head {
@@ -221,7 +381,7 @@
         gap: 1rem;
         padding-bottom: 0.8rem;
         margin-bottom: 0.45rem;
-        border-bottom: 1px solid rgb(39 39 42);
+        border-bottom: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 24%, transparent);
     }
 
     .mobile-admin-drawer-item {
@@ -230,7 +390,7 @@
         align-items: center;
         gap: 0.75rem;
         padding: 0.85rem 0.9rem;
-        color: rgb(161 161 170);
+        color: color-mix(in srgb, var(--orange-text, #f4f4f5) 68%, var(--orange-muted, #71717a));
         background: transparent;
         border: 1px solid transparent;
         border-radius: 0.8rem;
@@ -240,15 +400,15 @@
     }
 
     .mobile-admin-drawer-item.active {
-        color: rgb(251 146 60);
-        background: rgb(39 39 42 / 0.8);
-        border-color: rgb(63 63 70);
+        color: var(--orange-accent, #f97316);
+        background: color-mix(in srgb, var(--orange-accent, #f97316) 10%, var(--orange-panel, #18181b));
+        border-color: color-mix(in srgb, var(--orange-accent, #f97316) 38%, transparent);
     }
 
     .mobile-admin-drawer-separator {
         height: 1px;
         margin: auto 0 0.35rem;
-        background: rgb(39 39 42);
+        background: color-mix(in srgb, var(--orange-muted, #71717a) 24%, transparent);
     }
 
     .mobile-admin-logout {
