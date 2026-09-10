@@ -31,6 +31,7 @@ jobs:
           node --check static/workflow-assets.js
           node --check static/mobile-navigation.js
           node --check static/theme-runtime.js
+          node --check static/theme-effects.js
           node --check static/personalization.js
           node --check static/personalization-tab-state.js
       - name: Validate theme manifest
