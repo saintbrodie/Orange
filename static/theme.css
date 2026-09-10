@@ -13,6 +13,7 @@
 html[data-orange-theme] body {
   background: var(--orange-bg) !important;
   color: var(--orange-text) !important;
+  isolation: isolate;
 }
 
 /* Theme the legacy mesh instead of leaving the Classic orange/purple blobs behind. */
@@ -121,13 +122,13 @@ html[data-orange-motion="reduced"] *::after {
   transition-duration: 0.001ms !important;
 }
 
-/* Preset background layer. Keep it visual-only and event-free. */
+/* Preset background layer. Keep it visual-only, event-free, and behind content. */
 body::before,
 body::after {
   content: "";
   position: fixed;
   pointer-events: none;
-  z-index: 0;
+  z-index: -1;
   opacity: 0;
 }
 body::before { inset: 0; transition: opacity .35s ease; }
