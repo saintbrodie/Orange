@@ -1,1 +1,0 @@
-The personalization runtime must remain event-driven. Do not reintroduce a document-wide MutationObserver in theme-runtime.js.
