@@ -66,13 +66,13 @@ def serve_index():
             "</head>",
             THEME_HEAD
             + '    <link rel="stylesheet" href="/static/responsive.css?v=1">\n'
-            + '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=1">\n'
+            + '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=2">\n'
             + "</head>",
         )
         content = content.replace(
             "</body>",
             '    <script src="/static/result-actions.js?v=3"></script>\n'
-            '    <script src="/static/mobile-navigation.js?v=1"></script>\n'
+            '    <script src="/static/mobile-navigation.js?v=2"></script>\n'
             "</body>",
         )
         return HTMLResponse(content=content)
@@ -88,7 +88,7 @@ def serve_admin():
         content = content.replace(
             "</head>",
             THEME_HEAD
-            + '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=1">\n</head>',
+            + '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=2">\n</head>',
         )
         # Keep engineering diagnostics and admin-only editors isolated from the
         # intentionally small end-user generator UI.
@@ -100,7 +100,7 @@ def serve_admin():
             '    <script src="/static/workflow-assets.js?v=2"></script>\n'
             '    <script src="/static/personalization.js?v=1"></script>\n'
             '    <script src="/static/personalization-tab-state.js?v=1"></script>\n'
-            '    <script src="/static/mobile-navigation.js?v=1"></script>\n'
+            '    <script src="/static/mobile-navigation.js?v=2"></script>\n'
             "</body>",
         )
         return HTMLResponse(content=content)
