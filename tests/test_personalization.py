@@ -127,6 +127,13 @@ class PersonalizationTests(unittest.TestCase):
         self.assertIn("orange:personalization-applied", mobile)
         self.assertIn("setAdminDrawerTitle", mobile)
 
+    def test_mobile_tool_sync_only_observes_direct_child_replacement(self):
+        """Do not let Lucide/Tailwind descendant mutations recursively wake tool sync."""
+        mobile = (Path(__file__).resolve().parents[1] / "static" / "mobile-navigation.js").read_text(encoding="utf-8")
+        self.assertIn("observer.observe(toolTabs, { childList: true })", mobile)
+        self.assertNotIn("observer.observe(toolTabs, { childList: true, subtree: true", mobile)
+        self.assertNotIn("attributeFilter: ['class'] });\n\n        return true;", mobile)
+
 
 if __name__ == "__main__":
     unittest.main()
