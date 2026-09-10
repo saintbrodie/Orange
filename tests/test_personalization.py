@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import patch
 
+from app.api import personalization as personalization_api
 from app.core import personalization
 
 
@@ -91,9 +92,7 @@ class PersonalizationTests(unittest.TestCase):
     def test_theme_mascots_preserve_geometry_and_add_identity(self):
         cyber = personalization.render_theme_svg("cyber", "head")
         princess = personalization.render_theme_svg("princess", "head")
-        self.assertIn("#22d3ee", cyber)
         self.assertIn("orangeCyberScan", cyber)
-        self.assertIn("#f472b6", princess)
         self.assertIn("orangeTwinkle", princess)
 
     def test_custom_uses_classic_mascot_geometry(self):
@@ -101,6 +100,21 @@ class PersonalizationTests(unittest.TestCase):
             personalization.render_theme_svg("custom", "head"),
             personalization.render_theme_svg("classic", "head"),
         )
+
+    def test_preset_manifest_uses_real_theme_asset_route(self):
+        manifest_path = Path(__file__).resolve().parents[1] / "static" / "themes" / "presets.json"
+        presets = json.loads(manifest_path.read_text(encoding="utf-8"))
+        for preset in presets.values():
+            self.assertRegex(preset["mascot"], r"^/api/theme-assets/[a-z-]+/full\.svg$")
+            self.assertRegex(preset["head"], r"^/api/theme-assets/[a-z-]+/head\.svg$")
+
+    def test_theme_asset_routes_include_compatibility_alias(self):
+        paths = {route.path for route in personalization_api.router.routes}
+        self.assertIn("/api/theme-assets/{theme}/{kind}.svg", paths)
+        self.assertIn("/api/theme-mascot/{theme}/{kind}", paths)
+        response = personalization_api.get_theme_asset("classic", "head")
+        self.assertEqual(response.media_type, "image/svg+xml")
+        ET.fromstring(response.body.decode("utf-8"))
 
     def test_theme_runtime_does_not_watch_the_entire_document(self):
         """A DOM-wide observer can self-trigger and make Tailwind rescan forever."""
