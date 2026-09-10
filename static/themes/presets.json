@@ -2,8 +2,8 @@
   "classic": {
     "name": "Classic",
     "description": "The original Orange look.",
-    "mascot": "/api/theme-mascot/classic/full",
-    "head": "/api/theme-mascot/classic/head",
+    "mascot": "/api/theme-assets/classic/full.svg",
+    "head": "/api/theme-assets/classic/head.svg",
     "accent": "#f97316",
     "accentSecondary": "#ea580c",
     "background": "#09090b",
@@ -17,8 +17,8 @@
   "cyber": {
     "name": "Cyber",
     "description": "Black-and-neon-green terminal glow with Matrix-style digital rain.",
-    "mascot": "/api/theme-mascot/cyber/full",
-    "head": "/api/theme-mascot/cyber/head",
+    "mascot": "/api/theme-assets/cyber/full.svg",
+    "head": "/api/theme-assets/cyber/head.svg",
     "accent": "#39ff88",
     "accentSecondary": "#00c853",
     "background": "#010603",
@@ -32,8 +32,8 @@
   "princess": {
     "name": "Princess",
     "description": "Bright candy pink, lavender, pearly panels and extra sparkle.",
-    "mascot": "/api/theme-mascot/princess/full",
-    "head": "/api/theme-mascot/princess/head",
+    "mascot": "/api/theme-assets/princess/full.svg",
+    "head": "/api/theme-assets/princess/head.svg",
     "accent": "#ec4899",
     "accentSecondary": "#c084fc",
     "background": "#fce7f3",
@@ -47,8 +47,8 @@
   "arcade": {
     "name": "Arcade",
     "description": "80s neon arcade: magenta, cyan, purple, pixel accents and a retro horizon grid.",
-    "mascot": "/api/theme-mascot/arcade/full",
-    "head": "/api/theme-mascot/arcade/head",
+    "mascot": "/api/theme-assets/arcade/full.svg",
+    "head": "/api/theme-assets/arcade/head.svg",
     "accent": "#ff3cac",
     "accentSecondary": "#00e5ff",
     "background": "#090019",
@@ -62,8 +62,8 @@
   "botanical": {
     "name": "Botanical",
     "description": "Warm earth tones, sage accents, and a calmer organic feel.",
-    "mascot": "/api/theme-mascot/botanical/full",
-    "head": "/api/theme-mascot/botanical/head",
+    "mascot": "/api/theme-assets/botanical/full.svg",
+    "head": "/api/theme-assets/botanical/head.svg",
     "accent": "#84a98c",
     "accentSecondary": "#d97745",
     "background": "#0f1511",
@@ -77,8 +77,8 @@
   "midnight": {
     "name": "Midnight",
     "description": "Near-black navy, restrained gold, and subtle star motion.",
-    "mascot": "/api/theme-mascot/midnight/full",
-    "head": "/api/theme-mascot/midnight/head",
+    "mascot": "/api/theme-assets/midnight/full.svg",
+    "head": "/api/theme-assets/midnight/head.svg",
     "accent": "#d6b76b",
     "accentSecondary": "#8ea6c9",
     "background": "#03050a",
@@ -92,8 +92,8 @@
   "custom": {
     "name": "Custom",
     "description": "Your palette and branding, using the classic mascot unless replaced.",
-    "mascot": "/api/theme-mascot/classic/full",
-    "head": "/api/theme-mascot/classic/head",
+    "mascot": "/api/theme-assets/classic/full.svg",
+    "head": "/api/theme-assets/classic/head.svg",
     "effect": "custom",
     "generateIcon": "wand-2"
   }
