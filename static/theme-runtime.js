@@ -121,7 +121,8 @@
     if (adminHeading && location.pathname.startsWith('/admin')) adminHeading.textContent = `${appName} Admin`;
 
     document.querySelectorAll('#mobile-admin-drawer .mobile-admin-drawer-head > div').forEach(el => {
-      el.textContent = `${appName} Admin`;
+      const nextTitle = `${appName} Admin`;
+      if (el.textContent !== nextTitle) el.textContent = nextTitle;
     });
 
     ensureFooter(branding.footerText || '');
@@ -189,10 +190,4 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });
   else load();
-
-  const observer = new MutationObserver(() => {
-    const title = document.querySelector('#mobile-admin-drawer .mobile-admin-drawer-head > div');
-    if (title && window.__orangeLastPersonalizationName) title.textContent = `${window.__orangeLastPersonalizationName} Admin`;
-  });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
 })();
