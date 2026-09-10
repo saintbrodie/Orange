@@ -58,7 +58,7 @@
     }
 
     function syncGeneratorTools(toolTabs, drawerList) {
-        const originals = Array.from(toolTabs.querySelectorAll(':scope > button'));
+        const originals = Array.from(toolTabs.children).filter(element => element.tagName === 'BUTTON');
         drawerList.replaceChildren();
 
         let activeName = '';
@@ -73,23 +73,22 @@
 
             const label = document.createElement('span');
             label.textContent = name;
-            const icon = document.createElement('i');
-            icon.setAttribute('data-lucide', active ? 'check' : 'chevron-right');
-            icon.className = 'w-4 h-4';
-            button.append(label, icon);
+            const mark = document.createElement('span');
+            mark.className = 'mobile-tool-drawer-mark';
+            mark.setAttribute('aria-hidden', 'true');
+            mark.textContent = active ? '✓' : '›';
+            button.append(label, mark);
 
             button.addEventListener('click', () => {
                 original.click();
                 setCurrentTool(name);
                 closeMenus();
-                window.setTimeout(() => syncGeneratorTools(toolTabs, drawerList), 0);
             });
             drawerList.appendChild(button);
         });
 
         if (!activeName && originals.length === 1) activeName = toolButtonLabel(originals[0]);
         if (activeName) setCurrentTool(activeName);
-        if (window.lucide) window.lucide.createIcons();
     }
 
     function setupGeneratorMenu() {
@@ -157,8 +156,13 @@
         if (!drawerList) return false;
         syncGeneratorTools(toolTabs, drawerList);
 
+        // app.js replaces #tool-tabs' direct button children whenever a tool is
+        // selected. Watching only those direct child replacements is sufficient.
+        // Do NOT observe subtree/class mutations here: Lucide and Tailwind both
+        // mutate descendants while rendering, which can turn a broad observer into
+        // an infinite DOM-rescan loop and freeze Firefox.
         const observer = new MutationObserver(() => syncGeneratorTools(toolTabs, drawerList));
-        observer.observe(toolTabs, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+        observer.observe(toolTabs, { childList: true });
 
         return true;
     }
