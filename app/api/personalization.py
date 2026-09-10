@@ -23,6 +23,20 @@ MAX_BRANDING_BYTES = 3 * 1024 * 1024
 MAX_BRANDING_DIMENSION = 4096
 FORMAT_EXTENSIONS = {"PNG": ".png", "JPEG": ".jpg", "WEBP": ".webp"}
 
+# The original Cyber mascot pass used cyan/magenta accents. Cyber has since
+# moved to a Matrix-inspired green identity, so recolor the generated SVG at
+# the HTTP boundary without duplicating the canonical mascot geometry.
+CYBER_SVG_REPLACEMENTS = {
+    "#07111f": "#041108",
+    "#020617": "#010603",
+    "#22d3ee": "#39ff88",
+    "#334155": "#183822",
+    "#64748b": "#3f6b4a",
+    "#a5f3fc": "#b8ffd3",
+    "#d946ef": "#00a947",
+    "#ecfeff": "#effff4",
+}
+
 
 async def _read_branding_upload(file: UploadFile) -> tuple[bytes, str]:
     data = bytearray()
@@ -79,6 +93,11 @@ def _theme_asset_response(theme: str, kind: str) -> Response:
         svg = render_theme_svg(theme, kind)
     except (ValueError, OSError):
         raise HTTPException(status_code=404, detail="Theme asset not found.")
+
+    if theme.lower() == "cyber":
+        for old, new in CYBER_SVG_REPLACEMENTS.items():
+            svg = svg.replace(old, new)
+
     return Response(
         content=svg,
         media_type="image/svg+xml",
