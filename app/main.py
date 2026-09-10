@@ -72,7 +72,7 @@ def serve_index():
         content = content.replace(
             "</body>",
             '    <script src="/static/result-actions.js?v=3"></script>\n'
-            '    <script src="/static/mobile-navigation.js?v=2"></script>\n'
+            '    <script src="/static/mobile-navigation.js?v=3"></script>\n'
             "</body>",
         )
         return HTMLResponse(content=content)
@@ -100,7 +100,7 @@ def serve_admin():
             '    <script src="/static/workflow-assets.js?v=2"></script>\n'
             '    <script src="/static/personalization.js?v=1"></script>\n'
             '    <script src="/static/personalization-tab-state.js?v=1"></script>\n'
-            '    <script src="/static/mobile-navigation.js?v=2"></script>\n'
+            '    <script src="/static/mobile-navigation.js?v=3"></script>\n'
             "</body>",
         )
         return HTMLResponse(content=content)
