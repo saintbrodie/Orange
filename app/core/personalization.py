@@ -37,8 +37,11 @@ BASE_SVG_COLORS = ["#77310a", "#13171f", "#f67a04", "#625649", "#9f978b", "#fcbd
 THEME_SVG_PALETTES = {
     "cyber": ["#07111f", "#020617", "#22d3ee", "#334155", "#64748b", "#a5f3fc", "#d946ef", "#ecfeff"],
     "princess": ["#6b214f", "#2a1228", "#f472b6", "#8f5d83", "#d8a8cc", "#fde1f1", "#c084fc", "#fff7fb"],
-    "arcade": ["#4c1d95", "#111827", "#facc15", "#4b5563", "#a78bfa", "#fde68a", "#22c55e", "#f9fafb"],
-    "botanical": ["#4b3929", "#172019", "#d97745", "#526055", "#8fa091", "#d8c8a8", "#84a98c", "#f4f3ea"],
+    # Arcade deliberately avoids the old yellow/green palette. It mirrors the
+    # synthwave UI: magenta, cyan, violet, deep plum, and pale neon highlights.
+    "arcade": ["#5b167d", "#10051b", "#ec4899", "#51246f", "#8b5cf6", "#67e8f9", "#00e5ff", "#fff1fb"],
+    # Botanical is genuinely all-green now, including the canonical mascot fills.
+    "botanical": ["#27472f", "#101c13", "#668f6f", "#385a41", "#789b80", "#b8cfbd", "#4f7759", "#edf5ee"],
     "midnight": ["#111827", "#030712", "#172554", "#334155", "#64748b", "#8ea6c9", "#d6b76b", "#f8fafc"],
 }
 
@@ -177,9 +180,38 @@ def _decoration(theme: str, kind: str) -> str:
             + ('<g><path d="M157 75l23-42 39 48 38-55 35 50 28-35 10 70H145z" fill="#faccf4" stroke="#f472b6" stroke-width="5"/><circle cx="181" cy="81" r="6" fill="#fff"/><circle cx="219" cy="82" r="7" fill="#c084fc"/><circle cx="258" cy="80" r="6" fill="#fff"/><path d="M371 145l7 17 17 7-17 7-7 17-7-17-17-7 17-7z" fill="#fff1f7" style="animation:orangeTwinkle 1.7s ease-in-out infinite"/></g>' if head else '<g><path d="M315 82l38-52 48 58 50-67 48 64 42-47 14 84H300z" fill="#faccf4" stroke="#f472b6" stroke-width="7"/><circle cx="354" cy="89" r="9" fill="#fff"/><circle cx="402" cy="92" r="10" fill="#c084fc"/><circle cx="458" cy="88" r="9" fill="#fff"/><path d="M610 155l9 22 22 9-22 9-9 22-9-22-22-9 22-9z" fill="#fff1f7" style="animation:orangeTwinkle 1.7s ease-in-out infinite"/></g>')
         )
     if theme == "arcade":
+        # A deliberately cheesy 1980s character treatment inspired by period
+        # arcade/fashion imagery: mullet silhouette, aviator shades and a color-
+        # blocked windbreaker. It remains Orange-the-cat rather than a human.
+        if head:
+            return (
+                '<style>@keyframes orangeArcadeGlint{0%,70%,100%{opacity:.15}78%{opacity:.95}}</style>'
+                '<g>'
+                '<path d="M83 150c7-46 26-83 60-103l18 43 30-55 28 53 31-61 27 62 27-43 31 46 22-38c31 24 49 61 50 105-18-19-38-28-58-32l-8 58-26-42-25 55-33-49-35 50-30-52-27 43-11-60c-25 3-48 13-71 30z" fill="#35104f" stroke="#ec4899" stroke-width="5" stroke-linejoin="round"/>'
+                '<path d="M72 178c-14 40-9 94 9 131l35 41 12-83-18-63zM364 174c16 40 12 95-7 135l-36 39-11-82 17-65z" fill="#35104f"/>'
+                '<g fill="#0d0715" stroke="#00e5ff" stroke-width="6"><path d="M92 205c36-18 83-18 117 0l-8 64c-36 16-76 11-101-16z"/><path d="M227 205c34-18 81-18 117 0l-9 48c-25 27-65 32-101 16z"/></g>'
+                '<path d="M205 220h29" stroke="#ec4899" stroke-width="7" stroke-linecap="round"/>'
+                '<path d="M111 220l67 18M248 220l68 18" stroke="#67e8f9" stroke-width="5" opacity=".75" style="animation:orangeArcadeGlint 2.8s steps(1,end) infinite"/>'
+                '<path d="M68 349l70-36 80 33 80-33 70 36 31 65H37z" fill="#51246f"/>'
+                '<path d="M68 349l70-36 80 33-44 67H37z" fill="#00e5ff" opacity=".9"/>'
+                '<path d="M368 349l-70-36-80 33 44 67h137z" fill="#ec4899" opacity=".92"/>'
+                '<path d="M174 413l44-67 44 67" fill="#5b167d"/>'
+                '</g>'
+            )
         return (
-            '<style>@keyframes orangePixelHop{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}</style>'
-            + ('<g style="animation:orangePixelHop .9s steps(2,end) infinite;transform-origin:center"><rect x="96" y="206" width="94" height="58" rx="2" fill="#111827"/><rect x="246" y="206" width="94" height="58" rx="2" fill="#111827"/><rect x="190" y="226" width="56" height="17" fill="#111827"/><rect x="110" y="217" width="22" height="17" fill="#22c55e"/><rect x="151" y="237" width="24" height="15" fill="#facc15"/><rect x="260" y="217" width="22" height="17" fill="#f43f5e"/><rect x="301" y="237" width="24" height="15" fill="#22d3ee"/></g>' if head else '<g style="animation:orangePixelHop .9s steps(2,end) infinite;transform-origin:center"><rect x="275" y="218" width="110" height="70" rx="2" fill="#111827"/><rect x="418" y="218" width="110" height="70" rx="2" fill="#111827"/><rect x="385" y="240" width="33" height="18" fill="#111827"/><rect x="290" y="230" width="25" height="20" fill="#22c55e"/><rect x="330" y="250" width="28" height="18" fill="#facc15"/><rect x="435" y="230" width="25" height="20" fill="#f43f5e"/><rect x="476" y="250" width="28" height="18" fill="#22d3ee"/></g>')
+            '<style>@keyframes orangeArcadeGlint{0%,70%,100%{opacity:.15}78%{opacity:.95}}</style>'
+            '<g>'
+            '<path d="M250 151c8-58 35-106 78-133l27 58 39-70 37 67 42-73 35 73 36-56 39 59 32-49c44 30 67 78 70 132-27-23-57-35-86-39l-10 77-39-55-33 69-47-62-48 62-41-67-36 55-14-79c-34 5-65 17-91 40z" fill="#35104f" stroke="#ec4899" stroke-width="8" stroke-linejoin="round"/>'
+            '<path d="M234 176c-23 53-21 125 4 173l51 58 18-116-26-83zM570 170c24 55 22 127-5 180l-50 55-17-114 27-86z" fill="#35104f"/>'
+            '<g fill="#0d0715" stroke="#00e5ff" stroke-width="9"><path d="M273 214c48-23 108-23 151 0l-10 81c-46 22-98 13-132-21z"/><path d="M440 214c44-23 104-23 151 0l-12 60c-34 34-85 43-131 21z"/></g>'
+            '<path d="M421 234h25" stroke="#ec4899" stroke-width="10" stroke-linecap="round"/>'
+            '<path d="M298 233l86 24M467 233l87 24" stroke="#67e8f9" stroke-width="7" opacity=".8" style="animation:orangeArcadeGlint 2.8s steps(1,end) infinite"/>'
+            '<path d="M175 618l143-74 84 41 84-41 143 74 76 306-126 74-84-256-63 65-64-65-84 256-127-74z" fill="#51246f"/>'
+            '<path d="M175 618l143-74 84 41-88 150-119 43z" fill="#00e5ff" opacity=".88"/>'
+            '<path d="M629 618l-143-74-84 41 88 150 119 43z" fill="#ec4899" opacity=".92"/>'
+            '<path d="M314 735l88-150 88 150-88 72z" fill="#6d28d9"/>'
+            '<path d="M195 780l104-38M609 780l-105-38" stroke="#f472b6" stroke-width="16" opacity=".8"/>'
+            '</g>'
         )
     if theme == "botanical":
         return (
