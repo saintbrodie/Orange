@@ -50,8 +50,8 @@ app.include_router(workflow_assets.router)
 
 THEME_HEAD = (
     '    <link rel="stylesheet" href="/static/theme.css?v=2">\n'
-    '    <link rel="stylesheet" href="/static/theme-effects-v2.css?v=2">\n'
     '    <link rel="stylesheet" href="/static/theme-legacy-bridge.css?v=2">\n'
+    '    <link rel="stylesheet" href="/static/theme-effects-v2.css?v=2">\n'
     '    <script src="/static/theme-runtime.js?v=2" defer></script>\n'
     '    <script src="/static/theme-effects.js?v=2" defer></script>\n'
 )
