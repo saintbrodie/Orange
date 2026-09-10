@@ -118,6 +118,13 @@
         if (!authenticated) closeMenus();
     }
 
+    function setAdminDrawerTitle(appName) {
+        const title = document.querySelector('#mobile-admin-drawer .mobile-admin-drawer-head > div');
+        if (!title) return;
+        const nextTitle = `${appName || 'Orange'} Admin`;
+        if (title.textContent !== nextTitle) title.textContent = nextTitle;
+    }
+
     function setupAdminMenu() {
         const originalMenu = document.getElementById('admin-menu');
         const logoutButton = document.getElementById('logout-btn');
@@ -139,7 +146,7 @@
         header.className = 'mobile-admin-drawer-head';
         const title = document.createElement('div');
         title.className = 'text-sm font-semibold text-zinc-200';
-        title.textContent = 'Orange Admin';
+        title.textContent = `${window.__orangeLastPersonalizationName || 'Orange'} Admin`;
         const closeButton = makeIconButton('mobile-admin-menu-close', 'Close admin menu', 'x');
         closeButton.addEventListener('click', closeMenus);
         header.append(title, closeButton);
@@ -181,6 +188,10 @@
         });
         observer.observe(originalMenu, { attributes: true, attributeFilter: ['class'] });
         adminOriginals.forEach(([element]) => observer.observe(element, { attributes: true, attributeFilter: ['class'] }));
+
+        window.addEventListener('orange:personalization-applied', event => {
+            setAdminDrawerTitle(event.detail?.config?.branding?.appName || window.__orangeLastPersonalizationName || 'Orange');
+        });
 
         syncAdminVisibility();
         syncAdminActiveState();
