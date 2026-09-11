@@ -1,0 +1,44 @@
+name: Export theme logos
+
+on:
+  push:
+    branches:
+      - chatgpt/personalization-themes
+    paths:
+      - ".github/workflows/export-theme-logos.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/personalization-themes
+
+      - name: Export current generated theme mascots as editable SVGs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          from app.core.personalization import render_theme_svg
+
+          output = Path("static/theme-assets/logos")
+          output.mkdir(parents=True, exist_ok=True)
+          themes = ("classic", "cyber", "princess", "arcade", "adventure", "midnight")
+          for theme in themes:
+              for kind in ("full", "head"):
+                  (output / f"{theme}-{kind}.svg").write_text(
+                      render_theme_svg(theme, kind), encoding="utf-8"
+                  )
+          PY
+
+          rm .github/workflows/export-theme-logos.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add static/theme-assets/logos .github/workflows/export-theme-logos.yml
+          git commit -m "Export themed Orange logos as editable SVGs"
+          git push origin HEAD:chatgpt/personalization-themes
