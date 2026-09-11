@@ -16,7 +16,7 @@
   },
   "cyber": {
     "name": "Cyber",
-    "description": "Retro green CRT terminal.",
+    "description": "Retro CRT terminal.",
     "mascot": "/api/theme-assets/cyber/full.svg",
     "head": "/api/theme-assets/cyber/head.svg",
     "accent": "#7dff8f",
@@ -31,7 +31,7 @@
   },
   "princess": {
     "name": "Princess",
-    "description": "Dusty pinks and sparkles.",
+    "description": "Dusty pink and sparkles.",
     "mascot": "/api/theme-assets/princess/full.svg",
     "head": "/api/theme-assets/princess/head.svg",
     "accent": "#db3f8d",
@@ -76,7 +76,7 @@
   },
   "midnight": {
     "name": "Midnight",
-    "description": "Dark navy and starlight.",
+    "description": "Dark starlight and gold.",
     "mascot": "/api/theme-assets/midnight/full.svg",
     "head": "/api/theme-assets/midnight/head.svg",
     "accent": "#d6b76b",
@@ -91,7 +91,7 @@
   },
   "custom": {
     "name": "Custom",
-    "description": "Your brand, your palette.",
+    "description": "Your colors and branding.",
     "mascot": "/api/theme-assets/classic/full.svg",
     "head": "/api/theme-assets/classic/head.svg",
     "effect": "custom",
