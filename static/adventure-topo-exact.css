@@ -10,10 +10,11 @@ html[data-orange-effect="adventure"] body::before {
     url('/static/theme-assets/adventure-topo-2.svg'),
     url('/static/theme-assets/adventure-topo-3.svg'),
     url('/static/theme-assets/adventure-topo-4.svg'),
-    url('/static/theme-assets/adventure-topo-5.svg') !important;
-  background-repeat: repeat, repeat, repeat, repeat, repeat !important;
-  background-position: 0 0, 0 0, 0 0, 0 0, 0 0 !important;
-  background-size: 520px auto, 520px auto, 520px auto, 520px auto, 520px auto !important;
+    url('/static/theme-assets/adventure-topo-5.svg'),
+    url('/static/theme-assets/adventure-topo-6.svg') !important;
+  background-repeat: repeat, repeat, repeat, repeat, repeat, repeat !important;
+  background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0 !important;
+  background-size: 520px auto, 520px auto, 520px auto, 520px auto, 520px auto, 520px auto !important;
   transform: none !important;
 }
 
