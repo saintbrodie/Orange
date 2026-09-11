@@ -38,6 +38,16 @@ class PersonalizationTests(unittest.TestCase):
         self.assertEqual(config["branding"]["appName"], "Acme AI")
         self.assertEqual(config["custom"]["radius"], 12)
 
+    def test_legacy_botanical_theme_normalizes_to_adventure(self):
+        payload = json.loads(json.dumps(personalization.DEFAULT_PERSONALIZATION))
+        payload["theme"] = "botanical"
+        normalized = personalization.validate_personalization(payload)
+        self.assertEqual(normalized["theme"], "adventure")
+        self.assertEqual(
+            personalization.render_theme_svg("botanical", "head"),
+            personalization.render_theme_svg("adventure", "head"),
+        )
+
     def test_unknown_theme_is_rejected(self):
         with self.assertRaises(ValueError):
             personalization.validate_personalization({"theme": "matrix"})
@@ -71,6 +81,16 @@ class PersonalizationTests(unittest.TestCase):
             self.assertEqual(loaded["theme"], "midnight")
             self.assertEqual(loaded["branding"]["appName"], "Night Lab")
 
+    def test_load_migrates_saved_botanical_theme(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = os.path.join(temp_dir, "personalization.json")
+            payload = json.loads(json.dumps(personalization.DEFAULT_PERSONALIZATION))
+            payload["theme"] = "botanical"
+            Path(target).write_text(json.dumps(payload), encoding="utf-8")
+            with patch.object(personalization, "PERSONALIZATION_PATH", target):
+                loaded = personalization.load_personalization()
+            self.assertEqual(loaded["theme"], "adventure")
+
     def test_branding_lookup_and_clear(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             with patch.object(personalization, "BRANDING_DIR", temp_dir):
@@ -82,7 +102,7 @@ class PersonalizationTests(unittest.TestCase):
                 self.assertIsNone(personalization.branding_path("logo"))
 
     def test_all_preset_mascots_are_self_contained_valid_svg(self):
-        for theme in ("classic", "cyber", "princess", "arcade", "botanical", "midnight"):
+        for theme in ("classic", "cyber", "princess", "arcade", "adventure", "midnight"):
             for kind in ("full", "head"):
                 svg = personalization.render_theme_svg(theme, kind)
                 ET.fromstring(svg)
@@ -92,8 +112,12 @@ class PersonalizationTests(unittest.TestCase):
     def test_theme_mascots_preserve_geometry_and_add_identity(self):
         cyber = personalization.render_theme_svg("cyber", "head")
         princess = personalization.render_theme_svg("princess", "head")
+        arcade = personalization.render_theme_svg("arcade", "full")
+        adventure = personalization.render_theme_svg("adventure", "full")
         self.assertIn("orangeCyberScan", cyber)
         self.assertIn("orangeTwinkle", princess)
+        self.assertIn("#00e5ff", arcade)
+        self.assertIn("#c57a3c", adventure)
 
     def test_custom_uses_classic_mascot_geometry(self):
         self.assertEqual(
@@ -102,8 +126,11 @@ class PersonalizationTests(unittest.TestCase):
         )
 
     def test_preset_manifest_uses_real_theme_asset_route(self):
-        manifest_path = Path(__file__).resolve().parents[1] / "static" / "themes" / "presets.json"
-        presets = json.loads(manifest_path.read_text(encoding="utf-8"))
+        root = Path(__file__).resolve().parents[1]
+        presets = json.loads((root / "static" / "themes" / "presets.json").read_text(encoding="utf-8"))
+        self.assertIn("adventure", presets)
+        self.assertNotIn("botanical", presets)
+        self.assertTrue((root / "static" / "theme-assets" / "adventure-topo.svg").is_file())
         for preset in presets.values():
             self.assertRegex(preset["mascot"], r"^/api/theme-assets/[a-z-]+/full\.svg$")
             self.assertRegex(preset["head"], r"^/api/theme-assets/[a-z-]+/head\.svg$")
@@ -117,7 +144,6 @@ class PersonalizationTests(unittest.TestCase):
         ET.fromstring(response.body.decode("utf-8"))
 
     def test_theme_runtime_does_not_watch_the_entire_document(self):
-        """A DOM-wide observer can self-trigger and make Tailwind rescan forever."""
         runtime = (Path(__file__).resolve().parents[1] / "static" / "theme-runtime.js").read_text(encoding="utf-8")
         self.assertNotIn("observer.observe(document.documentElement", runtime)
         self.assertNotIn("subtree: true", runtime)
@@ -128,7 +154,6 @@ class PersonalizationTests(unittest.TestCase):
         self.assertIn("setAdminDrawerTitle", mobile)
 
     def test_mobile_tool_sync_only_observes_direct_child_replacement(self):
-        """Do not let Lucide/Tailwind descendant mutations recursively wake tool sync."""
         mobile = (Path(__file__).resolve().parents[1] / "static" / "mobile-navigation.js").read_text(encoding="utf-8")
         self.assertIn("observer.observe(toolTabs, { childList: true })", mobile)
         self.assertNotIn("observer.observe(toolTabs, { childList: true, subtree: true", mobile)
