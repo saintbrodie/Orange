@@ -27,7 +27,7 @@
     "muted": "#6f9475",
     "radius": 5,
     "effect": "cyber",
-    "generateIcon": "terminal-square"
+    "generateIcon": "terminal"
   },
   "princess": {
     "name": "Princess",
