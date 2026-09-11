@@ -12,6 +12,10 @@
   const BOOTSTRAP_KEY = 'orange_theme_bootstrap';
   let presets = null;
 
+  function normalizeTheme(theme) {
+    return theme === 'botanical' ? 'adventure' : (theme || 'classic');
+  }
+
   function setVar(name, value) {
     document.documentElement.style.setProperty(name, value);
   }
@@ -139,6 +143,7 @@
 
   async function applyPersonalization(rawConfig) {
     const config = { ...DEFAULTS, ...(rawConfig || {}) };
+    config.theme = normalizeTheme(config.theme);
     config.branding = { ...DEFAULTS.branding, ...(rawConfig?.branding || {}) };
     config.custom = { ...DEFAULTS.custom, ...(rawConfig?.custom || {}) };
     config.brandingAssets = { ...DEFAULTS.brandingAssets, ...(rawConfig?.brandingAssets || {}) };
@@ -154,7 +159,7 @@
     const text = palette.text || DEFAULTS.custom.text;
     const muted = palette.muted || DEFAULTS.custom.muted;
     const radius = Number.isFinite(Number(palette.radius)) ? Number(palette.radius) : DEFAULTS.custom.radius;
-    const effect = selected.effect || config.theme || 'classic';
+    const effect = normalizeTheme(selected.effect || config.theme || 'classic');
     const motion = config.theme === 'custom' ? config.custom.motion : (effect === 'princess' || effect === 'arcade' ? 'playful' : 'normal');
     const semanticIcon = selected.generateIcon || 'wand-2';
     const panel2 = `color-mix(in srgb, ${panel} 94%, white)`;
