@@ -9,10 +9,19 @@
     brandingAssets: { logo: null, icon: null }
   };
 
+  const BOOTSTRAP_KEY = 'orange_theme_bootstrap';
   let presets = null;
 
   function setVar(name, value) {
     document.documentElement.style.setProperty(name, value);
+  }
+
+  function cacheBootstrap(theme, effect, motion, vars) {
+    try {
+      localStorage.setItem(BOOTSTRAP_KEY, JSON.stringify({ theme, effect, motion, vars }));
+    } catch (_) {
+      // Storage can be unavailable in locked-down/private browser contexts.
+    }
   }
 
   async function getPresets() {
@@ -148,6 +157,8 @@
     const effect = selected.effect || config.theme || 'classic';
     const motion = config.theme === 'custom' ? config.custom.motion : (effect === 'princess' || effect === 'arcade' ? 'playful' : 'normal');
     const semanticIcon = selected.generateIcon || 'wand-2';
+    const panel2 = `color-mix(in srgb, ${panel} 94%, white)`;
+    const glow = `color-mix(in srgb, ${accent} 24%, transparent)`;
 
     document.documentElement.dataset.orangeTheme = config.theme || 'classic';
     document.documentElement.dataset.orangeEffect = effect;
@@ -156,13 +167,23 @@
     setVar('--orange-accent-2', accent2);
     setVar('--orange-bg', bg);
     setVar('--orange-panel', panel);
-    // A very small lift preserves the zinc-900 -> zinc-800 contrast of Classic
-    // without washing out darker presets.
-    setVar('--orange-panel-2', `color-mix(in srgb, ${panel} 94%, white)`);
+    setVar('--orange-panel-2', panel2);
     setVar('--orange-text', text);
     setVar('--orange-muted', muted);
     setVar('--orange-radius', `${radius}px`);
-    setVar('--orange-glow', `color-mix(in srgb, ${accent} 24%, transparent)`);
+    setVar('--orange-glow', glow);
+
+    cacheBootstrap(config.theme || 'classic', effect, motion, {
+      '--orange-accent': accent,
+      '--orange-accent-2': accent2,
+      '--orange-bg': bg,
+      '--orange-panel': panel,
+      '--orange-panel-2': panel2,
+      '--orange-text': text,
+      '--orange-muted': muted,
+      '--orange-radius': `${radius}px`,
+      '--orange-glow': glow,
+    });
 
     applyBranding(config, selected);
     replaceIcon('generate-btn', semanticIcon);
