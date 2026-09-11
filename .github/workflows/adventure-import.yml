@@ -1,5 +1,6 @@
 name: Import Adventure background
 
+# One-shot importer for the exact user-supplied SVG.
 on:
   push:
     branches:
