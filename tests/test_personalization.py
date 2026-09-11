@@ -101,10 +101,12 @@ class PersonalizationTests(unittest.TestCase):
                 personalization.clear_branding("logo")
                 self.assertIsNone(personalization.branding_path("logo"))
 
-    def test_all_preset_mascots_are_self_contained_valid_svg(self):
+    def test_all_preset_mascots_are_editable_valid_svg_files(self):
         for theme in ("classic", "cyber", "princess", "arcade", "adventure", "midnight"):
             for kind in ("full", "head"):
-                svg = personalization.render_theme_svg(theme, kind)
+                path = Path(personalization.theme_logo_path(theme, kind))
+                self.assertTrue(path.is_file())
+                svg = path.read_text(encoding="utf-8")
                 ET.fromstring(svg)
                 self.assertNotIn('href="../../', svg)
                 self.assertIn("<svg", svg)
@@ -125,15 +127,16 @@ class PersonalizationTests(unittest.TestCase):
             personalization.render_theme_svg("classic", "head"),
         )
 
-    def test_preset_manifest_uses_real_theme_asset_route(self):
+    def test_preset_manifest_uses_editable_static_theme_logos(self):
         root = Path(__file__).resolve().parents[1]
         presets = json.loads((root / "static" / "themes" / "presets.json").read_text(encoding="utf-8"))
         self.assertIn("adventure", presets)
         self.assertNotIn("botanical", presets)
         self.assertTrue((root / "static" / "theme-assets" / "adventure-topo.svg").is_file())
-        for preset in presets.values():
-            self.assertRegex(preset["mascot"], r"^/api/theme-assets/[a-z-]+/full\.svg$")
-            self.assertRegex(preset["head"], r"^/api/theme-assets/[a-z-]+/head\.svg$")
+        for preset_id, preset in presets.items():
+            expected_theme = "classic" if preset_id == "custom" else preset_id
+            self.assertEqual(preset["mascot"], f"/static/theme-assets/logos/{expected_theme}-full.svg")
+            self.assertEqual(preset["head"], f"/static/theme-assets/logos/{expected_theme}-head.svg")
 
     def test_theme_asset_routes_include_compatibility_alias(self):
         paths = {route.path for route in personalization_api.router.routes}
