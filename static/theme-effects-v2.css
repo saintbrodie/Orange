@@ -100,7 +100,6 @@ html[data-orange-effect="princess"] select {
   color: #43162f !important;
 }
 
-/* Amber/yellow diagnostics disappear on pink; use berry/plum semantics instead. */
 html[data-orange-effect="princess"] .text-amber-400,
 html[data-orange-effect="princess"] .text-amber-300,
 html[data-orange-effect="princess"] .text-yellow-400,
@@ -118,88 +117,87 @@ html[data-orange-effect="princess"] [class*="border-yellow-"] {
   border-color: rgba(122,33,76,.34) !important;
 }
 
-/* BOTANICAL — outdoors/topographic, using the supplied mountain palette with
-   flat rust-orange trail-marker highlights. */
-html[data-orange-effect="botanical"] .mesh-blob {
+/* ADVENTURE — source-derived topo vector from the supplied EPS, recolored into
+   Orange's outdoors palette with flat rust trail-marker highlights. */
+html[data-orange-effect="adventure"] .mesh-blob {
   opacity: 0 !important;
   filter: none !important;
 }
-html[data-orange-effect="botanical"] .orange-theme-mascot {
+html[data-orange-effect="adventure"] .orange-theme-mascot {
   filter: none !important;
 }
-html[data-orange-effect="botanical"] nav,
-html[data-orange-effect="botanical"] .max-w-6xl:not(#personalization-container),
-html[data-orange-effect="botanical"] #generate-btn,
-html[data-orange-effect="botanical"] #tool-tabs button,
-html[data-orange-effect="botanical"] button {
+html[data-orange-effect="adventure"] nav,
+html[data-orange-effect="adventure"] .max-w-6xl:not(#personalization-container),
+html[data-orange-effect="adventure"] #generate-btn,
+html[data-orange-effect="adventure"] #tool-tabs button,
+html[data-orange-effect="adventure"] button {
   box-shadow: none !important;
   text-shadow: none !important;
 }
-html[data-orange-effect="botanical"] nav,
-html[data-orange-effect="botanical"] .max-w-6xl:not(#personalization-container) {
+html[data-orange-effect="adventure"] nav,
+html[data-orange-effect="adventure"] .max-w-6xl:not(#personalization-container) {
   border-color: rgba(157,171,199,.24) !important;
 }
-html[data-orange-effect="botanical"] #generate-btn,
-html[data-orange-effect="botanical"] #personalization-preview .preview-button,
-html[data-orange-effect="botanical"] #personalization-save {
+html[data-orange-effect="adventure"] #generate-btn,
+html[data-orange-effect="adventure"] #personalization-preview .preview-button,
+html[data-orange-effect="adventure"] #personalization-save {
   background: #c57a3c !important;
   color: #fff7ef !important;
   border: 1px solid #d79a68 !important;
   transform: none !important;
   box-shadow: none !important;
 }
-html[data-orange-effect="botanical"] #generate-btn:hover,
-html[data-orange-effect="botanical"] #personalization-save:hover {
+html[data-orange-effect="adventure"] #generate-btn:hover,
+html[data-orange-effect="adventure"] #personalization-save:hover {
   background: #d18445 !important;
   border-color: #e0aa7d !important;
   box-shadow: none !important;
   transform: none !important;
 }
-html[data-orange-effect="botanical"] #tool-tabs button[class*="bg-orange-500/"] {
+html[data-orange-effect="adventure"] #tool-tabs button[class*="bg-orange-500/"] {
   background: #3f5056 !important;
   color: #fff2e8 !important;
   border-color: #c57a3c !important;
   box-shadow: none !important;
 }
-html[data-orange-effect="botanical"] input,
-html[data-orange-effect="botanical"] textarea,
-html[data-orange-effect="botanical"] select {
+html[data-orange-effect="adventure"] input,
+html[data-orange-effect="adventure"] textarea,
+html[data-orange-effect="adventure"] select {
   background-color: #223136 !important;
   color: #f4f5f2 !important;
   border-color: rgba(157,171,199,.34) !important;
 }
-html[data-orange-effect="botanical"] input::placeholder,
-html[data-orange-effect="botanical"] textarea::placeholder {
+html[data-orange-effect="adventure"] input::placeholder,
+html[data-orange-effect="adventure"] textarea::placeholder {
   color: #e0d5cf !important;
   opacity: 1 !important;
 }
-html[data-orange-effect="botanical"] #admin-menu .admin-tab.active,
-html[data-orange-effect="botanical"] .mobile-admin-drawer-item.active,
-html[data-orange-effect="botanical"] .mobile-tool-drawer-item.active {
+html[data-orange-effect="adventure"] #admin-menu .admin-tab.active,
+html[data-orange-effect="adventure"] .mobile-admin-drawer-item.active,
+html[data-orange-effect="adventure"] .mobile-tool-drawer-item.active {
   color: #ffd7b6 !important;
   border-color: #c57a3c !important;
   background: rgba(197,122,60,.15) !important;
   box-shadow: none !important;
 }
-html[data-orange-effect="botanical"] .text-orange-300,
-html[data-orange-effect="botanical"] .text-orange-400,
-html[data-orange-effect="botanical"] .text-orange-500,
-html[data-orange-effect="botanical"] .text-orange-600 {
+html[data-orange-effect="adventure"] .text-orange-300,
+html[data-orange-effect="adventure"] .text-orange-400,
+html[data-orange-effect="adventure"] .text-orange-500,
+html[data-orange-effect="adventure"] .text-orange-600 {
   color: #e49b60 !important;
 }
 
-/* Genuine contour families: each elevation set is nested and closed, so contour
-   lines never cross. Several smaller landforms keep the map scale believable. */
-html[data-orange-effect="botanical"] body::before {
+html[data-orange-effect="adventure"] body::before {
   inset: 0 !important;
-  opacity: .72 !important;
+  opacity: .56 !important;
   animation: none !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2400 1400'%3E%3Cg fill='none' stroke='%239dabc7' stroke-opacity='.30' stroke-width='2'%3E%3Cpath d='M70 170C125 84 244 62 338 112c91 48 111 147 49 218-63 71-180 83-269 31-91-53-107-132-48-191z'/%3E%3Cpath d='M112 178c45-61 133-78 202-42 67 35 83 108 37 161-47 54-135 63-201 25-69-39-82-96-38-144z'/%3E%3Cpath d='M158 186c34-39 94-50 143-26 46 23 57 72 26 108-33 37-94 42-140 17-48-27-56-64-29-99z'/%3E%3Cpath d='M195 193c24-21 62-27 92-12 28 14 35 43 15 65-21 23-59 26-88 11-30-17-34-39-19-64z'/%3E%3Cpath d='M920 130c83-72 215-69 293-3 75 63 62 168-26 221-89 53-220 38-289-35-69-73-59-132 22-183z'/%3E%3Cpath d='M963 151c62-48 154-45 210 2 54 46 45 120-18 158-65 38-157 27-207-25-50-53-43-94 15-135z'/%3E%3Cpath d='M1007 171c41-28 99-26 136 5 36 29 30 77-12 100-43 24-102 17-134-17-32-34-27-61 10-88z'/%3E%3Cpath d='M1780 96c79-54 183-39 233 30 48 65 20 153-61 191-83 39-183 9-220-62-38-72-18-118 48-159z'/%3E%3Cpath d='M1817 126c56-34 128-24 164 24 34 45 14 106-43 132-58 27-128 7-155-42-28-50-14-80 34-114z'/%3E%3Cpath d='M1854 151c34-19 77-13 98 15 20 26 8 62-26 77-35 16-77 4-93-24-17-30-9-47 21-68z'/%3E%3Cpath d='M420 610c76-69 196-76 282-19 83 55 90 154 16 221-75 69-198 78-286 23-89-56-94-150-12-225z'/%3E%3Cpath d='M460 633c57-49 143-53 204-13 60 39 65 110 12 158-55 49-143 55-207 16-64-40-68-106-9-161z'/%3E%3Cpath d='M505 654c37-30 93-33 133-7 39 25 42 71 7 102-36 31-93 35-135 10-42-26-44-68-5-105z'/%3E%3Cpath d='M1130 545c63-89 188-122 291-76 99 44 134 147 73 236-61 90-188 124-293 79-108-46-137-145-71-239z'/%3E%3Cpath d='M1172 575c49-65 139-88 213-55 72 32 97 106 53 170-45 66-137 90-213 58-78-34-99-105-53-173z'/%3E%3Cpath d='M1215 606c33-42 93-57 142-35 47 21 64 70 35 112-30 43-91 59-141 38-52-22-65-69-36-115z'/%3E%3Cpath d='M1865 590c74-63 186-62 254 0 66 59 56 154-23 204-80 51-191 38-249-28-59-67-53-120 18-176z'/%3E%3Cpath d='M1902 616c53-42 131-41 179 2 46 41 39 106-17 141-57 36-135 27-177-19-42-47-38-83 15-124z'/%3E%3Cpath d='M1940 641c33-24 81-23 111 3 28 25 24 65-11 86-36 22-84 16-109-12-26-29-23-51 9-77z'/%3E%3Cpath d='M160 1035c70-73 190-90 283-39 89 49 108 149 43 226-66 79-188 97-282 44-96-54-111-147-44-231z'/%3E%3Cpath d='M201 1058c51-51 138-63 204-27 64 35 77 106 31 161-47 56-135 69-203 31-70-38-80-104-32-165z'/%3E%3Cpath d='M245 1081c33-31 89-38 132-15 41 22 50 68 20 103-31 36-88 45-132 20-45-25-52-66-20-108z'/%3E%3Cpath d='M885 1010c82-61 197-54 264 15 64 66 46 163-40 210-88 48-202 25-257-51-56-77-43-125 33-174z'/%3E%3Cpath d='M927 1038c59-41 140-36 187 12 45 46 33 113-28 146-63 34-145 18-184-35-39-54-30-86 25-123z'/%3E%3Cpath d='M971 1066c37-24 87-20 116 9 28 28 20 70-18 90-39 21-89 11-113-22-25-34-19-53 15-77z'/%3E%3Cpath d='M1610 1000c63-81 178-108 268-62 87 45 114 139 58 217-57 79-174 107-266 64-94-44-116-136-60-219z'/%3E%3Cpath d='M1651 1027c46-57 128-75 192-43 62 32 81 98 41 153-41 56-125 76-190 46-67-31-82-95-43-156z'/%3E%3Cpath d='M1692 1055c29-35 80-46 120-26 38 19 50 61 25 95-26 35-78 48-119 29-42-19-51-59-26-98z'/%3E%3C/g%3E%3Cpath d='M-40 470c170-55 315 7 441 89 134 88 269 101 413 29 151-75 268-52 388 46 120 99 267 117 435 43 175-77 326-56 454 41 104 79 224 100 349 65' fill='none' stroke='%23c57a3c' stroke-opacity='.58' stroke-width='4' stroke-dasharray='18 22'/%3E%3Cpath d='M420 1280c106-83 227-105 353-62 128 44 244 24 342-61 103-90 224-111 364-65 137 45 260 26 369-58' fill='none' stroke='%23c57a3c' stroke-opacity='.42' stroke-width='3' stroke-dasharray='12 18'/%3E%3C/svg%3E") !important;
+  background-image: url('/static/theme-assets/adventure-topo.svg') !important;
   background-repeat: no-repeat !important;
   background-position: center center !important;
   background-size: cover !important;
+  transform: none !important;
 }
-html[data-orange-effect="botanical"] body::after {
+html[data-orange-effect="adventure"] body::after {
   opacity: 0 !important;
   background: none !important;
   animation: none !important;
@@ -225,7 +223,7 @@ html[data-orange-effect="midnight"] #personalization-preview .preview-button {
   border: 1px solid rgba(214,183,107,.48) !important;
 }
 
-/* ARCADE — the full 80s scene is canvas-driven now: synth sun, skyline and perspective floor. */
+/* ARCADE — synth sun, skyline and perspective floor are canvas-driven. */
 html[data-orange-effect="arcade"] .mesh-blob {
   opacity: .035 !important;
   filter: blur(150px) !important;
