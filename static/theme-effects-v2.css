@@ -117,8 +117,8 @@ html[data-orange-effect="princess"] [class*="border-yellow-"] {
   border-color: rgba(122,33,76,.34) !important;
 }
 
-/* ADVENTURE — source-derived topo vector from the supplied EPS, recolored into
-   Orange's outdoors palette with flat rust trail-marker highlights. */
+/* ADVENTURE — supplied topo pattern recolored into Orange's outdoors palette,
+   with the dotted trail lines preserved as flat rust-orange accents. */
 html[data-orange-effect="adventure"] .mesh-blob {
   opacity: 0 !important;
   filter: none !important;
@@ -187,16 +187,16 @@ html[data-orange-effect="adventure"] .text-orange-600 {
   color: #e49b60 !important;
 }
 
-/* The supplied EPS is a seamless topo pattern. Tile it substantially smaller
-   than the previous cover treatment so it reads like a map, not giant curves. */
+/* One source-derived tile only. The artwork is baked into a single 520x508
+   asset so the browser no longer stacks independently-scaled SVG layers. */
 html[data-orange-effect="adventure"] body::before {
   inset: 0 !important;
   opacity: .42 !important;
   animation: none !important;
   background-image: url('/static/theme-assets/adventure-topo.svg') !important;
   background-repeat: repeat !important;
-  background-position: center center !important;
-  background-size: 640px auto !important;
+  background-position: 0 0 !important;
+  background-size: 520px 508px !important;
   transform: none !important;
 }
 html[data-orange-effect="adventure"] body::after {
