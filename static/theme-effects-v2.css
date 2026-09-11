@@ -19,6 +19,10 @@ html[data-orange-effect="arcade"] #orange-theme-fx-canvas {
   opacity: 1;
 }
 
+html[data-orange-effect="cyber"] #orange-theme-fx-canvas {
+  opacity: .72;
+}
+
 /* Canvas themes should not also show the old tiled pseudo-effects. */
 html[data-orange-effect="cyber"] body::before,
 html[data-orange-effect="cyber"] body::after,
@@ -34,18 +38,47 @@ html[data-orange-effect="arcade"] body::after {
   transform: none !important;
 }
 
-/* CYBER — Matrix rain is canvas-driven; the shell stays black/green only. */
+/* CYBER — old-school monochrome CRT terminal rather than neon nightclub. */
 html[data-orange-effect="cyber"] .mesh-blob {
-  opacity: .025 !important;
-  filter: blur(170px) !important;
-}
-html[data-orange-effect="cyber"] .mesh-1,
-html[data-orange-effect="cyber"] .mesh-2,
-html[data-orange-effect="cyber"] .mesh-3 {
-  background: radial-gradient(circle, rgba(57,255,136,.18), transparent 72%) !important;
+  opacity: 0 !important;
+  filter: none !important;
 }
 html[data-orange-effect="cyber"] .orange-theme-mascot {
-  filter: drop-shadow(0 0 7px rgba(57,255,136,.16));
+  filter: none !important;
+}
+html[data-orange-effect="cyber"] nav,
+html[data-orange-effect="cyber"] .max-w-6xl:not(#personalization-container) {
+  box-shadow: none !important;
+  border-color: rgba(125,255,143,.16) !important;
+}
+html[data-orange-effect="cyber"] #generate-btn,
+html[data-orange-effect="cyber"] #personalization-preview .preview-button {
+  background: #071009 !important;
+  color: #b9efc0 !important;
+  border: 1px solid #2f6f3d !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  transform: none !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .02em;
+}
+html[data-orange-effect="cyber"] #generate-btn:hover {
+  background: #0a160d !important;
+  color: #d8f7dc !important;
+  border-color: #438a52 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html[data-orange-effect="cyber"] #tool-tabs button,
+html[data-orange-effect="cyber"] #aspect-ratios button,
+html[data-orange-effect="cyber"] #queue-status {
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+html[data-orange-effect="cyber"] #tool-tabs button[class*="bg-orange-500/"] {
+  background: #0a150c !important;
+  border-color: #356941 !important;
+  color: #aeeab8 !important;
 }
 
 /* PRINCESS — softer dusty pinks with high-contrast berry warning states. */
@@ -85,7 +118,7 @@ html[data-orange-effect="princess"] [class*="border-yellow-"] {
   border-color: rgba(122,33,76,.34) !important;
 }
 
-/* BOTANICAL — flat, calm, all-green. No orange and no glow. */
+/* BOTANICAL — now an adventure/topographic theme based on the supplied mountain palette. */
 html[data-orange-effect="botanical"] .mesh-blob {
   opacity: 0 !important;
   filter: none !important;
@@ -101,44 +134,50 @@ html[data-orange-effect="botanical"] button {
   box-shadow: none !important;
   text-shadow: none !important;
 }
-html[data-orange-effect="botanical"] #generate-btn {
-  background: #315d3b !important;
-  color: #edf5ee !important;
-  border: 1px solid #456f50 !important;
+html[data-orange-effect="botanical"] nav,
+html[data-orange-effect="botanical"] .max-w-6xl:not(#personalization-container) {
+  border-color: rgba(157,171,199,.24) !important;
+}
+html[data-orange-effect="botanical"] #generate-btn,
+html[data-orange-effect="botanical"] #personalization-preview .preview-button {
+  background: #647c7c !important;
+  color: #f4f2ed !important;
+  border: 1px solid #9dabc7 !important;
   transform: none !important;
+  box-shadow: none !important;
 }
 html[data-orange-effect="botanical"] #generate-btn:hover {
-  background: #3b6846 !important;
+  background: #708989 !important;
+  border-color: #b8c1d1 !important;
   box-shadow: none !important;
   transform: none !important;
 }
-html[data-orange-effect="botanical"] #personalization-preview .preview-button {
-  background: #315d3b !important;
-  color: #edf5ee !important;
-  border: 1px solid #456f50 !important;
+html[data-orange-effect="botanical"] #tool-tabs button[class*="bg-orange-500/"] {
+  background: #44575d !important;
+  color: #f0ece7 !important;
+  border-color: #829397 !important;
   box-shadow: none !important;
 }
 
-/* Actual tree silhouettes rather than the old mountain-like zigzags. The
-   620px scene deliberately reaches much higher behind the application shell. */
+/* Repeating contour-map artwork: cool map lines dominate, while the rust line is
+   used sparingly like a marked trail rather than as a glow/accent wash. */
 html[data-orange-effect="botanical"] body::before {
   inset: 0 !important;
-  opacity: .88 !important;
+  opacity: .62 !important;
   animation: none !important;
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 620'%3E%3Cdefs%3E%3Cg id='far'%3E%3Crect x='49' y='245' width='18' height='300' rx='8'/%3E%3Ccircle cx='58' cy='210' r='72'/%3E%3Ccircle cx='12' cy='255' r='53'/%3E%3Ccircle cx='108' cy='252' r='58'/%3E%3Ccircle cx='66' cy='148' r='49'/%3E%3C/g%3E%3Cg id='near'%3E%3Crect x='62' y='205' width='25' height='365' rx='9'/%3E%3Ccircle cx='74' cy='172' r='92'/%3E%3Ccircle cx='17' cy='236' r='68'/%3E%3Ccircle cx='135' cy='232' r='73'/%3E%3Ccircle cx='82' cy='92' r='59'/%3E%3Ccircle cx='35' cy='142' r='54'/%3E%3Ccircle cx='128' cy='139' r='53'/%3E%3C/g%3E%3C/defs%3E%3Cg fill='%23294a31' fill-opacity='.72'%3E%3Cuse href='%23far' x='-25' y='70'/%3E%3Cuse href='%23far' x='135' y='15' transform='scale(.92)'/%3E%3Cuse href='%23far' x='310' y='62' transform='scale(1.08)'/%3E%3Cuse href='%23far' x='505' y='5' transform='scale(.86)'/%3E%3Cuse href='%23far' x='675' y='55' transform='scale(1.02)'/%3E%3Cuse href='%23far' x='860' y='18' transform='scale(.92)'/%3E%3Cuse href='%23far' x='1030' y='75' transform='scale(1.06)'/%3E%3C/g%3E%3Cg fill='%2314291a' fill-opacity='.94'%3E%3Cuse href='%23near' x='-65' y='95' transform='scale(.92)'/%3E%3Cuse href='%23near' x='205' y='54' transform='scale(1.03)'/%3E%3Cuse href='%23near' x='515' y='88' transform='scale(.9)'/%3E%3Cuse href='%23near' x='795' y='35' transform='scale(1.04)'/%3E%3Cuse href='%23near' x='1080' y='92' transform='scale(.9)'/%3E%3C/g%3E%3Crect y='535' width='1200' height='85' fill='%230b1d10'/%3E%3C/svg%3E");
-  background-repeat: repeat-x;
-  background-position: center bottom;
-  background-size: 1200px 620px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='760' height='520' viewBox='0 0 760 520'%3E%3Cg fill='none' stroke='%239dabc7' stroke-opacity='.26' stroke-width='1.4'%3E%3Cpath d='M-36 112C66 26 172 42 218 126s139 100 212 23 192-74 366 3'/%3E%3Cpath d='M-42 143C46 65 154 72 198 147s137 103 218 31 202-70 390 4'/%3E%3Cpath d='M-31 178c74-63 163-54 206 12s128 100 214 46 214-54 412 17'/%3E%3Cpath d='M44 322c58-83 150-109 232-72s120 142 222 132 140-104 271-86'/%3E%3Cpath d='M17 356c71-91 171-116 264-75s118 136 215 128 150-105 286-79'/%3E%3Cpath d='M-8 392c82-94 189-118 292-76s118 126 213 120 158-99 300-72'/%3E%3C/g%3E%3Cg fill='none' stroke='%23647c7c' stroke-opacity='.34' stroke-width='1'%3E%3Cellipse cx='575' cy='105' rx='92' ry='54'/%3E%3Cellipse cx='575' cy='105' rx='69' ry='39'/%3E%3Cellipse cx='575' cy='105' rx='45' ry='25'/%3E%3Cellipse cx='155' cy='430' rx='118' ry='68'/%3E%3Cellipse cx='155' cy='430' rx='91' ry='51'/%3E%3Cellipse cx='155' cy='430' rx='62' ry='34'/%3E%3C/g%3E%3Cpath d='M-20 254c114-39 163 41 267 17s174-102 279-60 139 31 255-3' fill='none' stroke='%23c57a3c' stroke-opacity='.38' stroke-width='2.1' stroke-dasharray='9 11'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-position: center;
+  background-size: 760px 520px;
 }
 html[data-orange-effect="botanical"] body::after {
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  height: 18vh !important;
-  opacity: .5 !important;
+  inset: 0 !important;
+  opacity: .28 !important;
   animation: none !important;
-  background: rgba(5,13,7,.58) !important;
+  background-image:
+    linear-gradient(rgba(184,166,160,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(184,166,160,.025) 1px, transparent 1px) !important;
+  background-size: 32px 32px !important;
   transform: none !important;
 }
 
