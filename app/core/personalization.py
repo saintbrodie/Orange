@@ -209,18 +209,18 @@ def _decoration(theme: str, kind: str) -> str:
             '</g>'
         )
     if theme == "adventure":
-        # Keep Adventure simple too: recolored Orange with a clean trail cap only.
+        # Back to the original lightweight outdoors cue: one small leaf only.
         if head:
             return (
                 '<g>'
-                '<path d="M142 121c36-31 104-40 154-9l-5 31c-45-15-96-13-147 6z" fill="#c57a3c" stroke="#394b50" stroke-width="5" stroke-linejoin="round"/>'
-                '<path d="M205 138c52-5 103 3 143 24-42 10-91 12-142 6z" fill="#d8955e" stroke="#394b50" stroke-width="4"/>'
+                '<path d="M298 102c19-21 43-23 57-7-8 24-30 35-57 25 12-5 24-10 38-18-16 4-28 4-38 0z" fill="#c57a3c" stroke="#394b50" stroke-width="4" stroke-linejoin="round"/>'
+                '<path d="M300 122c14-12 26-20 39-27" fill="none" stroke="#394b50" stroke-width="4" stroke-linecap="round"/>'
                 '</g>'
             )
         return (
             '<g>'
-            '<path d="M313 117c46-41 133-53 198-13l-7 40c-59-19-124-17-190 8z" fill="#c57a3c" stroke="#394b50" stroke-width="7" stroke-linejoin="round"/>'
-            '<path d="M396 139c68-6 134 5 185 31-54 13-117 16-184 8z" fill="#d8955e" stroke="#394b50" stroke-width="6"/>'
+            '<path d="M514 83c25-28 57-31 76-9-11 32-40 47-76 33 16-7 32-14 50-24-21 5-38 5-50 0z" fill="#c57a3c" stroke="#394b50" stroke-width="6" stroke-linejoin="round"/>'
+            '<path d="M517 110c19-16 35-27 53-36" fill="none" stroke="#394b50" stroke-width="6" stroke-linecap="round"/>'
             '</g>'
         )
     if theme == "midnight":
