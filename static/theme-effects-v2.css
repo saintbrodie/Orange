@@ -187,14 +187,16 @@ html[data-orange-effect="adventure"] .text-orange-600 {
   color: #e49b60 !important;
 }
 
+/* The supplied EPS is a seamless topo pattern. Tile it substantially smaller
+   than the previous cover treatment so it reads like a map, not giant curves. */
 html[data-orange-effect="adventure"] body::before {
   inset: 0 !important;
-  opacity: .56 !important;
+  opacity: .42 !important;
   animation: none !important;
   background-image: url('/static/theme-assets/adventure-topo.svg') !important;
-  background-repeat: no-repeat !important;
+  background-repeat: repeat !important;
   background-position: center center !important;
-  background-size: cover !important;
+  background-size: 640px auto !important;
   transform: none !important;
 }
 html[data-orange-effect="adventure"] body::after {
