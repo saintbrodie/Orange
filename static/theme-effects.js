@@ -11,7 +11,6 @@
   let dpr = 1;
   let width = 0;
   let height = 0;
-  let terminalRows = [];
   let stars = [];
   let sparkles = [];
 
@@ -29,28 +28,6 @@
     canvas.style.height = `${height}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     seedForEffect(activeEffect);
-  }
-
-  function randomTerminalText() {
-    const groups = [];
-    const count = 3 + Math.floor(Math.random() * 4);
-    for (let i = 0; i < count; i++) {
-      const value = Math.floor(Math.random() * 0xffff).toString(16).toUpperCase().padStart(4, '0');
-      groups.push(value);
-    }
-    return groups.join('  ');
-  }
-
-  function seedTerminal() {
-    const count = Math.max(7, Math.min(14, Math.round(height / 80)));
-    terminalRows = Array.from({ length: count }, (_, i) => ({
-      x: 18 + Math.random() * Math.max(1, width - 380),
-      y: 36 + i * Math.max(42, (height - 72) / count),
-      text: randomTerminalText(),
-      phase: Math.random() * Math.PI * 2,
-      speed: .18 + Math.random() * .25,
-      bright: Math.random() < .2,
-    }));
   }
 
   function seedStars() {
@@ -82,45 +59,40 @@
   function seedForEffect(effect) {
     if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
-    if (effect === 'cyber') seedTerminal();
     if (effect === 'midnight') seedStars();
     if (effect === 'princess') seedSparkles();
   }
 
   function drawTerminal(time) {
-    // Clear every frame. Nothing accumulates, so switching/resizing cannot leave
-    // the vertical green trails the old Matrix implementation produced.
+    // A clean CRT surface: scanlines + vignette only. No random wall of text.
     ctx.clearRect(0, 0, width, height);
 
-    // CRT scanlines: restrained and fixed rather than animated wallpaper.
-    ctx.fillStyle = 'rgba(125,255,143,.026)';
+    ctx.fillStyle = 'rgba(125,255,143,.025)';
     for (let y = 1; y < height; y += 4) ctx.fillRect(0, y, width, 1);
 
-    // Soft edge vignette makes the canvas feel like a phosphor display without glow.
-    const vignette = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * .18, width / 2, height / 2, Math.max(width, height) * .72);
+    const vignette = ctx.createRadialGradient(
+      width / 2,
+      height / 2,
+      Math.min(width, height) * .18,
+      width / 2,
+      height / 2,
+      Math.max(width, height) * .72
+    );
     vignette.addColorStop(0, 'rgba(0,0,0,0)');
-    vignette.addColorStop(1, 'rgba(0,0,0,.28)');
+    vignette.addColorStop(1, 'rgba(0,0,0,.30)');
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, width, height);
 
-    ctx.font = '12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+    // Tiny Orange easter egg instead of terminal wallpaper.
+    const blink = Math.floor(time * 1.1) % 2 === 0;
+    ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
     ctx.textBaseline = 'middle';
-    ctx.textAlign = 'left';
-    for (const row of terminalRows) {
-      const flicker = .5 + .5 * Math.sin(time * row.speed + row.phase);
-      const alpha = row.bright ? .22 + flicker * .14 : .08 + flicker * .08;
-      ctx.fillStyle = `rgba(125,255,143,${alpha})`;
-      ctx.fillText(row.text, row.x, row.y);
-    }
-
-    // Small terminal status line and blinking cursor.
-    const blink = Math.floor(time * 1.35) % 2 === 0;
-    ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-    ctx.fillStyle = 'rgba(125,255,143,.24)';
-    ctx.fillText('SYS  READY   LINK  OK', 18, Math.max(22, height - 26));
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(197,122,60,.16)';
+    ctx.fillText('ORANGE // SYS READY', Math.max(120, width - 18), Math.max(18, height - 22));
     if (blink) {
-      ctx.fillStyle = 'rgba(125,255,143,.55)';
-      ctx.fillRect(164, Math.max(15, height - 33), 7, 11);
+      ctx.fillStyle = 'rgba(125,255,143,.38)';
+      ctx.fillRect(Math.max(18, width - 13), Math.max(12, height - 28), 3, 10);
     }
   }
 
@@ -251,7 +223,7 @@
 
   function frame(ts) {
     if (!activeEffect || !ctx) return;
-    const fps = activeEffect === 'cyber' ? 12 : 18;
+    const fps = activeEffect === 'cyber' ? 10 : 18;
     const interval = 1000 / fps;
     if (ts - lastFrame >= interval) {
       lastFrame = ts;
