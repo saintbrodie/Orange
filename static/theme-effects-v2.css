@@ -118,7 +118,8 @@ html[data-orange-effect="princess"] [class*="border-yellow-"] {
   border-color: rgba(122,33,76,.34) !important;
 }
 
-/* BOTANICAL — now an adventure/topographic theme based on the supplied mountain palette. */
+/* BOTANICAL — outdoors/topographic, using the supplied mountain palette with
+   rust-orange as a trail-marker highlight instead of a gradient. */
 html[data-orange-effect="botanical"] .mesh-blob {
   opacity: 0 !important;
   filter: none !important;
@@ -140,44 +141,60 @@ html[data-orange-effect="botanical"] .max-w-6xl:not(#personalization-container) 
 }
 html[data-orange-effect="botanical"] #generate-btn,
 html[data-orange-effect="botanical"] #personalization-preview .preview-button {
-  background: #647c7c !important;
-  color: #f4f2ed !important;
-  border: 1px solid #9dabc7 !important;
+  background: #c57a3c !important;
+  color: #fff7ef !important;
+  border: 1px solid #d79a68 !important;
   transform: none !important;
   box-shadow: none !important;
 }
 html[data-orange-effect="botanical"] #generate-btn:hover {
-  background: #708989 !important;
-  border-color: #b8c1d1 !important;
+  background: #d18445 !important;
+  border-color: #e0aa7d !important;
   box-shadow: none !important;
   transform: none !important;
 }
 html[data-orange-effect="botanical"] #tool-tabs button[class*="bg-orange-500/"] {
-  background: #44575d !important;
-  color: #f0ece7 !important;
-  border-color: #829397 !important;
+  background: #3f5056 !important;
+  color: #f4eee8 !important;
+  border-color: #c57a3c !important;
+  box-shadow: none !important;
+}
+html[data-orange-effect="botanical"] input,
+html[data-orange-effect="botanical"] textarea,
+html[data-orange-effect="botanical"] select {
+  background-color: #223136 !important;
+  color: #eef1ef !important;
+  border-color: rgba(157,171,199,.34) !important;
+}
+html[data-orange-effect="botanical"] input::placeholder,
+html[data-orange-effect="botanical"] textarea::placeholder {
+  color: #c7b8b0 !important;
+  opacity: .82 !important;
+}
+html[data-orange-effect="botanical"] #admin-menu .admin-tab.active,
+html[data-orange-effect="botanical"] .mobile-admin-drawer-item.active,
+html[data-orange-effect="botanical"] .mobile-tool-drawer-item.active {
+  color: #f3c39c !important;
+  border-color: #c57a3c !important;
+  background: rgba(197,122,60,.12) !important;
   box-shadow: none !important;
 }
 
-/* Repeating contour-map artwork: cool map lines dominate, while the rust line is
-   used sparingly like a marked trail rather than as a glow/accent wash. */
+/* One large contour field instead of a repeating tile. The oversized artwork is
+   intentionally cropped by the viewport, so no seam is ever visible. */
 html[data-orange-effect="botanical"] body::before {
   inset: 0 !important;
-  opacity: .62 !important;
+  opacity: .64 !important;
   animation: none !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='760' height='520' viewBox='0 0 760 520'%3E%3Cg fill='none' stroke='%239dabc7' stroke-opacity='.26' stroke-width='1.4'%3E%3Cpath d='M-36 112C66 26 172 42 218 126s139 100 212 23 192-74 366 3'/%3E%3Cpath d='M-42 143C46 65 154 72 198 147s137 103 218 31 202-70 390 4'/%3E%3Cpath d='M-31 178c74-63 163-54 206 12s128 100 214 46 214-54 412 17'/%3E%3Cpath d='M44 322c58-83 150-109 232-72s120 142 222 132 140-104 271-86'/%3E%3Cpath d='M17 356c71-91 171-116 264-75s118 136 215 128 150-105 286-79'/%3E%3Cpath d='M-8 392c82-94 189-118 292-76s118 126 213 120 158-99 300-72'/%3E%3C/g%3E%3Cg fill='none' stroke='%23647c7c' stroke-opacity='.34' stroke-width='1'%3E%3Cellipse cx='575' cy='105' rx='92' ry='54'/%3E%3Cellipse cx='575' cy='105' rx='69' ry='39'/%3E%3Cellipse cx='575' cy='105' rx='45' ry='25'/%3E%3Cellipse cx='155' cy='430' rx='118' ry='68'/%3E%3Cellipse cx='155' cy='430' rx='91' ry='51'/%3E%3Cellipse cx='155' cy='430' rx='62' ry='34'/%3E%3C/g%3E%3Cpath d='M-20 254c114-39 163 41 267 17s174-102 279-60 139 31 255-3' fill='none' stroke='%23c57a3c' stroke-opacity='.38' stroke-width='2.1' stroke-dasharray='9 11'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-position: center;
-  background-size: 760px 520px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 1000'%3E%3Cg fill='none' stroke='%239dabc7' stroke-opacity='.28' stroke-width='2'%3E%3Cpath d='M-90 160C90 15 300 26 390 180s280 189 420 42 360-153 610-12 310 107 420 18'/%3E%3Cpath d='M-110 216C78 75 278 85 366 224s274 180 420 50 367-143 626-8 324 105 438 15'/%3E%3Cpath d='M-92 278c170-118 348-104 432 22s258 167 412 66 378-116 640 10 330 102 448 29'/%3E%3Cpath d='M-84 732c185-150 410-177 570-79s210 248 406 194 294-243 514-188 330 191 482 134'/%3E%3Cpath d='M-110 802c214-164 455-186 625-78s215 240 410 198 306-232 540-169 335 187 463 142'/%3E%3C/g%3E%3Cg fill='none' stroke='%23647c7c' stroke-opacity='.42' stroke-width='1.6'%3E%3Cellipse cx='1215' cy='225' rx='210' ry='122' transform='rotate(-11 1215 225)'/%3E%3Cellipse cx='1215' cy='225' rx='165' ry='94' transform='rotate(-11 1215 225)'/%3E%3Cellipse cx='1215' cy='225' rx='119' ry='66' transform='rotate(-11 1215 225)'/%3E%3Cellipse cx='1215' cy='225' rx='75' ry='41' transform='rotate(-11 1215 225)'/%3E%3Cellipse cx='330' cy='720' rx='255' ry='142' transform='rotate(9 330 720)'/%3E%3Cellipse cx='330' cy='720' rx='205' ry='112' transform='rotate(9 330 720)'/%3E%3Cellipse cx='330' cy='720' rx='151' ry='81' transform='rotate(9 330 720)'/%3E%3Cellipse cx='330' cy='720' rx='98' ry='52' transform='rotate(9 330 720)'/%3E%3C/g%3E%3Cpath d='M-50 522c205-72 297 75 484 19s318-198 498-120 248 69 398 5 224-85 336-25' fill='none' stroke='%23c57a3c' stroke-opacity='.54' stroke-width='3' stroke-dasharray='14 18'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-size: cover !important;
 }
 html[data-orange-effect="botanical"] body::after {
-  inset: 0 !important;
-  opacity: .28 !important;
+  opacity: 0 !important;
+  background: none !important;
   animation: none !important;
-  background-image:
-    linear-gradient(rgba(184,166,160,.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(184,166,160,.025) 1px, transparent 1px) !important;
-  background-size: 32px 32px !important;
   transform: none !important;
 }
 
