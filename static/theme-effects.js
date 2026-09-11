@@ -11,11 +11,9 @@
   let dpr = 1;
   let width = 0;
   let height = 0;
-  let matrixColumns = [];
+  let terminalRows = [];
   let stars = [];
   let sparkles = [];
-
-  const MATRIX_GLYPHS = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾗﾘﾙﾚﾛ0123456789+-<>[]{}';
 
   function prefersReducedMotion() {
     return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.orangeMotion === 'reduced';
@@ -33,21 +31,25 @@
     seedForEffect(activeEffect);
   }
 
-  function randomGlyph() {
-    return MATRIX_GLYPHS[Math.floor(Math.random() * MATRIX_GLYPHS.length)];
+  function randomTerminalText() {
+    const groups = [];
+    const count = 3 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < count; i++) {
+      const value = Math.floor(Math.random() * 0xffff).toString(16).toUpperCase().padStart(4, '0');
+      groups.push(value);
+    }
+    return groups.join('  ');
   }
 
-  function seedMatrix() {
-    // Wider spacing + larger type keeps the rain legible instead of becoming texture.
-    const spacing = 31;
-    const count = Math.ceil(width / spacing);
-    matrixColumns = Array.from({ length: count }, (_, i) => ({
-      x: i * spacing + 8 + Math.random() * 10,
-      y: -Math.random() * height,
-      speed: 24 + Math.random() * 34,
-      length: 7 + Math.floor(Math.random() * 9),
-      glyphs: Array.from({ length: 20 }, randomGlyph),
-      mutation: Math.random() * 1000,
+  function seedTerminal() {
+    const count = Math.max(7, Math.min(14, Math.round(height / 80)));
+    terminalRows = Array.from({ length: count }, (_, i) => ({
+      x: 18 + Math.random() * Math.max(1, width - 380),
+      y: 36 + i * Math.max(42, (height - 72) / count),
+      text: randomTerminalText(),
+      phase: Math.random() * Math.PI * 2,
+      speed: .18 + Math.random() * .25,
+      bright: Math.random() < .2,
     }));
   }
 
@@ -65,7 +67,6 @@
   }
 
   function seedSparkles() {
-    // Sparse and slow: individual twinkles, not a repeating wallpaper pattern.
     const count = Math.max(8, Math.min(16, Math.round((width * height) / 100000)));
     sparkles = Array.from({ length: count }, () => ({
       x: 30 + Math.random() * Math.max(1, width - 60),
@@ -79,52 +80,47 @@
   }
 
   function seedForEffect(effect) {
-    if (!ctx || !effect) return;
+    if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
-    if (effect === 'cyber') seedMatrix();
+    if (effect === 'cyber') seedTerminal();
     if (effect === 'midnight') seedStars();
     if (effect === 'princess') seedSparkles();
   }
 
-  function drawMatrix(dt) {
-    // Faster fade leaves crisp glyphs without a smeared green curtain.
-    ctx.fillStyle = 'rgba(1, 6, 3, 0.18)';
+  function drawTerminal(time) {
+    // Clear every frame. Nothing accumulates, so switching/resizing cannot leave
+    // the vertical green trails the old Matrix implementation produced.
+    ctx.clearRect(0, 0, width, height);
+
+    // CRT scanlines: restrained and fixed rather than animated wallpaper.
+    ctx.fillStyle = 'rgba(125,255,143,.026)';
+    for (let y = 1; y < height; y += 4) ctx.fillRect(0, y, width, 1);
+
+    // Soft edge vignette makes the canvas feel like a phosphor display without glow.
+    const vignette = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * .18, width / 2, height / 2, Math.max(width, height) * .72);
+    vignette.addColorStop(0, 'rgba(0,0,0,0)');
+    vignette.addColorStop(1, 'rgba(0,0,0,.28)');
+    ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, width, height);
-    ctx.font = '16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-    ctx.textAlign = 'center';
+
+    ctx.font = '12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
     ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    for (const row of terminalRows) {
+      const flicker = .5 + .5 * Math.sin(time * row.speed + row.phase);
+      const alpha = row.bright ? .22 + flicker * .14 : .08 + flicker * .08;
+      ctx.fillStyle = `rgba(125,255,143,${alpha})`;
+      ctx.fillText(row.text, row.x, row.y);
+    }
 
-    for (const col of matrixColumns) {
-      col.y += col.speed * dt;
-      col.mutation += dt * 1000;
-      if (col.mutation > 150) {
-        col.mutation = 0;
-        const index = Math.floor(Math.random() * col.glyphs.length);
-        col.glyphs[index] = randomGlyph();
-      }
-
-      for (let i = 0; i < col.length; i++) {
-        const y = col.y - i * 22;
-        if (y < -28 || y > height + 28) continue;
-        const fade = 1 - i / col.length;
-        if (i === 0) {
-          ctx.shadowBlur = 8;
-          ctx.shadowColor = 'rgba(198,255,216,.9)';
-          ctx.fillStyle = 'rgba(228,255,236,.98)';
-        } else {
-          ctx.shadowBlur = i < 3 ? 4 : 0;
-          ctx.shadowColor = 'rgba(57,255,136,.62)';
-          ctx.fillStyle = `rgba(57,255,136,${Math.max(.06, fade * .64)})`;
-        }
-        ctx.fillText(col.glyphs[i % col.glyphs.length], col.x, y);
-      }
-      ctx.shadowBlur = 0;
-
-      if (col.y - col.length * 22 > height + 50) {
-        col.y = -50 - Math.random() * height * .7;
-        col.speed = 24 + Math.random() * 34;
-        col.length = 7 + Math.floor(Math.random() * 9);
-      }
+    // Small terminal status line and blinking cursor.
+    const blink = Math.floor(time * 1.35) % 2 === 0;
+    ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+    ctx.fillStyle = 'rgba(125,255,143,.24)';
+    ctx.fillText('SYS  READY   LINK  OK', 18, Math.max(22, height - 26));
+    if (blink) {
+      ctx.fillStyle = 'rgba(125,255,143,.55)';
+      ctx.fillRect(164, Math.max(15, height - 33), 7, 11);
     }
   }
 
@@ -184,7 +180,6 @@
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, width, height);
 
-    // Large striped synth sun gives the theme an immediate 80s read.
     const sunX = width * .5;
     const sunY = horizon - Math.min(80, height * .08);
     const sunR = Math.max(70, Math.min(145, width * .085));
@@ -204,7 +199,6 @@
     }
     ctx.restore();
 
-    // Blocky cabinet-era skyline.
     ctx.fillStyle = '#07000f';
     const block = Math.max(34, width / 28);
     for (let x = 0, i = 0; x < width + block; x += block, i++) {
@@ -219,7 +213,6 @@
       ctx.fillStyle = '#07000f';
     }
 
-    // Bright horizon line.
     ctx.shadowBlur = 14;
     ctx.shadowColor = 'rgba(255,60,172,.65)';
     ctx.strokeStyle = 'rgba(255,60,172,.9)';
@@ -230,7 +223,6 @@
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // Perspective floor: fixed geometry with a subtle forward scroll.
     const centerX = width / 2;
     const floorBottom = height + 30;
     ctx.lineWidth = 1.4;
@@ -259,13 +251,12 @@
 
   function frame(ts) {
     if (!activeEffect || !ctx) return;
-    const fps = activeEffect === 'cyber' ? 24 : 18;
+    const fps = activeEffect === 'cyber' ? 12 : 18;
     const interval = 1000 / fps;
     if (ts - lastFrame >= interval) {
-      const dt = Math.min(.08, Math.max(.001, (ts - lastFrame) / 1000 || .016));
       lastFrame = ts;
       const t = ts / 1000;
-      if (activeEffect === 'cyber') drawMatrix(dt);
+      if (activeEffect === 'cyber') drawTerminal(t);
       else if (activeEffect === 'midnight') drawStars(t);
       else if (activeEffect === 'princess') drawSparkles(t);
       else if (activeEffect === 'arcade') drawArcade(t);
@@ -286,10 +277,10 @@
     if (!activeEffect) return;
     seedForEffect(activeEffect);
     if (prefersReducedMotion()) {
-      if (activeEffect === 'midnight') drawStars(0);
+      if (activeEffect === 'cyber') drawTerminal(0);
+      else if (activeEffect === 'midnight') drawStars(0);
       else if (activeEffect === 'princess') drawSparkles(2.4);
       else if (activeEffect === 'arcade') drawArcade(0);
-      else drawMatrix(.016);
       return;
     }
     raf = requestAnimationFrame(frame);
