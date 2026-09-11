@@ -187,16 +187,15 @@ html[data-orange-effect="adventure"] .text-orange-600 {
   color: #e49b60 !important;
 }
 
-/* One source-derived tile only. The artwork is baked into a single 520x508
-   asset so the browser no longer stacks independently-scaled SVG layers. */
+/* True vector topo tile: path geometry only, no embedded raster image. */
 html[data-orange-effect="adventure"] body::before {
   inset: 0 !important;
   opacity: .42 !important;
   animation: none !important;
-  background-image: url('/static/theme-assets/adventure-topo.svg') !important;
+  background-image: url('/static/theme-assets/adventure-topo.svg?v=2') !important;
   background-repeat: repeat !important;
   background-position: 0 0 !important;
-  background-size: 520px 508px !important;
+  background-size: 520px 520px !important;
   transform: none !important;
 }
 html[data-orange-effect="adventure"] body::after {
