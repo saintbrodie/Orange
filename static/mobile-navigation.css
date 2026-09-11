@@ -6,7 +6,36 @@
     display: none;
 }
 
+/* The LLM model select contains long provider/model strings. Allow it to shrink
+   inside the flex row instead of forcing Fetch beyond the settings card. */
+#setting-llm-model {
+    min-width: 0 !important;
+}
+
+#fetch-models-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    #llm-settings-fields .grid > div {
+        min-width: 0;
+    }
+
+    #setting-llm-model {
+        width: 0;
+        flex: 1 1 0% !important;
+    }
+}
+
 @media (max-width: 640px) {
+    html,
+    body {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
     body {
         padding: 0 !important;
     }
@@ -15,16 +44,23 @@
         overflow: hidden !important;
     }
 
-    /* Mobile should feel like a native full-screen app, not a desktop card squeezed
-       into a phone. Remove the outer rounded frame and let the header separator do
-       the visual work instead. */
+    /* Mobile is a full-screen app, not a rounded desktop card. */
+    html[data-orange-theme] body > .max-w-6xl,
     body > .max-w-6xl {
-        width: 100% !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
         min-height: 100dvh !important;
+        height: auto !important;
+        margin: 0 !important;
         border: 0 !important;
         border-radius: 0 !important;
         box-shadow: none !important;
-        overflow: visible !important;
+        overflow-x: hidden !important;
+        overflow-y: visible !important;
+    }
+
+    body > .max-w-6xl > div:nth-child(2) {
+        border-radius: 0 !important;
     }
 
     #mobile-nav-backdrop {
@@ -64,14 +100,14 @@
         top: 0 !important;
         z-index: 60;
         width: 100% !important;
-        min-height: 4.75rem;
-        padding: 0.7rem 1rem !important;
+        min-height: 4.6rem;
+        padding: 0.65rem 0.85rem !important;
         display: flex !important;
         flex-direction: row !important;
         align-items: center !important;
         justify-content: flex-start !important;
-        gap: 0.8rem !important;
-        overflow: visible !important;
+        gap: 0.65rem !important;
+        overflow: hidden !important;
         border: 0 !important;
         border-bottom: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 22%, transparent) !important;
         background: color-mix(in srgb, var(--orange-bg, #09090b) 94%, transparent) !important;
@@ -81,40 +117,54 @@
 
     body > .max-w-6xl > div:first-child > div:first-child {
         width: auto !important;
+        max-width: 8.5rem;
         min-width: 0;
         margin: 0 !important;
         flex-direction: row !important;
         align-items: center !important;
-        gap: 0.5rem !important;
+        gap: 0.45rem !important;
         flex: 0 1 auto;
     }
 
     body > .max-w-6xl > div:first-child img {
-        width: 2.55rem !important;
-        height: 2.55rem !important;
-        flex: 0 0 2.55rem;
+        width: 2.4rem !important;
+        height: 2.4rem !important;
+        flex: 0 0 2.4rem;
     }
 
     body > .max-w-6xl > div:first-child h1 {
-        font-size: 1.2rem !important;
+        min-width: 0;
+        overflow: hidden;
+        font-size: 1.12rem !important;
         line-height: 1.2 !important;
         padding: 0 !important;
+        text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    /* The desktop tagline becomes awkward three-line filler in a narrow header.
-       The active tool is more useful context on mobile. */
     body > .max-w-6xl > div:first-child .orange-brand-tagline {
         display: none !important;
+    }
+
+    /* responsive.css forces the second sidebar child visible. Override that exact
+       relationship so no desktop tool button can poke out behind the mobile header. */
+    body > .max-w-6xl > div:first-child > .orange-desktop-tool-list,
+    body > .max-w-6xl > div:first-child > div:has(> #tool-tabs),
+    .orange-desktop-tool-list #tool-tabs {
+        display: none !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        flex: 0 0 0 !important;
+        overflow: hidden !important;
     }
 
     #mobile-current-tool {
         display: flex;
         min-width: 0;
-        flex: 1 1 auto;
+        flex: 1 1 0;
         flex-direction: column;
         justify-content: center;
-        padding-left: 0.8rem;
+        padding-left: 0.65rem;
         border-left: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 20%, transparent);
     }
 
@@ -122,7 +172,7 @@
     .mobile-drawer-eyebrow {
         display: block;
         color: var(--orange-muted, #71717a);
-        font-size: 0.58rem;
+        font-size: 0.56rem;
         line-height: 1;
         font-weight: 700;
         letter-spacing: 0.13em;
@@ -147,11 +197,6 @@
         margin-left: 0;
     }
 
-    /* The original tool list remains the desktop source of truth. */
-    .orange-desktop-tool-list {
-        display: none !important;
-    }
-
     /* Body-level proxy drawer: sits above the backdrop and stays fully clickable. */
     #mobile-tool-drawer {
         display: flex !important;
@@ -159,7 +204,7 @@
         top: 0 !important;
         right: 0 !important;
         bottom: 0 !important;
-        width: min(86vw, 22rem) !important;
+        width: min(88vw, 22rem) !important;
         height: 100dvh !important;
         z-index: 1010 !important;
         margin: 0 !important;
@@ -232,38 +277,54 @@
         border-color: color-mix(in srgb, var(--orange-accent, #f97316) 42%, transparent);
     }
 
-    /* Give the form a little more deliberate mobile breathing room now that the
-       tool selector has moved into the header. */
     body > .max-w-6xl > div:nth-child(2) {
-        padding: 2rem 1.25rem 2.5rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        padding: 1.7rem 1rem 2.25rem !important;
     }
 
-    #ui-container {
+    #ui-container,
+    #dynamic-inputs,
+    #prompt-container,
+    #aspect-ratio-container {
+        width: 100% !important;
         max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
     }
 
     #ui-container,
     #dynamic-inputs {
-        gap: 1.6rem !important;
+        gap: 1.45rem !important;
     }
 
     #prompt-container textarea {
-        min-height: 10.5rem;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-height: 10rem;
+        box-sizing: border-box !important;
     }
 
     #aspect-ratios {
+        width: 100% !important;
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: 0.7rem !important;
     }
 
     #aspect-ratios > button {
+        width: 100% !important;
+        min-width: 0 !important;
         min-height: 3.25rem;
     }
 
     #generate-btn {
-        min-height: 4.5rem;
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        min-height: 4.35rem;
+        padding: 1rem !important;
+        box-sizing: border-box !important;
     }
 
     #vram-warning,
@@ -356,7 +417,7 @@
         top: 0;
         right: 0;
         bottom: 0;
-        width: min(86vw, 21rem);
+        width: min(88vw, 21rem);
         z-index: 1010;
         padding: 1rem;
         flex-direction: column;
@@ -424,8 +485,11 @@
     #settings-container,
     #dashboard-container,
     #tools-container,
-    #gallery-container {
+    #gallery-container,
+    #personalization-container {
         width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
     }
 
     #tools-container {
@@ -451,10 +515,58 @@
         gap: 0.6rem !important;
     }
 
+    #setting-llm-model {
+        width: 0 !important;
+        min-width: 0 !important;
+        flex: 1 1 0% !important;
+    }
+
+    #fetch-models-btn {
+        flex: 0 0 auto !important;
+        max-width: 6rem;
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+
     #gallery-bulk-actions {
         width: calc(100% - 1rem);
         bottom: 0.5rem !important;
         gap: 0.75rem !important;
         padding: 0.8rem !important;
+    }
+}
+
+@media (max-width: 420px) {
+    body > .max-w-6xl > div:first-child {
+        padding-inline: 0.65rem !important;
+        gap: 0.5rem !important;
+    }
+
+    body > .max-w-6xl > div:first-child > div:first-child {
+        max-width: 7rem;
+    }
+
+    body > .max-w-6xl > div:first-child img {
+        width: 2.2rem !important;
+        height: 2.2rem !important;
+        flex-basis: 2.2rem;
+    }
+
+    body > .max-w-6xl > div:first-child h1 {
+        font-size: 1rem !important;
+    }
+
+    #mobile-current-tool {
+        padding-left: 0.5rem;
+    }
+
+    #mobile-current-tool-name {
+        font-size: 0.74rem;
+    }
+
+    .mobile-menu-trigger {
+        width: 2.55rem;
+        height: 2.55rem;
+        flex-basis: 2.55rem;
     }
 }
