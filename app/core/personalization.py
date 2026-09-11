@@ -184,13 +184,14 @@ def _decoration(theme: str, kind: str) -> str:
             + ('<g><path d="M157 75l23-42 39 48 38-55 35 50 28-35 10 70H145z" fill="#faccf4" stroke="#f472b6" stroke-width="5"/><circle cx="181" cy="81" r="6" fill="#fff"/><circle cx="219" cy="82" r="7" fill="#c084fc"/><circle cx="258" cy="80" r="6" fill="#fff"/><path d="M371 145l7 17 17 7-17 7-7 17-7-17-17-7 17-7z" fill="#fff1f7" style="animation:orangeTwinkle 1.7s ease-in-out infinite"/></g>' if head else '<g><path d="M315 82l38-52 48 58 50-67 48 64 42-47 14 84H300z" fill="#faccf4" stroke="#f472b6" stroke-width="7"/><circle cx="354" cy="89" r="9" fill="#fff"/><circle cx="402" cy="92" r="10" fill="#c084fc"/><circle cx="458" cy="88" r="9" fill="#fff"/><path d="M610 155l9 22 22 9-22 9-9 22-9-22-22-9 22-9z" fill="#fff1f7" style="animation:orangeTwinkle 1.7s ease-in-out infinite"/></g>')
         )
     if theme == "arcade":
-        # Readable at tiny sizes: mullet + shades first, with only a compact
-        # windbreaker collar on the full mascot instead of a pile of polygons.
+        # Keep the 80s identity readable at tiny sizes: shaggy mullet perimeter,
+        # aviator shades, and only collar stripes on the full mascot.
         if head:
             return (
                 '<style>@keyframes orangeArcadeGlint{0%,82%,100%{opacity:.12}88%{opacity:.75}}</style>'
                 '<g>'
-                '<path d="M120 152c18-52 54-78 101-77 39-14 82-2 108 31 18 23 24 51 18 84l-22-25 5 48-28-31-8-51c-43-21-91-19-131 5l-12 58-26 30 6-45-21 20c-4-18 0-34 10-47z" fill="#35104f" stroke="#ec4899" stroke-width="5" stroke-linejoin="round"/>'
+                '<path d="M145 122l10-43 23 24 19-50 23 48 27-55 17 54 29-34 6 54" fill="#35104f" stroke="#ec4899" stroke-width="5" stroke-linejoin="round"/>'
+                '<path d="M119 151c-14 34-13 73 6 106l24 31 9-67-8-59zM319 150c22 28 28 66 15 103l-24 38-8-70 8-59z" fill="#35104f" stroke="#ec4899" stroke-width="4" stroke-linejoin="round"/>'
                 '<g fill="#10051b" stroke="#00e5ff" stroke-width="5"><rect x="104" y="205" width="102" height="54" rx="17"/><rect x="231" y="205" width="102" height="54" rx="17"/></g>'
                 '<path d="M206 222h25" stroke="#ec4899" stroke-width="6" stroke-linecap="round"/>'
                 '<path d="M124 220l58 14M250 220l58 14" stroke="#fff4ff" stroke-width="4" opacity=".45" style="animation:orangeArcadeGlint 3.2s steps(1,end) infinite"/>'
@@ -199,35 +200,33 @@ def _decoration(theme: str, kind: str) -> str:
         return (
             '<style>@keyframes orangeArcadeGlint{0%,82%,100%{opacity:.12}88%{opacity:.75}}</style>'
             '<g>'
-            '<path d="M300 150c25-62 72-94 130-89 52-15 106 5 136 51 20 30 23 66 14 106l-30-34 7 60-35-40-10-64c-54-27-116-25-168 5l-15 72-33 38 8-56-27 25c-5-23 2-48 23-74z" fill="#35104f" stroke="#ec4899" stroke-width="8" stroke-linejoin="round"/>'
+            '<path d="M330 128l13-54 29 31 25-65 30 61 35-70 23 68 37-44 8 69" fill="#35104f" stroke="#ec4899" stroke-width="8" stroke-linejoin="round"/>'
+            '<path d="M297 158c-18 43-16 92 9 135l31 39 12-85-10-74zM536 157c27 36 35 84 18 132l-31 48-10-89 10-76z" fill="#35104f" stroke="#ec4899" stroke-width="6" stroke-linejoin="round"/>'
             '<g fill="#10051b" stroke="#00e5ff" stroke-width="8"><rect x="286" y="211" width="137" height="71" rx="22"/><rect x="443" y="211" width="137" height="71" rx="22"/></g>'
             '<path d="M423 235h20" stroke="#ec4899" stroke-width="9" stroke-linecap="round"/>'
             '<path d="M312 229l78 19M469 229l78 19" stroke="#fff4ff" stroke-width="6" opacity=".45" style="animation:orangeArcadeGlint 3.2s steps(1,end) infinite"/>'
-            '<path d="M282 565c36-42 78-59 120-59s84 17 120 59l-35 82-85-48-85 48z" fill="#51246f" stroke="#10051b" stroke-width="8" stroke-linejoin="round"/>'
-            '<path d="M282 565l78-47 42 81-85 48z" fill="#00e5ff"/>'
-            '<path d="M522 565l-78-47-42 81 85 48z" fill="#ec4899"/>'
-            '<path d="M360 518l42 81 42-81-42-18z" fill="#8b5cf6"/>'
+            '<path d="M337 538l65 45 65-45" fill="none" stroke="#00e5ff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>'
+            '<path d="M354 553l48 34 48-34" fill="none" stroke="#ec4899" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>'
             '</g>'
         )
     if theme == "botanical":
-        # Outdoors identity is intentionally obvious at icon size: rust trail cap
-        # plus matching neckerchief. The canonical mascot remains visible beneath.
+        # Compact icon uses a trail cap only; the previous low bandana read like
+        # facial hair. The full mascot adds a neckerchief and simple pack straps.
         if head:
             return (
                 '<g>'
-                '<path d="M145 118c29-39 103-52 157-18l-8 37H151z" fill="#c57a3c" stroke="#394b50" stroke-width="5" stroke-linejoin="round"/>'
-                '<path d="M207 132c53-1 102 8 139 27-38 11-88 14-140 7z" fill="#b8a6a0" stroke="#394b50" stroke-width="4"/>'
-                '<path d="M130 337c53 23 122 23 175 0l-18 42-68 32-71-32z" fill="#c57a3c" stroke="#394b50" stroke-width="5"/>'
-                '<circle cx="219" cy="373" r="9" fill="#9dabc7" stroke="#394b50" stroke-width="3"/>'
+                '<path d="M145 121c35-32 101-42 151-12l-5 31c-45-15-95-14-145 5z" fill="#c57a3c" stroke="#394b50" stroke-width="5" stroke-linejoin="round"/>'
+                '<path d="M207 137c51-5 101 3 140 23-41 10-89 12-140 6z" fill="#d8955e" stroke="#394b50" stroke-width="4"/>'
+                '<circle cx="181" cy="120" r="7" fill="#9dabc7" stroke="#394b50" stroke-width="3"/>'
                 '</g>'
             )
         return (
             '<g>'
-            '<path d="M315 116c37-51 132-67 198-24l-11 48H323z" fill="#c57a3c" stroke="#394b50" stroke-width="7" stroke-linejoin="round"/>'
-            '<path d="M397 135c69-2 132 10 179 34-49 14-114 18-181 9z" fill="#b8a6a0" stroke="#394b50" stroke-width="6"/>'
-            '<path d="M307 400c61 28 130 28 191 0l-20 54-76 40-77-40z" fill="#c57a3c" stroke="#394b50" stroke-width="7"/>'
-            '<circle cx="402" cy="448" r="13" fill="#9dabc7" stroke="#394b50" stroke-width="4"/>'
-            '<path d="M294 520c21 35 40 72 52 114M510 520c-21 35-40 72-52 114" fill="none" stroke="#c57a3c" stroke-width="10" stroke-linecap="round" opacity=".9"/>'
+            '<path d="M316 117c45-42 130-55 194-16l-7 40c-58-19-122-17-187 7z" fill="#c57a3c" stroke="#394b50" stroke-width="7" stroke-linejoin="round"/>'
+            '<path d="M397 138c66-6 131 5 182 30-53 13-115 16-182 8z" fill="#d8955e" stroke="#394b50" stroke-width="6"/>'
+            '<circle cx="360" cy="118" r="10" fill="#9dabc7" stroke="#394b50" stroke-width="4"/>'
+            '<path d="M319 404c53 21 113 21 166 0l-18 45-65 34-65-34z" fill="#c57a3c" stroke="#394b50" stroke-width="7" stroke-linejoin="round"/>'
+            '<path d="M323 525c18 31 34 65 45 101M481 525c-18 31-34 65-45 101" fill="none" stroke="#c57a3c" stroke-width="10" stroke-linecap="round" opacity=".88"/>'
             '</g>'
         )
     if theme == "midnight":
