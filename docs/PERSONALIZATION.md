@@ -7,18 +7,20 @@ Orange keeps personalization on the deployment/admin side. It changes how Orange
 Orange ships with these presets:
 
 - **Classic** — the original Orange appearance.
-- **Cyber** — graphite, cyan/magenta, scanline effects, and a visor-equipped Orange.
-- **Princess** — pink/lavender, sparkles, softer corners, and a crowned Orange.
-- **Arcade** — saturated retro-game colors, pixel details, and pixel shades.
-- **Botanical** — warm earth tones, sage accents, and a leaf detail.
+- **Cyber** — old-school green CRT styling with scanlines and a terminal visor.
+- **Princess** — dusty pink/lavender, sparse sparkles, softer corners, and a crowned Orange.
+- **Arcade** — 1980s neon arcade styling with a mullet, aviator shades, and windbreaker accents.
+- **Adventure** — topo-map trail styling, rust-orange highlights, and outdoors gear details.
 - **Midnight** — near-black navy, restrained gold, stars, and a crescent detail.
 - **Custom** — admin-selected color tokens and branding.
 
-Preset definitions live in `static/themes/presets.json`. The theme runtime consumes the same manifest for the Generate page, Admin, and the Personalization preview.
+`Botanical` was the development name for Adventure. Existing saved `botanical` configurations are migrated automatically to `adventure` when loaded.
+
+Preset definitions live in `static/themes/presets.json`. The theme runtime consumes the same manifest for the Generate page, Admin, and the Personalization preview. Adventure's contour background is stored as `static/theme-assets/adventure-topo.svg` and is derived from the supplied topo vector artwork while retaining Orange's Adventure palette.
 
 ## Mascot variants
 
-The themed Orange mascots are not separate copies of the original artwork. Orange renders each variant from the current `static/orange.svg` and `static/orange-head.svg` geometry, then applies a preset palette and small theme-specific vector decorations.
+The themed Orange mascots are not separate copies of the original artwork. Orange renders each variant from the current `static/orange.svg` and `static/orange-head.svg` geometry, then applies a preset palette and theme-specific vector decorations.
 
 This preserves the mascot identity and means future improvements to the base Orange geometry carry into the themed variants automatically.
 
