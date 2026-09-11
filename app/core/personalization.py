@@ -8,6 +8,7 @@ from app.core.config import PROJECT_ROOT
 PERSONALIZATION_PATH = os.path.join(PROJECT_ROOT, "workflows", "personalization.json")
 BRANDING_DIR = os.path.join(PROJECT_ROOT, "workflows", "branding")
 STATIC_DIR = os.path.join(PROJECT_ROOT, "static")
+THEME_LOGO_DIR = os.path.join(STATIC_DIR, "theme-assets", "logos")
 THEME_IDS = {"classic", "cyber", "princess", "arcade", "adventure", "midnight", "custom"}
 LEGACY_THEME_ALIASES = {"botanical": "adventure"}
 HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -29,15 +30,6 @@ DEFAULT_PERSONALIZATION = {
         "radius": 24,
         "motion": "normal",
     },
-}
-
-BASE_SVG_COLORS = ["#77310a", "#13171f", "#f67a04", "#625649", "#9f978b", "#fcbd67", "#ea5205", "#fdfdfd"]
-THEME_SVG_PALETTES = {
-    "cyber": ["#17351f", "#020604", "#3fa85b", "#23452c", "#668d6e", "#9ddaaa", "#79ff8e", "#e2f7e5"],
-    "princess": ["#6b214f", "#2a1228", "#f472b6", "#8f5d83", "#d8a8cc", "#fde1f1", "#c084fc", "#fff7fb"],
-    "arcade": ["#35104f", "#10051b", "#ec4899", "#51246f", "#8b5cf6", "#67e8f9", "#00e5ff", "#fff4ff"],
-    "adventure": ["#394b50", "#202c30", "#647c7c", "#51646b", "#9dabc7", "#b8a6a0", "#c57a3c", "#eef1ef"],
-    "midnight": ["#111827", "#030712", "#172554", "#334155", "#64748b", "#8ea6c9", "#d6b76b", "#f8fafc"],
 }
 
 
@@ -169,87 +161,24 @@ def clear_branding(kind: str) -> None:
             os.remove(candidate)
 
 
-def _decoration(theme: str, kind: str) -> str:
-    head = kind == "head"
-    if theme == "cyber":
-        return (
-            '<style>@keyframes orangeCyberScan{0%,100%{opacity:.35}50%{opacity:.8}}</style>'
-            + (
-                '<g><rect x="91" y="211" width="255" height="64" rx="16" fill="#020604" fill-opacity=".88" stroke="#79ff8e" stroke-width="5"/><path d="M111 240h211" stroke="#79ff8e" stroke-width="3" stroke-dasharray="8 10" opacity=".55" style="animation:orangeCyberScan 2.4s ease-in-out infinite"/></g>'
-                if head
-                else '<g><rect x="273" y="214" width="318" height="77" rx="18" fill="#020604" fill-opacity=".88" stroke="#79ff8e" stroke-width="7"/><path d="M300 250h264" stroke="#79ff8e" stroke-width="4" stroke-dasharray="10 12" opacity=".55" style="animation:orangeCyberScan 2.4s ease-in-out infinite"/></g>'
-            )
-        )
-    if theme == "princess":
-        return (
-            '<style>@keyframes orangeTwinkle{0%,100%{opacity:.25}50%{opacity:1}}</style>'
-            + ('<g><path d="M157 75l23-42 39 48 38-55 35 50 28-35 10 70H145z" fill="#faccf4" stroke="#f472b6" stroke-width="5"/><circle cx="181" cy="81" r="6" fill="#fff"/><circle cx="219" cy="82" r="7" fill="#c084fc"/><circle cx="258" cy="80" r="6" fill="#fff"/><path d="M371 145l7 17 17 7-17 7-7 17-7-17-17-7 17-7z" fill="#fff1f7" style="animation:orangeTwinkle 1.7s ease-in-out infinite"/></g>' if head else '<g><path d="M315 82l38-52 48 58 50-67 48 64 42-47 14 84H300z" fill="#faccf4" stroke="#f472b6" stroke-width="7"/><circle cx="354" cy="89" r="9" fill="#fff"/><circle cx="402" cy="92" r="10" fill="#c084fc"/><circle cx="458" cy="88" r="9" fill="#fff"/><path d="M610 155l9 22 22 9-22 9-9 22-9-22-22-9 22-9z" fill="#fff1f7" style="animation:orangeTwinkle 1.7s ease-in-out infinite"/></g>')
-        )
-    if theme == "arcade":
-        # Keep Arcade deliberately simple for now: the palette plus retro shades.
-        if head:
-            return (
-                '<g>'
-                '<g fill="#10051b" stroke="#00e5ff" stroke-width="5">'
-                '<rect x="104" y="205" width="102" height="54" rx="17"/>'
-                '<rect x="231" y="205" width="102" height="54" rx="17"/>'
-                '</g>'
-                '<path d="M206 222h25" stroke="#ec4899" stroke-width="6" stroke-linecap="round"/>'
-                '<path d="M124 220l58 14M250 220l58 14" stroke="#fff4ff" stroke-width="4" opacity=".38"/>'
-                '</g>'
-            )
-        return (
-            '<g>'
-            '<g fill="#10051b" stroke="#00e5ff" stroke-width="8">'
-            '<rect x="286" y="211" width="137" height="71" rx="22"/>'
-            '<rect x="443" y="211" width="137" height="71" rx="22"/>'
-            '</g>'
-            '<path d="M423 235h20" stroke="#ec4899" stroke-width="9" stroke-linecap="round"/>'
-            '<path d="M312 229l78 19M469 229l78 19" stroke="#fff4ff" stroke-width="6" opacity=".38"/>'
-            '</g>'
-        )
-    if theme == "adventure":
-        # Back to the original lightweight outdoors cue: one small leaf only.
-        if head:
-            return (
-                '<g>'
-                '<path d="M298 102c19-21 43-23 57-7-8 24-30 35-57 25 12-5 24-10 38-18-16 4-28 4-38 0z" fill="#c57a3c" stroke="#394b50" stroke-width="4" stroke-linejoin="round"/>'
-                '<path d="M300 122c14-12 26-20 39-27" fill="none" stroke="#394b50" stroke-width="4" stroke-linecap="round"/>'
-                '</g>'
-            )
-        return (
-            '<g>'
-            '<path d="M514 83c25-28 57-31 76-9-11 32-40 47-76 33 16-7 32-14 50-24-21 5-38 5-50 0z" fill="#c57a3c" stroke="#394b50" stroke-width="6" stroke-linejoin="round"/>'
-            '<path d="M517 110c19-16 35-27 53-36" fill="none" stroke="#394b50" stroke-width="6" stroke-linecap="round"/>'
-            '</g>'
-        )
-    if theme == "midnight":
-        return (
-            '<style>@keyframes orangeStarTwinkle{0%,100%{opacity:.2}50%{opacity:1}}</style>'
-            + ('<g><path d="M344 57c-26 11-40 34-36 60 5 26 26 42 52 42-22 13-51 9-68-12-24-30-14-73 19-91 11-6 22-8 33-7z" fill="#d6b76b"/><path d="M75 105l5 12 12 5-12 5-5 12-5-12-12-5 12-5z" fill="#8ea6c9" style="animation:orangeStarTwinkle 2.6s ease-in-out infinite"/></g>' if head else '<g><path d="M610 80c-34 14-52 44-47 78 7 35 34 56 68 56-28 17-66 12-88-16-31-39-18-95 25-118 14-8 29-10 42-9z" fill="#d6b76b"/><path d="M177 132l6 14 14 6-14 6-6 14-6-14-14-6 14-6z" fill="#8ea6c9" style="animation:orangeStarTwinkle 2.6s ease-in-out infinite"/></g>')
-        )
-    return ""
-
-
-def render_theme_svg(theme: str, kind: str) -> str:
+def theme_logo_path(theme: str, kind: str) -> str:
+    """Return the editable SVG file used for a preset mascot."""
     if kind not in {"full", "head"}:
         raise ValueError("Mascot kind must be full or head.")
+
     normalized_theme = _normalize_theme_id(theme)
     if normalized_theme == "custom":
         normalized_theme = "classic"
     if normalized_theme not in THEME_IDS:
         raise ValueError("Unknown theme.")
 
-    filename = "orange.svg" if kind == "full" else "orange-head.svg"
-    with open(os.path.join(STATIC_DIR, filename), "r", encoding="utf-8") as handle:
-        svg = handle.read()
+    path = os.path.join(THEME_LOGO_DIR, f"{normalized_theme}-{kind}.svg")
+    if not os.path.isfile(path):
+        raise FileNotFoundError(path)
+    return path
 
-    palette = THEME_SVG_PALETTES.get(normalized_theme)
-    if palette:
-        for source, target in zip(BASE_SVG_COLORS, palette):
-            svg = svg.replace(source, target)
 
-    decoration = _decoration(normalized_theme, kind)
-    if decoration:
-        svg = svg.replace("</svg>", decoration + "</svg>")
-    return svg
+def render_theme_svg(theme: str, kind: str) -> str:
+    """Compatibility helper: load the editable preset SVG from disk."""
+    with open(theme_logo_path(theme, kind), "r", encoding="utf-8") as handle:
+        return handle.read()
