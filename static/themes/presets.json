@@ -2,8 +2,8 @@
   "classic": {
     "name": "Classic",
     "description": "Original Orange.",
-    "mascot": "/api/theme-assets/classic/full.svg",
-    "head": "/api/theme-assets/classic/head.svg",
+    "mascot": "/static/theme-assets/logos/classic-full.svg",
+    "head": "/static/theme-assets/logos/classic-head.svg",
     "accent": "#f97316",
     "accentSecondary": "#ea580c",
     "background": "#09090b",
@@ -17,8 +17,8 @@
   "cyber": {
     "name": "Cyber",
     "description": "Retro CRT terminal.",
-    "mascot": "/api/theme-assets/cyber/full.svg",
-    "head": "/api/theme-assets/cyber/head.svg",
+    "mascot": "/static/theme-assets/logos/cyber-full.svg",
+    "head": "/static/theme-assets/logos/cyber-head.svg",
     "accent": "#7dff8f",
     "accentSecondary": "#2f9e44",
     "background": "#030704",
@@ -32,8 +32,8 @@
   "princess": {
     "name": "Princess",
     "description": "Dusty pink and sparkles.",
-    "mascot": "/api/theme-assets/princess/full.svg",
-    "head": "/api/theme-assets/princess/head.svg",
+    "mascot": "/static/theme-assets/logos/princess-full.svg",
+    "head": "/static/theme-assets/logos/princess-head.svg",
     "accent": "#db3f8d",
     "accentSecondary": "#a855f7",
     "background": "#e7b6cf",
@@ -47,8 +47,8 @@
   "arcade": {
     "name": "Arcade",
     "description": "Neon 80s arcade.",
-    "mascot": "/api/theme-assets/arcade/full.svg",
-    "head": "/api/theme-assets/arcade/head.svg",
+    "mascot": "/static/theme-assets/logos/arcade-full.svg",
+    "head": "/static/theme-assets/logos/arcade-head.svg",
     "accent": "#ff3cac",
     "accentSecondary": "#00e5ff",
     "background": "#090019",
@@ -62,8 +62,8 @@
   "adventure": {
     "name": "Adventure",
     "description": "Topo-map trail theme.",
-    "mascot": "/api/theme-assets/adventure/full.svg",
-    "head": "/api/theme-assets/adventure/head.svg",
+    "mascot": "/static/theme-assets/logos/adventure-full.svg",
+    "head": "/static/theme-assets/logos/adventure-head.svg",
     "accent": "#c57a3c",
     "accentSecondary": "#c57a3c",
     "background": "#26363b",
@@ -77,8 +77,8 @@
   "midnight": {
     "name": "Midnight",
     "description": "Dark starlight and gold.",
-    "mascot": "/api/theme-assets/midnight/full.svg",
-    "head": "/api/theme-assets/midnight/head.svg",
+    "mascot": "/static/theme-assets/logos/midnight-full.svg",
+    "head": "/static/theme-assets/logos/midnight-head.svg",
     "accent": "#d6b76b",
     "accentSecondary": "#7f6937",
     "background": "#02040a",
@@ -92,8 +92,8 @@
   "custom": {
     "name": "Custom",
     "description": "Your colors and branding.",
-    "mascot": "/api/theme-assets/classic/full.svg",
-    "head": "/api/theme-assets/classic/head.svg",
+    "mascot": "/static/theme-assets/logos/classic-full.svg",
+    "head": "/static/theme-assets/logos/classic-head.svg",
     "effect": "custom",
     "generateIcon": "wand-2"
   }
