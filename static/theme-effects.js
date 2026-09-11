@@ -63,8 +63,8 @@
     if (effect === 'princess') seedSparkles();
   }
 
-  function drawTerminal(time) {
-    // A clean CRT surface: scanlines + vignette only. No random wall of text.
+  function drawTerminal() {
+    // Clean CRT surface: scanlines + vignette only. Nothing accumulates.
     ctx.clearRect(0, 0, width, height);
 
     ctx.fillStyle = 'rgba(125,255,143,.025)';
@@ -83,17 +83,12 @@
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, width, height);
 
-    // Tiny Orange easter egg instead of terminal wallpaper.
-    const blink = Math.floor(time * 1.1) % 2 === 0;
-    ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+    // Tiny warm easter egg only; the background itself remains text-free.
+    ctx.font = '8px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'right';
-    ctx.fillStyle = 'rgba(197,122,60,.16)';
-    ctx.fillText('ORANGE // SYS READY', Math.max(120, width - 18), Math.max(18, height - 22));
-    if (blink) {
-      ctx.fillStyle = 'rgba(125,255,143,.38)';
-      ctx.fillRect(Math.max(18, width - 13), Math.max(12, height - 28), 3, 10);
-    }
+    ctx.fillStyle = 'rgba(197,122,60,.09)';
+    ctx.fillText('ORANGE', Math.max(70, width - 14), Math.max(14, height - 16));
   }
 
   function drawStars(time) {
