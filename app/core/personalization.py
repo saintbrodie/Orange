@@ -35,13 +35,16 @@ DEFAULT_PERSONALIZATION = {
 # recognizably the same mascot and automatically follows future geometry updates.
 BASE_SVG_COLORS = ["#77310a", "#13171f", "#f67a04", "#625649", "#9f978b", "#fcbd67", "#ea5205", "#fdfdfd"]
 THEME_SVG_PALETTES = {
-    "cyber": ["#07111f", "#020617", "#22d3ee", "#334155", "#64748b", "#a5f3fc", "#d946ef", "#ecfeff"],
+    # Cyber is intentionally monochrome phosphor-terminal green now. No cyan,
+    # magenta, or warm Orange colors should survive into the mascot itself.
+    "cyber": ["#17351f", "#020604", "#3fa85b", "#23452c", "#668d6e", "#9ddaaa", "#79ff8e", "#e2f7e5"],
     "princess": ["#6b214f", "#2a1228", "#f472b6", "#8f5d83", "#d8a8cc", "#fde1f1", "#c084fc", "#fff7fb"],
-    # Arcade deliberately avoids the old yellow/green palette. It mirrors the
-    # synthwave UI: magenta, cyan, violet, deep plum, and pale neon highlights.
-    "arcade": ["#5b167d", "#10051b", "#ec4899", "#51246f", "#8b5cf6", "#67e8f9", "#00e5ff", "#fff1fb"],
-    # Botanical is genuinely all-green now, including the canonical mascot fills.
-    "botanical": ["#27472f", "#101c13", "#668f6f", "#385a41", "#789b80", "#b8cfbd", "#4f7759", "#edf5ee"],
+    # Arcade mirrors the synthwave UI but keeps enough tonal separation that the
+    # canonical cat face remains readable at small sidebar sizes.
+    "arcade": ["#3f165c", "#10051b", "#ec4899", "#5b2b72", "#8b5cf6", "#67e8f9", "#00e5ff", "#fff4ff"],
+    # Outdoors palette inspired by the supplied mountain reference: cool blue-
+    # grays, stone, muted teal and a restrained rust trail-marker accent.
+    "botanical": ["#394b50", "#202c30", "#647c7c", "#51646b", "#9dabc7", "#b8a6a0", "#c57a3c", "#eef1ef"],
     "midnight": ["#111827", "#030712", "#172554", "#334155", "#64748b", "#8ea6c9", "#d6b76b", "#f8fafc"],
 }
 
@@ -170,9 +173,15 @@ def clear_branding(kind: str) -> None:
 def _decoration(theme: str, kind: str) -> str:
     head = kind == "head"
     if theme == "cyber":
+        # A simple phosphor visor reads as retro terminal hardware without
+        # dragging the mascot back toward cyan/magenta sci-fi.
         return (
-            '<style>@keyframes orangeCyberScan{0%,100%{opacity:.35}50%{opacity:1}}</style>'
-            + ('<g><path d="M82 205h271l22 35-28 53H91l-29-48z" fill="#03151e" fill-opacity=".82" stroke="#22d3ee" stroke-width="6"/><path d="M103 235h226" stroke="#d946ef" stroke-width="5" stroke-linecap="round" style="animation:orangeCyberScan 1.6s ease-in-out infinite"/><circle cx="151" cy="253" r="9" fill="#22d3ee"/><circle cx="286" cy="253" r="9" fill="#d946ef"/></g>' if head else '<g><path d="M265 215h270l32 42-33 58H271l-35-55z" fill="#03151e" fill-opacity=".8" stroke="#22d3ee" stroke-width="8"/><path d="M282 247h236" stroke="#d946ef" stroke-width="6" stroke-linecap="round" style="animation:orangeCyberScan 1.6s ease-in-out infinite"/><circle cx="342" cy="267" r="12" fill="#22d3ee"/><circle cx="463" cy="267" r="12" fill="#d946ef"/></g>')
+            '<style>@keyframes orangeCyberScan{0%,100%{opacity:.35}50%{opacity:.8}}</style>'
+            + (
+                '<g><rect x="91" y="211" width="255" height="64" rx="16" fill="#020604" fill-opacity=".88" stroke="#79ff8e" stroke-width="5"/><path d="M111 240h211" stroke="#79ff8e" stroke-width="3" stroke-dasharray="8 10" opacity=".55" style="animation:orangeCyberScan 2.4s ease-in-out infinite"/></g>'
+                if head
+                else '<g><rect x="273" y="214" width="318" height="77" rx="18" fill="#020604" fill-opacity=".88" stroke="#79ff8e" stroke-width="7"/><path d="M300 250h264" stroke="#79ff8e" stroke-width="4" stroke-dasharray="10 12" opacity=".55" style="animation:orangeCyberScan 2.4s ease-in-out infinite"/></g>'
+            )
         )
     if theme == "princess":
         return (
@@ -180,43 +189,42 @@ def _decoration(theme: str, kind: str) -> str:
             + ('<g><path d="M157 75l23-42 39 48 38-55 35 50 28-35 10 70H145z" fill="#faccf4" stroke="#f472b6" stroke-width="5"/><circle cx="181" cy="81" r="6" fill="#fff"/><circle cx="219" cy="82" r="7" fill="#c084fc"/><circle cx="258" cy="80" r="6" fill="#fff"/><path d="M371 145l7 17 17 7-17 7-7 17-7-17-17-7 17-7z" fill="#fff1f7" style="animation:orangeTwinkle 1.7s ease-in-out infinite"/></g>' if head else '<g><path d="M315 82l38-52 48 58 50-67 48 64 42-47 14 84H300z" fill="#faccf4" stroke="#f472b6" stroke-width="7"/><circle cx="354" cy="89" r="9" fill="#fff"/><circle cx="402" cy="92" r="10" fill="#c084fc"/><circle cx="458" cy="88" r="9" fill="#fff"/><path d="M610 155l9 22 22 9-22 9-9 22-9-22-22-9 22-9z" fill="#fff1f7" style="animation:orangeTwinkle 1.7s ease-in-out infinite"/></g>')
         )
     if theme == "arcade":
-        # A deliberately cheesy 1980s character treatment inspired by period
-        # arcade/fashion imagery: mullet silhouette, aviator shades and a color-
-        # blocked windbreaker. It remains Orange-the-cat rather than a human.
+        # Keep the 80s costume legible at tiny logo sizes: three ideas only —
+        # mullet, aviator shades, and a simple cyan/magenta windbreaker.
         if head:
             return (
-                '<style>@keyframes orangeArcadeGlint{0%,70%,100%{opacity:.15}78%{opacity:.95}}</style>'
+                '<style>@keyframes orangeArcadeGlint{0%,82%,100%{opacity:.15}88%{opacity:.9}}</style>'
                 '<g>'
-                '<path d="M83 150c7-46 26-83 60-103l18 43 30-55 28 53 31-61 27 62 27-43 31 46 22-38c31 24 49 61 50 105-18-19-38-28-58-32l-8 58-26-42-25 55-33-49-35 50-30-52-27 43-11-60c-25 3-48 13-71 30z" fill="#35104f" stroke="#ec4899" stroke-width="5" stroke-linejoin="round"/>'
-                '<path d="M72 178c-14 40-9 94 9 131l35 41 12-83-18-63zM364 174c16 40 12 95-7 135l-36 39-11-82 17-65z" fill="#35104f"/>'
-                '<g fill="#0d0715" stroke="#00e5ff" stroke-width="6"><path d="M92 205c36-18 83-18 117 0l-8 64c-36 16-76 11-101-16z"/><path d="M227 205c34-18 81-18 117 0l-9 48c-25 27-65 32-101 16z"/></g>'
-                '<path d="M205 220h29" stroke="#ec4899" stroke-width="7" stroke-linecap="round"/>'
-                '<path d="M111 220l67 18M248 220l68 18" stroke="#67e8f9" stroke-width="5" opacity=".75" style="animation:orangeArcadeGlint 2.8s steps(1,end) infinite"/>'
-                '<path d="M68 349l70-36 80 33 80-33 70 36 31 65H37z" fill="#51246f"/>'
-                '<path d="M68 349l70-36 80 33-44 67H37z" fill="#00e5ff" opacity=".9"/>'
-                '<path d="M368 349l-70-36-80 33 44 67h137z" fill="#ec4899" opacity=".92"/>'
-                '<path d="M174 413l44-67 44 67" fill="#5b167d"/>'
+                '<path d="M116 142c20-52 57-75 101-72 42-17 87-2 111 35 18 27 21 61 10 94l-25-28 8 53-29-37-6-55c-42-23-91-22-133 2l-12 62-27 33 7-50-24 24c-5-22 1-43 19-61z" fill="#3f165c" stroke="#ec4899" stroke-width="5" stroke-linejoin="round"/>'
+                '<g fill="#10051b" stroke="#00e5ff" stroke-width="5"><rect x="105" y="205" width="101" height="55" rx="17"/><rect x="231" y="205" width="101" height="55" rx="17"/></g>'
+                '<path d="M206 223h25" stroke="#ec4899" stroke-width="6" stroke-linecap="round"/>'
+                '<path d="M124 219l58 15M250 219l58 15" stroke="#fff4ff" stroke-width="4" opacity=".5" style="animation:orangeArcadeGlint 3.2s steps(1,end) infinite"/>'
                 '</g>'
             )
         return (
-            '<style>@keyframes orangeArcadeGlint{0%,70%,100%{opacity:.15}78%{opacity:.95}}</style>'
+            '<style>@keyframes orangeArcadeGlint{0%,82%,100%{opacity:.15}88%{opacity:.9}}</style>'
             '<g>'
-            '<path d="M250 151c8-58 35-106 78-133l27 58 39-70 37 67 42-73 35 73 36-56 39 59 32-49c44 30 67 78 70 132-27-23-57-35-86-39l-10 77-39-55-33 69-47-62-48 62-41-67-36 55-14-79c-34 5-65 17-91 40z" fill="#35104f" stroke="#ec4899" stroke-width="8" stroke-linejoin="round"/>'
-            '<path d="M234 176c-23 53-21 125 4 173l51 58 18-116-26-83zM570 170c24 55 22 127-5 180l-50 55-17-114 27-86z" fill="#35104f"/>'
-            '<g fill="#0d0715" stroke="#00e5ff" stroke-width="9"><path d="M273 214c48-23 108-23 151 0l-10 81c-46 22-98 13-132-21z"/><path d="M440 214c44-23 104-23 151 0l-12 60c-34 34-85 43-131 21z"/></g>'
-            '<path d="M421 234h25" stroke="#ec4899" stroke-width="10" stroke-linecap="round"/>'
-            '<path d="M298 233l86 24M467 233l87 24" stroke="#67e8f9" stroke-width="7" opacity=".8" style="animation:orangeArcadeGlint 2.8s steps(1,end) infinite"/>'
-            '<path d="M175 618l143-74 84 41 84-41 143 74 76 306-126 74-84-256-63 65-64-65-84 256-127-74z" fill="#51246f"/>'
-            '<path d="M175 618l143-74 84 41-88 150-119 43z" fill="#00e5ff" opacity=".88"/>'
-            '<path d="M629 618l-143-74-84 41 88 150 119 43z" fill="#ec4899" opacity=".92"/>'
-            '<path d="M314 735l88-150 88 150-88 72z" fill="#6d28d9"/>'
-            '<path d="M195 780l104-38M609 780l-105-38" stroke="#f472b6" stroke-width="16" opacity=".8"/>'
+            '<path d="M300 146c28-65 76-92 131-85 56-17 111 6 137 56 17 33 17 72 2 109l-31-35 8 64-35-45-7-69c-54-29-116-28-169 3l-15 74-34 42 9-61-30 29c-5-27 6-55 34-82z" fill="#3f165c" stroke="#ec4899" stroke-width="8" stroke-linejoin="round"/>'
+            '<g fill="#10051b" stroke="#00e5ff" stroke-width="8"><rect x="286" y="211" width="137" height="71" rx="22"/><rect x="443" y="211" width="137" height="71" rx="22"/></g>'
+            '<path d="M423 235h20" stroke="#ec4899" stroke-width="9" stroke-linecap="round"/>'
+            '<path d="M312 228l78 20M469 228l78 20" stroke="#fff4ff" stroke-width="6" opacity=".5" style="animation:orangeArcadeGlint 3.2s steps(1,end) infinite"/>'
+            '<path d="M200 625l118-67 84 41 84-41 118 67 54 198-111 47-64-183-81 67-81-67-64 183-111-47z" fill="#5b2b72" stroke="#10051b" stroke-width="8" stroke-linejoin="round"/>'
+            '<path d="M202 626l116-68 84 41-81 88-127 45z" fill="#00e5ff"/>'
+            '<path d="M602 626l-116-68-84 41 81 88 127 45z" fill="#ec4899"/>'
+            '<path d="M321 687l81-88 81 88-81 67z" fill="#8b5cf6"/>'
             '</g>'
         )
     if theme == "botanical":
+        # Adventure treatment: a restrained rust trail bandana/neck scarf rather
+        # than the previous decorative leaf. The rest comes from the topo palette.
         return (
-            '<style>@keyframes orangeLeafSway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(4deg)}}</style>'
-            + ('<g style="animation:orangeLeafSway 3s ease-in-out infinite;transform-origin:338px 78px"><path d="M322 86c18-43 48-60 88-58-7 37-31 63-74 72z" fill="#84a98c" stroke="#52715b" stroke-width="4"/><path d="M326 92c11-31 29-55 62-73" fill="none" stroke="#52715b" stroke-width="4" stroke-linecap="round"/></g>' if head else '<g style="animation:orangeLeafSway 3s ease-in-out infinite;transform-origin:565px 110px"><path d="M548 114c28-54 67-74 112-71-8 45-39 78-94 91z" fill="#84a98c" stroke="#52715b" stroke-width="5"/><path d="M555 120c13-38 34-71 75-94" fill="none" stroke="#52715b" stroke-width="5" stroke-linecap="round"/></g>')
+            '<g>'
+            + (
+                '<path d="M132 337c52 22 119 22 171 0l-16 38-68 31-69-31z" fill="#c57a3c" stroke="#394b50" stroke-width="4"/><path d="M219 405l28-8-16 16z" fill="#b8a6a0"/>'
+                if head
+                else '<path d="M310 398c59 27 126 27 185 0l-18 52-75 39-75-39z" fill="#c57a3c" stroke="#394b50" stroke-width="6"/><circle cx="402" cy="445" r="12" fill="#9dabc7" stroke="#394b50" stroke-width="4"/>'
+            )
+            + '</g>'
         )
     if theme == "midnight":
         return (
