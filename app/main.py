@@ -51,9 +51,9 @@ app.include_router(workflow_assets.router)
 THEME_HEAD = (
     '    <link rel="stylesheet" href="/static/theme.css?v=2">\n'
     '    <link rel="stylesheet" href="/static/theme-legacy-bridge.css?v=2">\n'
-    '    <link rel="stylesheet" href="/static/theme-effects-v2.css?v=2">\n'
+    '    <link rel="stylesheet" href="/static/theme-effects-v2.css?v=3">\n'
     '    <script src="/static/theme-runtime.js?v=2" defer></script>\n'
-    '    <script src="/static/theme-effects.js?v=2" defer></script>\n'
+    '    <script src="/static/theme-effects.js?v=3" defer></script>\n'
 )
 
 
@@ -66,7 +66,7 @@ def serve_index():
             "</head>",
             THEME_HEAD
             + '    <link rel="stylesheet" href="/static/responsive.css?v=1">\n'
-            + '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=2">\n'
+            + '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=3">\n'
             + "</head>",
         )
         content = content.replace(
@@ -88,7 +88,7 @@ def serve_admin():
         content = content.replace(
             "</head>",
             THEME_HEAD
-            + '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=2">\n</head>',
+            + '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=3">\n</head>',
         )
         # Keep engineering diagnostics and admin-only editors isolated from the
         # intentionally small end-user generator UI.
