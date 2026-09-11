@@ -1,0 +1,81 @@
+name: Import Adventure background
+
+on:
+  push:
+    branches:
+      - chatgpt/personalization-themes
+    paths:
+      - ".adventure-import/**"
+      - ".github/workflows/adventure-import.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/personalization-themes
+
+      - name: Rebuild exact uploaded Adventure SVG
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .adventure-import/topo.part{1..9} | base64 -d | gzip -d > /tmp/Topographic.svg
+          echo "f1c601cd363486fb9c7dce6dbeee72ea62cbf155fc0fcc2a994e29bf7483fd42  /tmp/Topographic.svg" | sha256sum -c -
+          test "$(wc -c < /tmp/Topographic.svg)" -eq 196311
+          mv /tmp/Topographic.svg static/theme-assets/adventure-topo.svg
+
+      - name: Use Adventure artwork as one non-tiled background
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          css_path = Path("static/theme-effects-v2.css")
+          css = css_path.read_text(encoding="utf-8")
+          old = """  background-image: url('/static/theme-assets/adventure-topo.svg') !important;
+  background-repeat: repeat !important;
+  background-position: 0 0 !important;
+  background-size: 520px 508px !important;"""
+          old_square = """  background-image: url('/static/theme-assets/adventure-topo.svg') !important;
+  background-repeat: repeat !important;
+  background-position: 0 0 !important;
+  background-size: 520px 520px !important;"""
+          new = """  background-image: url('/static/theme-assets/adventure-topo.svg?v=2') !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-size: cover !important;"""
+          if old in css:
+              css = css.replace(old, new)
+          elif old_square in css:
+              css = css.replace(old_square, new)
+          else:
+              raise SystemExit("Adventure background block not found")
+          css = css.replace(
+              "/* One source-derived tile only. The artwork is baked into a single 520x508\n   asset so the browser no longer stacks independently-scaled SVG layers. */",
+              "/* Adventure uses the supplied full-frame SVG as-is: one centered image, no tiling. */",
+          )
+          css_path.write_text(css, encoding="utf-8")
+
+          main_path = Path("app/main.py")
+          main = main_path.read_text(encoding="utf-8")
+          if 'theme-effects-v2.css?v=9' in main:
+              main = main.replace('theme-effects-v2.css?v=9', 'theme-effects-v2.css?v=10')
+          elif 'theme-effects-v2.css?v=10' not in main:
+              raise SystemExit("Unexpected theme-effects cache version")
+          main_path.write_text(main, encoding="utf-8")
+          PY
+
+      - name: Commit imported background and remove staging chunks
+        shell: bash
+        run: |
+          rm -rf .adventure-import
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A .adventure-import static/theme-assets/adventure-topo.svg static/theme-effects-v2.css app/main.py
+          git commit -m "Use supplied Adventure topo background"
+          git push origin HEAD:chatgpt/personalization-themes
