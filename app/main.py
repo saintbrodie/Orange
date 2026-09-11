@@ -47,7 +47,7 @@ THEME_HEAD = (
     '    <script>(function(){try{var b=JSON.parse(localStorage.getItem("orange_theme_bootstrap")||"null");if(!b)return;if(b.theme==="botanical")b.theme="adventure";if(b.effect==="botanical")b.effect="adventure";var d=document.documentElement;if(b.theme)d.dataset.orangeTheme=b.theme;if(b.effect)d.dataset.orangeEffect=b.effect;if(b.motion)d.dataset.orangeMotion=b.motion;if(b.vars){Object.keys(b.vars).forEach(function(k){d.style.setProperty(k,b.vars[k]);});}}catch(e){}})();</script>\n'
     '    <link rel="stylesheet" href="/static/theme.css?v=2">\n'
     '    <link rel="stylesheet" href="/static/theme-legacy-bridge.css?v=2">\n'
-    '    <link rel="stylesheet" href="/static/theme-effects-v2.css?v=11">\n'
+    '    <link rel="stylesheet" href="/static/theme-effects-v2.css?v=12">\n'
     '    <script src="/static/theme-runtime.js?v=4" defer></script>\n'
     '    <script src="/static/theme-effects.js?v=5" defer></script>\n'
 )
