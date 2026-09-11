@@ -6,6 +6,7 @@ on:
       - chatgpt/personalization-themes
     paths:
       - ".github/workflows/adventure-import.yml"
+      - ".adventure-import/fix2.*"
 
 permissions:
   contents: write
@@ -22,7 +23,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .adventure-import/topo.part{1..9} | base64 -d | gzip -d > /tmp/Topographic.svg
+          {
+            cat .adventure-import/topo.part1
+            cat .adventure-import/fix2.1 .adventure-import/fix2.2 .adventure-import/fix2.3 .adventure-import/fix2.4
+            cat .adventure-import/topo.part{3..9}
+          } | base64 -d | gzip -d > /tmp/Topographic.svg
           echo "f1c601cd363486fb9c7dce6dbeee72ea62cbf155fc0fcc2a994e29bf7483fd42  /tmp/Topographic.svg" | sha256sum -c -
           test "$(wc -c < /tmp/Topographic.svg)" -eq 196311
           mv /tmp/Topographic.svg static/theme-assets/adventure-topo.svg
