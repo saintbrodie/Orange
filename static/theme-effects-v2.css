@@ -1,0 +1,237 @@
+/* Theme identity refinements layered after theme.css.
+   Keep animated/random effects in theme-effects.js; this file owns structural scenery. */
+
+#orange-theme-fx-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity .45s ease;
+}
+
+html[data-orange-effect="cyber"] #orange-theme-fx-canvas,
+html[data-orange-effect="midnight"] #orange-theme-fx-canvas,
+html[data-orange-effect="princess"] #orange-theme-fx-canvas,
+html[data-orange-effect="arcade"] #orange-theme-fx-canvas {
+  opacity: 1;
+}
+
+html[data-orange-effect="cyber"] #orange-theme-fx-canvas {
+  opacity: .72;
+}
+
+/* Canvas themes should not also show the old tiled pseudo-effects. */
+html[data-orange-effect="cyber"] body::before,
+html[data-orange-effect="cyber"] body::after,
+html[data-orange-effect="midnight"] body::before,
+html[data-orange-effect="midnight"] body::after,
+html[data-orange-effect="princess"] body::before,
+html[data-orange-effect="princess"] body::after,
+html[data-orange-effect="arcade"] body::before,
+html[data-orange-effect="arcade"] body::after {
+  opacity: 0 !important;
+  animation: none !important;
+  background: none !important;
+  transform: none !important;
+}
+
+/* CYBER — old-school monochrome CRT terminal rather than neon nightclub. */
+html[data-orange-effect="cyber"] .mesh-blob {
+  opacity: 0 !important;
+  filter: none !important;
+}
+html[data-orange-effect="cyber"] .orange-theme-mascot {
+  filter: none !important;
+}
+html[data-orange-effect="cyber"] nav,
+html[data-orange-effect="cyber"] .max-w-6xl:not(#personalization-container) {
+  box-shadow: none !important;
+  border-color: rgba(125,255,143,.16) !important;
+}
+html[data-orange-effect="cyber"] #generate-btn,
+html[data-orange-effect="cyber"] #personalization-preview .preview-button {
+  background: #071009 !important;
+  color: #b9efc0 !important;
+  border: 1px solid #2f6f3d !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  transform: none !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .02em;
+}
+html[data-orange-effect="cyber"] #generate-btn:hover {
+  background: #0a160d !important;
+  color: #d8f7dc !important;
+  border-color: #438a52 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html[data-orange-effect="cyber"] #tool-tabs button,
+html[data-orange-effect="cyber"] #aspect-ratios button,
+html[data-orange-effect="cyber"] #queue-status {
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+html[data-orange-effect="cyber"] #tool-tabs button[class*="bg-orange-500/"] {
+  background: #0a150c !important;
+  border-color: #356941 !important;
+  color: #aeeab8 !important;
+}
+
+/* PRINCESS — softer dusty pinks with high-contrast berry warning states. */
+html[data-orange-effect="princess"] .mesh-blob {
+  opacity: .055 !important;
+  filter: blur(135px) !important;
+}
+html[data-orange-effect="princess"] .mesh-1 { background: radial-gradient(circle, rgba(177,61,117,.23), transparent 72%) !important; }
+html[data-orange-effect="princess"] .mesh-2 { background: radial-gradient(circle, rgba(151,91,201,.17), transparent 72%) !important; }
+html[data-orange-effect="princess"] .mesh-3 { background: radial-gradient(circle, rgba(210,98,150,.18), transparent 72%) !important; }
+html[data-orange-effect="princess"] nav {
+  background: rgba(232,191,211,.92) !important;
+  box-shadow: 0 16px 42px rgba(101,42,72,.1) !important;
+}
+html[data-orange-effect="princess"] input,
+html[data-orange-effect="princess"] textarea,
+html[data-orange-effect="princess"] select {
+  background-color: rgba(247,220,234,.72) !important;
+  color: #43162f !important;
+}
+
+html[data-orange-effect="princess"] .text-amber-400,
+html[data-orange-effect="princess"] .text-amber-300,
+html[data-orange-effect="princess"] .text-yellow-400,
+html[data-orange-effect="princess"] .text-yellow-300,
+html[data-orange-effect="princess"] [class*="text-amber-"],
+html[data-orange-effect="princess"] [class*="text-yellow-"] {
+  color: #7a214c !important;
+}
+html[data-orange-effect="princess"] [class*="bg-amber-"],
+html[data-orange-effect="princess"] [class*="bg-yellow-"] {
+  background-color: rgba(151,58,101,.10) !important;
+}
+html[data-orange-effect="princess"] [class*="border-amber-"],
+html[data-orange-effect="princess"] [class*="border-yellow-"] {
+  border-color: rgba(122,33,76,.34) !important;
+}
+
+/* ADVENTURE — supplied full-frame topo artwork, used as-is. */
+html[data-orange-effect="adventure"] .mesh-blob {
+  opacity: 0 !important;
+  filter: none !important;
+}
+html[data-orange-effect="adventure"] .orange-theme-mascot {
+  filter: none !important;
+}
+html[data-orange-effect="adventure"] nav,
+html[data-orange-effect="adventure"] .max-w-6xl:not(#personalization-container),
+html[data-orange-effect="adventure"] #generate-btn,
+html[data-orange-effect="adventure"] #tool-tabs button,
+html[data-orange-effect="adventure"] button {
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+html[data-orange-effect="adventure"] nav,
+html[data-orange-effect="adventure"] .max-w-6xl:not(#personalization-container) {
+  border-color: rgba(157,171,199,.24) !important;
+}
+html[data-orange-effect="adventure"] #generate-btn,
+html[data-orange-effect="adventure"] #personalization-preview .preview-button,
+html[data-orange-effect="adventure"] #personalization-save {
+  background: #c57a3c !important;
+  color: #fff7ef !important;
+  border: 1px solid #d79a68 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+html[data-orange-effect="adventure"] #generate-btn:hover,
+html[data-orange-effect="adventure"] #personalization-save:hover {
+  background: #d18445 !important;
+  border-color: #e0aa7d !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html[data-orange-effect="adventure"] #tool-tabs button[class*="bg-orange-500/"] {
+  background: #3f5056 !important;
+  color: #fff2e8 !important;
+  border-color: #c57a3c !important;
+  box-shadow: none !important;
+}
+html[data-orange-effect="adventure"] input,
+html[data-orange-effect="adventure"] textarea,
+html[data-orange-effect="adventure"] select {
+  background-color: #223136 !important;
+  color: #f4f5f2 !important;
+  border-color: rgba(157,171,199,.34) !important;
+}
+html[data-orange-effect="adventure"] input::placeholder,
+html[data-orange-effect="adventure"] textarea::placeholder {
+  color: #e0d5cf !important;
+  opacity: 1 !important;
+}
+html[data-orange-effect="adventure"] #admin-menu .admin-tab.active,
+html[data-orange-effect="adventure"] .mobile-admin-drawer-item.active,
+html[data-orange-effect="adventure"] .mobile-tool-drawer-item.active {
+  color: #ffd7b6 !important;
+  border-color: #c57a3c !important;
+  background: rgba(197,122,60,.15) !important;
+  box-shadow: none !important;
+}
+html[data-orange-effect="adventure"] .text-orange-300,
+html[data-orange-effect="adventure"] .text-orange-400,
+html[data-orange-effect="adventure"] .text-orange-500,
+html[data-orange-effect="adventure"] .text-orange-600 {
+  color: #e49b60 !important;
+}
+
+/* The supplied artwork is one full-frame SVG, not a repeatable tile. */
+html[data-orange-effect="adventure"] body::before {
+  inset: 0 !important;
+  opacity: 1 !important;
+  animation: none !important;
+  background-image: url('/static/theme-assets/adventure-topo.svg?v=3') !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-size: cover !important;
+  transform: none !important;
+}
+html[data-orange-effect="adventure"] body::after {
+  opacity: 0 !important;
+  background: none !important;
+  animation: none !important;
+  transform: none !important;
+}
+
+/* MIDNIGHT — star field is canvas-driven. Generate stays dark with restrained gold. */
+html[data-orange-effect="midnight"] .mesh-blob { opacity: .035 !important; filter: blur(165px) !important; }
+html[data-orange-effect="midnight"] #generate-btn {
+  background: linear-gradient(135deg, #0d1426, #151c31) !important;
+  color: #ecd58f !important;
+  border: 1px solid rgba(214,183,107,.48) !important;
+  box-shadow: 0 0 0 1px rgba(214,183,107,.08), 0 10px 30px rgba(0,0,0,.34), 0 0 22px rgba(214,183,107,.09) !important;
+}
+html[data-orange-effect="midnight"] #generate-btn:hover {
+  background: linear-gradient(135deg, #121c33, #1a223a) !important;
+  border-color: rgba(232,204,132,.7) !important;
+  box-shadow: 0 0 25px rgba(214,183,107,.15) !important;
+}
+html[data-orange-effect="midnight"] #personalization-preview .preview-button {
+  background: linear-gradient(135deg, #0d1426, #151c31) !important;
+  color: #ecd58f !important;
+  border: 1px solid rgba(214,183,107,.48) !important;
+}
+
+/* ARCADE — synth sun, skyline and perspective floor are canvas-driven. */
+html[data-orange-effect="arcade"] .mesh-blob {
+  opacity: .035 !important;
+  filter: blur(150px) !important;
+}
+html[data-orange-effect="arcade"] .mesh-1 { background: radial-gradient(circle, rgba(255,60,172,.18), transparent 72%) !important; }
+html[data-orange-effect="arcade"] .mesh-2 { background: radial-gradient(circle, rgba(0,229,255,.12), transparent 72%) !important; }
+html[data-orange-effect="arcade"] .mesh-3 { background: radial-gradient(circle, rgba(122,44,255,.12), transparent 72%) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  #orange-theme-fx-canvas { transition: none; }
+}

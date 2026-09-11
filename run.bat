@@ -53,7 +53,11 @@ if /i "%DOWNLOAD_MODELS%"=="y" (
 :loop
 if exist "RESTART_REQUIRED" del "RESTART_REQUIRED"
 echo Starting Orange App on port 7070...
-uvicorn app.main:app --host 0.0.0.0 --port 7070
+if /i "%ORANGE_VERBOSE_LOGS%"=="1" (
+    uvicorn app.main:app --host 0.0.0.0 --port 7070
+) else (
+    uvicorn app.main:app --host 0.0.0.0 --port 7070 --no-access-log --log-level warning
+)
 
 if exist "RESTART_REQUIRED" (
     echo Restart requested...

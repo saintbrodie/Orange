@@ -118,11 +118,16 @@ async def submit_prompt(
 
     if 400 <= response.status_code < 500:
         detail = _response_detail(response)
+        # ComfyUI returned an explicit rejection, so this prompt was not queued.
+        # The rejection may be backend-specific (for example a model/LoRA/CLIP
+        # value missing on this machine), so trying another backend is safe and is
+        # exactly what Orange's failover layer is for. Do not mark the whole server
+        # unhealthy: /queue and unrelated workflows may still work perfectly.
         raise SubmissionFailure(
-            public_message="The workflow could not be queued. Check the tool configuration or run Workflow Preflight.",
+            public_message="The workflow was rejected by this generation backend.",
             technical_message=f"ComfyUI rejected /prompt with HTTP {response.status_code}: {detail}",
             status_code=422,
-            retryable=False,
+            retryable=True,
             mark_backend_failed=False,
         )
     if response.status_code >= 500:
