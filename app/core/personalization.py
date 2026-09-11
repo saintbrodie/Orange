@@ -35,15 +35,12 @@ DEFAULT_PERSONALIZATION = {
 # recognizably the same mascot and automatically follows future geometry updates.
 BASE_SVG_COLORS = ["#77310a", "#13171f", "#f67a04", "#625649", "#9f978b", "#fcbd67", "#ea5205", "#fdfdfd"]
 THEME_SVG_PALETTES = {
-    # Cyber is intentionally monochrome phosphor-terminal green now. No cyan,
-    # magenta, or warm Orange colors should survive into the mascot itself.
     "cyber": ["#17351f", "#020604", "#3fa85b", "#23452c", "#668d6e", "#9ddaaa", "#79ff8e", "#e2f7e5"],
     "princess": ["#6b214f", "#2a1228", "#f472b6", "#8f5d83", "#d8a8cc", "#fde1f1", "#c084fc", "#fff7fb"],
-    # Arcade mirrors the synthwave UI but keeps enough tonal separation that the
-    # canonical cat face remains readable at small sidebar sizes.
-    "arcade": ["#3f165c", "#10051b", "#ec4899", "#5b2b72", "#8b5cf6", "#67e8f9", "#00e5ff", "#fff4ff"],
-    # Outdoors palette inspired by the supplied mountain reference: cool blue-
-    # grays, stone, muted teal and a restrained rust trail-marker accent.
+    # Strong magenta/cyan separation keeps the 80s mascot readable at icon size.
+    "arcade": ["#35104f", "#10051b", "#ec4899", "#51246f", "#8b5cf6", "#67e8f9", "#00e5ff", "#fff4ff"],
+    # Adventure palette from the supplied mountain reference. Rust is deliberately
+    # reserved for trail-gear accents instead of becoming a warm overall cast.
     "botanical": ["#394b50", "#202c30", "#647c7c", "#51646b", "#9dabc7", "#b8a6a0", "#c57a3c", "#eef1ef"],
     "midnight": ["#111827", "#030712", "#172554", "#334155", "#64748b", "#8ea6c9", "#d6b76b", "#f8fafc"],
 }
@@ -173,8 +170,6 @@ def clear_branding(kind: str) -> None:
 def _decoration(theme: str, kind: str) -> str:
     head = kind == "head"
     if theme == "cyber":
-        # A simple phosphor visor reads as retro terminal hardware without
-        # dragging the mascot back toward cyan/magenta sci-fi.
         return (
             '<style>@keyframes orangeCyberScan{0%,100%{opacity:.35}50%{opacity:.8}}</style>'
             + (
@@ -189,42 +184,51 @@ def _decoration(theme: str, kind: str) -> str:
             + ('<g><path d="M157 75l23-42 39 48 38-55 35 50 28-35 10 70H145z" fill="#faccf4" stroke="#f472b6" stroke-width="5"/><circle cx="181" cy="81" r="6" fill="#fff"/><circle cx="219" cy="82" r="7" fill="#c084fc"/><circle cx="258" cy="80" r="6" fill="#fff"/><path d="M371 145l7 17 17 7-17 7-7 17-7-17-17-7 17-7z" fill="#fff1f7" style="animation:orangeTwinkle 1.7s ease-in-out infinite"/></g>' if head else '<g><path d="M315 82l38-52 48 58 50-67 48 64 42-47 14 84H300z" fill="#faccf4" stroke="#f472b6" stroke-width="7"/><circle cx="354" cy="89" r="9" fill="#fff"/><circle cx="402" cy="92" r="10" fill="#c084fc"/><circle cx="458" cy="88" r="9" fill="#fff"/><path d="M610 155l9 22 22 9-22 9-9 22-9-22-22-9 22-9z" fill="#fff1f7" style="animation:orangeTwinkle 1.7s ease-in-out infinite"/></g>')
         )
     if theme == "arcade":
-        # Keep the 80s costume legible at tiny logo sizes: three ideas only —
-        # mullet, aviator shades, and a simple cyan/magenta windbreaker.
+        # Readable at tiny sizes: mullet + shades first, with only a compact
+        # windbreaker collar on the full mascot instead of a pile of polygons.
         if head:
             return (
-                '<style>@keyframes orangeArcadeGlint{0%,82%,100%{opacity:.15}88%{opacity:.9}}</style>'
+                '<style>@keyframes orangeArcadeGlint{0%,82%,100%{opacity:.12}88%{opacity:.75}}</style>'
                 '<g>'
-                '<path d="M116 142c20-52 57-75 101-72 42-17 87-2 111 35 18 27 21 61 10 94l-25-28 8 53-29-37-6-55c-42-23-91-22-133 2l-12 62-27 33 7-50-24 24c-5-22 1-43 19-61z" fill="#3f165c" stroke="#ec4899" stroke-width="5" stroke-linejoin="round"/>'
-                '<g fill="#10051b" stroke="#00e5ff" stroke-width="5"><rect x="105" y="205" width="101" height="55" rx="17"/><rect x="231" y="205" width="101" height="55" rx="17"/></g>'
-                '<path d="M206 223h25" stroke="#ec4899" stroke-width="6" stroke-linecap="round"/>'
-                '<path d="M124 219l58 15M250 219l58 15" stroke="#fff4ff" stroke-width="4" opacity=".5" style="animation:orangeArcadeGlint 3.2s steps(1,end) infinite"/>'
+                '<path d="M120 152c18-52 54-78 101-77 39-14 82-2 108 31 18 23 24 51 18 84l-22-25 5 48-28-31-8-51c-43-21-91-19-131 5l-12 58-26 30 6-45-21 20c-4-18 0-34 10-47z" fill="#35104f" stroke="#ec4899" stroke-width="5" stroke-linejoin="round"/>'
+                '<g fill="#10051b" stroke="#00e5ff" stroke-width="5"><rect x="104" y="205" width="102" height="54" rx="17"/><rect x="231" y="205" width="102" height="54" rx="17"/></g>'
+                '<path d="M206 222h25" stroke="#ec4899" stroke-width="6" stroke-linecap="round"/>'
+                '<path d="M124 220l58 14M250 220l58 14" stroke="#fff4ff" stroke-width="4" opacity=".45" style="animation:orangeArcadeGlint 3.2s steps(1,end) infinite"/>'
                 '</g>'
             )
         return (
-            '<style>@keyframes orangeArcadeGlint{0%,82%,100%{opacity:.15}88%{opacity:.9}}</style>'
+            '<style>@keyframes orangeArcadeGlint{0%,82%,100%{opacity:.12}88%{opacity:.75}}</style>'
             '<g>'
-            '<path d="M300 146c28-65 76-92 131-85 56-17 111 6 137 56 17 33 17 72 2 109l-31-35 8 64-35-45-7-69c-54-29-116-28-169 3l-15 74-34 42 9-61-30 29c-5-27 6-55 34-82z" fill="#3f165c" stroke="#ec4899" stroke-width="8" stroke-linejoin="round"/>'
+            '<path d="M300 150c25-62 72-94 130-89 52-15 106 5 136 51 20 30 23 66 14 106l-30-34 7 60-35-40-10-64c-54-27-116-25-168 5l-15 72-33 38 8-56-27 25c-5-23 2-48 23-74z" fill="#35104f" stroke="#ec4899" stroke-width="8" stroke-linejoin="round"/>'
             '<g fill="#10051b" stroke="#00e5ff" stroke-width="8"><rect x="286" y="211" width="137" height="71" rx="22"/><rect x="443" y="211" width="137" height="71" rx="22"/></g>'
             '<path d="M423 235h20" stroke="#ec4899" stroke-width="9" stroke-linecap="round"/>'
-            '<path d="M312 228l78 20M469 228l78 20" stroke="#fff4ff" stroke-width="6" opacity=".5" style="animation:orangeArcadeGlint 3.2s steps(1,end) infinite"/>'
-            '<path d="M200 625l118-67 84 41 84-41 118 67 54 198-111 47-64-183-81 67-81-67-64 183-111-47z" fill="#5b2b72" stroke="#10051b" stroke-width="8" stroke-linejoin="round"/>'
-            '<path d="M202 626l116-68 84 41-81 88-127 45z" fill="#00e5ff"/>'
-            '<path d="M602 626l-116-68-84 41 81 88 127 45z" fill="#ec4899"/>'
-            '<path d="M321 687l81-88 81 88-81 67z" fill="#8b5cf6"/>'
+            '<path d="M312 229l78 19M469 229l78 19" stroke="#fff4ff" stroke-width="6" opacity=".45" style="animation:orangeArcadeGlint 3.2s steps(1,end) infinite"/>'
+            '<path d="M282 565c36-42 78-59 120-59s84 17 120 59l-35 82-85-48-85 48z" fill="#51246f" stroke="#10051b" stroke-width="8" stroke-linejoin="round"/>'
+            '<path d="M282 565l78-47 42 81-85 48z" fill="#00e5ff"/>'
+            '<path d="M522 565l-78-47-42 81 85 48z" fill="#ec4899"/>'
+            '<path d="M360 518l42 81 42-81-42-18z" fill="#8b5cf6"/>'
             '</g>'
         )
     if theme == "botanical":
-        # Adventure treatment: a restrained rust trail bandana/neck scarf rather
-        # than the previous decorative leaf. The rest comes from the topo palette.
+        # Outdoors identity is intentionally obvious at icon size: rust trail cap
+        # plus matching neckerchief. The canonical mascot remains visible beneath.
+        if head:
+            return (
+                '<g>'
+                '<path d="M145 118c29-39 103-52 157-18l-8 37H151z" fill="#c57a3c" stroke="#394b50" stroke-width="5" stroke-linejoin="round"/>'
+                '<path d="M207 132c53-1 102 8 139 27-38 11-88 14-140 7z" fill="#b8a6a0" stroke="#394b50" stroke-width="4"/>'
+                '<path d="M130 337c53 23 122 23 175 0l-18 42-68 32-71-32z" fill="#c57a3c" stroke="#394b50" stroke-width="5"/>'
+                '<circle cx="219" cy="373" r="9" fill="#9dabc7" stroke="#394b50" stroke-width="3"/>'
+                '</g>'
+            )
         return (
             '<g>'
-            + (
-                '<path d="M132 337c52 22 119 22 171 0l-16 38-68 31-69-31z" fill="#c57a3c" stroke="#394b50" stroke-width="4"/><path d="M219 405l28-8-16 16z" fill="#b8a6a0"/>'
-                if head
-                else '<path d="M310 398c59 27 126 27 185 0l-18 52-75 39-75-39z" fill="#c57a3c" stroke="#394b50" stroke-width="6"/><circle cx="402" cy="445" r="12" fill="#9dabc7" stroke="#394b50" stroke-width="4"/>'
-            )
-            + '</g>'
+            '<path d="M315 116c37-51 132-67 198-24l-11 48H323z" fill="#c57a3c" stroke="#394b50" stroke-width="7" stroke-linejoin="round"/>'
+            '<path d="M397 135c69-2 132 10 179 34-49 14-114 18-181 9z" fill="#b8a6a0" stroke="#394b50" stroke-width="6"/>'
+            '<path d="M307 400c61 28 130 28 191 0l-20 54-76 40-77-40z" fill="#c57a3c" stroke="#394b50" stroke-width="7"/>'
+            '<circle cx="402" cy="448" r="13" fill="#9dabc7" stroke="#394b50" stroke-width="4"/>'
+            '<path d="M294 520c21 35 40 72 52 114M510 520c-21 35-40 72-52 114" fill="none" stroke="#c57a3c" stroke-width="10" stroke-linecap="round" opacity=".9"/>'
+            '</g>'
         )
     if theme == "midnight":
         return (
