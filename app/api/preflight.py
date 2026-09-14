@@ -9,6 +9,40 @@ from app.core.preflight import run_preflight
 
 router = APIRouter()
 
+# Some preflight findings are intentionally presented as warnings because the
+# backend itself is healthy and the workflow remains valid. They can still make
+# that backend unsuitable for this specific workflow, though. Keep that routing
+# decision separate from the Admin UI severity so operators get a useful yellow
+# diagnostic instead of a misleading server-health error.
+ROUTING_BLOCKING_WARNING_CODES = {"value_unavailable"}
+
+
+def _routing_compatible(backend: dict) -> bool:
+    if not backend.get("reachable") or backend.get("errors"):
+        return False
+    return not any(
+        isinstance(warning, dict) and warning.get("code") in ROUTING_BLOCKING_WARNING_CODES
+        for warning in (backend.get("warnings") or [])
+    )
+
+
+def _routing_cache_results(backends: list[dict]) -> list[dict]:
+    """Adapt preflight results for BackendManager without changing UI severity."""
+    cached = []
+    for backend in backends:
+        item = dict(backend)
+        if backend.get("reachable") and not _routing_compatible(backend) and not backend.get("errors"):
+            errors = list(item.get("errors") or [])
+            errors.append(
+                {
+                    "code": "routing_incompatible",
+                    "message": "Backend cannot run this workflow with its current model/input inventory.",
+                }
+            )
+            item["errors"] = errors
+        cached.append(item)
+    return cached
+
 
 @router.post("/api/admin/workflows/preflight")
 async def preflight_workflow(payload: dict, _=Depends(verify_admin)):
@@ -45,8 +79,17 @@ async def preflight_workflow(payload: dict, _=Depends(verify_admin)):
         servers=get_comfy_servers(),
     )
 
+    backends = result.get("backends", [])
+    for backend in backends:
+        backend["routing_compatible"] = _routing_compatible(backend)
+
     compatibility_key = workflow_compatibility_key(workflow_file, workflow, node_mapping)
-    backend_manager.record_preflight(compatibility_key, result.get("backends", []))
+    backend_manager.record_preflight(compatibility_key, _routing_cache_results(backends))
+
+    summary = result.get("summary")
+    if isinstance(summary, dict):
+        summary["routable_backends"] = sum(1 for backend in backends if backend.get("routing_compatible"))
+
     result["routing"] = {
         "compatibility_cached": True,
         "compatibility_key": compatibility_key[:12],
