@@ -1,110 +1,135 @@
 # Adding ComfyUI Workflows to Orange
 
-Orange works by wrapping around ComfyUI "API Workflows". This allows you to build complex generation node trees in ComfyUI and expose them as a simple, single-click tool in the Orange interface.
+Orange wraps ComfyUI **API workflows** and exposes only a small, intentional set of user-facing inputs. The workflow can be technically complicated underneath; the Orange tool should stay simple.
 
-## Before You Start: Keep the Complexity in the Workflow
+## Before You Start: Keep Complexity in the Workflow
 
-Orange is intentionally opinionated about what reaches the end user.
+Configure implementation decisions in ComfyUI whenever possible: model choice, sampler, scheduler, steps, CFG/guidance, LoRA strengths, negative conditioning, custom-node settings, and similar technical values normally belong in the workflow rather than the Orange UI.
 
-When building a workflow for Orange, configure as much as possible inside ComfyUI itself: model choice, sampler, scheduler, steps, CFG, LoRA strengths, negative conditioning, node-specific values, and other technical settings should normally be decided by the workflow engineer rather than exposed in Orange.
-
-Orange should expose only the decisions the user genuinely needs to make for a generation, such as a prompt, one or more required images, and an intentionally curated aspect ratio choice.
-
-A good rule is:
+Orange should expose only decisions the user genuinely needs to make for each generation, such as a prompt, one or more required images, and an intentionally curated aspect ratio choice.
 
 > If the workflow engineer can make the decision once, the Orange user should not have to make it every time.
 
 The mapping system is deliberately small. It is not intended to become a generic form builder for every ComfyUI node input.
 
-Before asking for a new Orange mapping type, first try to solve the requirement inside the workflow. Add a new mapping only when the interaction is genuinely part of the user's creative intent rather than a technical tuning parameter.
+## 1. Export an API Workflow from ComfyUI
 
-## Step 1: Exporting an API Workflow from ComfyUI
+Orange needs ComfyUI's execution/API JSON, not the normal UI workflow containing node positions and editor metadata.
 
-By default, saving a workflow in ComfyUI saves the GUI structure (node positions, colors, etc.). Orange requires the **API format**, which strips the visuals and only leaves the execution graph.
+1. Open ComfyUI and confirm the workflow works there first.
+2. Enable **Dev mode Options** in ComfyUI settings if necessary.
+3. Use **Save (API format)**.
+4. Keep the exported `.json` file.
 
-1. Open your ComfyUI interface in your browser (usually `http://127.0.0.1:8188`).
-2. Click the gear icon (`⚙️`) in the ComfyUI control panel to open the **Settings** menu.
-3. Check the box for **"Enable Dev mode Options"**.
-4. Close the settings. You will now see a new button on the control panel called **"Save (API format)"**.
-5. Build and test your workflow completely in ComfyUI first. Resolve technical choices there whenever possible.
-6. Once working, click **"Save (API format)"**.
-7. Keep the resulting `.json` file handy.
+## 2. Add It Through the Tool Editor
 
-## Step 2: Adding the Workflow via Tool Editor (Recommended)
+1. Open `http://localhost:7070/admin`.
+2. Log in with the configured `adminKey`.
+3. Open **Tools**.
+4. Upload or drag in the exported API workflow JSON.
+5. Configure the tool name, output type, and Orange node mappings.
+6. Save the tool configuration.
 
-The easiest way to add your workflow to Orange is by using the built-in Admin Dashboard Tool Editor.
+Orange attempts to auto-detect common mappings, but the workflow engineer should verify every mapped node and field.
 
-1. Navigate to `http://localhost:7070/admin` in your browser.
-2. Log in using your `adminKey` (default is `orangeadmin`).
-3. Click on the **Tools** tab.
-4. Click the **Upload Workflow** button or drag-and-drop your exported `.json` file onto the button.
-5. Orange will automatically upload the file, parse your workflow, and attempt to automatically map the common semantic inputs (Prompt, Image, Resolution, Seed).
+### Supported semantic mappings
 
-### Configuring Node Mappings
+- **Prompt** — usually maps to a text/string input such as `CLIPTextEncode.text`.
+- **Image** — maps to a user-supplied image input. Orange uploads the file to the selected backend and rewrites the workflow value.
+- **Image 2** — second user-supplied image when the tool genuinely requires one.
+- **Width / Height** — used for Orange's curated aspect-ratio choices.
+- **Seed** — normally configured with `generateRandom: true`; users do not need a seed control.
+- **Output Text** — identifies text returned by the workflow for display alongside media.
 
-Orange UI dynamically renders its supported input fields based on the mappings you provide in the Tool Editor. If you map `prompt`, a text box will appear on the frontend. If you map `image`, a file uploader will appear.
+### What not to map
 
-* **Prompt**: Connects to a string/text input (e.g., `CLIPTextEncode`).
-* **Image**: Connects to a `LoadImage` node. The Orange backend will automatically upload the user's file to ComfyUI and swap the filename into this node.
-* **Image 2**: Provides a second reference image only for workflows that genuinely require a second user-supplied image.
-* **Resolution**: Connects to width and height integers (e.g., in `EmptyLatentImage`). You can also configure tool-specific custom aspect ratios using the "Override Default Aspect Ratios" checkbox.
-* **Seed**: Connects to the random seed generator (e.g., in `KSampler` or `KSamplerAdvanced`). In most tools this should remain automatic rather than becoming a user-facing choice. Make sure "Generate Random" is checked when Orange should inject a new seed each time.
-* **Output Text**: Connects to a node that outputs text (like `PreviewText` or a custom Lyrics node). This displays the text in a clean, copyable results interface.
+Do not add a frontend control just because a node has a configurable field. These normally stay fixed inside the workflow:
 
-### What Not to Map
-
-Do not add a frontend control simply because a workflow node has a configurable field.
-
-Values such as these should normally remain inside the ComfyUI workflow:
-- Checkpoint / model
-- Sampler
-- Scheduler
-- Steps
-- CFG / guidance
-- Denoise
+- checkpoint/model
+- sampler and scheduler
+- steps
+- CFG/guidance
+- denoise
 - LoRA selection or strength
-- Negative prompt internals
-- ControlNet strength
-- Internal video settings
-- Technical resolution transforms
+- negative-prompt internals
+- ControlNet/adapter strength
+- custom-node tuning values
+- internal video settings
+- technical resolution transforms
 
-If a future workflow truly requires a new type of user interaction, it should be considered as a deliberate first-class Orange concept rather than exposing arbitrary node parameters.
+If a future workflow truly requires a new kind of user interaction, add it deliberately as a first-class Orange concept rather than opening arbitrary node parameters to the frontend.
 
-### Output Types
+## 3. Fixed Workflow Images / Assets
 
-You can specify the **Output Type** for each tool:
-* **Image**: Standard image output.
-* **Video**: Uses a video player for playback (supports MP4, WebM, MKV, MOV). Compatible with nodes like `VHS_VideoCombine`.
-* **Audio**: Uses a premium **WaveSurfer.js** player with a dynamic waveform visualization. Compatible with nodes like `SaveAudio`.
+An unmapped `LoadImage`-style input is treated differently from a user image mapping. If the workflow requires a fixed reference image, manage it as a **Workflow Asset** in the Tool Editor.
 
-### Auto-Detection
+Orange owns managed assets for that workflow, uploads them to whichever backend actually receives the request, and rewrites the workflow input with the backend-side filename. This keeps a workflow portable across multiple ComfyUI machines.
 
-The Tool Editor will attempt to automatically detect useful Orange mappings from your node fields when you type a **Node ID**. For example:
-* Typing the ID of a `RandomNoise` or `KSampler` node can auto-fill the **Seed** mapping.
-* Typing the ID of a `CLIPTextEncode` node can auto-fill the **Prompt** mapping.
+An unmapped image input with no managed asset produces a Preflight warning because it may depend on a file that happens to exist on only one ComfyUI installation.
 
-Auto-detection is intended to reduce setup work for the engineer, not to expose more technical controls to the end user.
+## 4. Run Workflow Preflight
 
-You can verify and adjust these mappings, as well as the tool's Display Name and ID, directly in the Tool Editor interface. Click "Save Tool Configuration" when finished.
+Run **Workflow Preflight** before treating a tool as ready. Preflight validates both Orange's local configuration and each configured ComfyUI backend.
+
+It checks, among other things:
+
+- the JSON is a ComfyUI API workflow rather than the editor/UI format
+- mapped node IDs exist
+- mapped fields exist
+- required node classes/custom nodes are installed on each backend
+- required inputs are present or intentionally supplied by Orange
+- enumerated values such as checkpoint/model names are available on each backend
+- unmanaged image inputs are called out
+- managed workflow assets are recognized as Orange-owned inputs
+
+### Warning vs routing compatibility
+
+Preflight severity and routing eligibility are intentionally separate.
+
+For example, if Backend 1 is healthy and has every required custom node but is missing the workflow's selected checkpoint, the Admin UI reports that as a **warning** (`value_unavailable`) rather than claiming the server itself is broken. However, that backend is marked **not routable for that workflow**.
+
+If Backend 2 has the required checkpoint, Orange routes the generation directly to Backend 2 instead of knowingly sending the request to Backend 1 first.
+
+This compatibility decision is cached using a fingerprint of the workflow and node mapping, so changing either produces a new compatibility key. Run Preflight again after changing a workflow, model choice, custom-node dependency, or mapping when you want routing to use the updated compatibility information.
+
+Preflight is workflow-specific. A backend excluded for one tool is not globally unhealthy and can continue serving other workflows it supports.
+
+## 5. Backend Failover Behavior
+
+Routing first considers workflow compatibility, then live backend health/load. Orange tracks queue state and a short-lived active-request reservation so simultaneous requests do not all pile onto the same backend before ComfyUI's queue poll updates.
+
+If a compatible backend rejects a workflow during submission with a safe, backend-specific 4xx response, Orange can retry another compatible backend without marking the first server globally unhealthy. Network failures and server errors are tracked separately from workflow incompatibility.
+
+Orange deliberately does **not** blindly retry ambiguous failures where the first backend may already have accepted the job, because doing so could create duplicate generations.
+
+## Output Types
+
+Each tool has an intended output type:
+
+- **Image** — image result display.
+- **Video** — video/animated output playback.
+- **Audio** — audio playback with waveform UI.
+- **Text** — text can be surfaced through an `outputText` mapping where appropriate.
 
 ## Workflow Design Checklist
 
-Before publishing a tool to Orange, ask:
+Before publishing a tool, verify:
 
-1. Does the workflow run correctly in ComfyUI by itself?
-2. Are model, sampler, steps, CFG, LoRAs, and similar implementation details already resolved inside the workflow?
-3. Is every Orange input something the user truly needs to choose per generation?
-4. Can any exposed decision be automated or fixed inside ComfyUI instead?
-5. Are the mapped node IDs and fields stable in the exported API workflow?
-6. Does the tool produce one of Orange's intended output types cleanly?
+1. The workflow runs correctly in ComfyUI by itself.
+2. It was exported in API format.
+3. Model/sampler/steps/CFG/LoRA and other implementation details are resolved inside the workflow.
+4. Every Orange input is a real per-generation user decision.
+5. Mapped node IDs and fields are stable.
+6. Required fixed images are uploaded as Workflow Assets rather than relying on backend-local filenames.
+7. Workflow Preflight has been run against the configured backend pool.
+8. At least one backend is routable for the workflow.
+9. The configured output type matches what the workflow actually saves/returns.
 
-The ideal Orange tool can be technically sophisticated underneath while feeling extremely simple to use.
+The ideal Orange tool can be sophisticated underneath while feeling extremely simple to use.
 
 ## Advanced: Manual JSON Configuration
 
-If you prefer configuring tools manually or need to edit the raw data, you can edit `workflows/workflows-config.json` in a text editor.
-
-You will see an array of `tools`. To add yours, create a new object in the `tools` array. The structure looks like this:
+You can also edit `workflows/workflows-config.json` manually. A basic tool looks like:
 
 ```json
 {
@@ -137,16 +162,8 @@ You will see an array of `tools`. To add yours, create a new object in the `tool
 }
 ```
 
-*Note: If you modify `workflows-config.json` manually, make sure to move your exported `.json` file into the `workflows/` directory first.*
+Place the workflow JSON in `workflows/` as well. Configuration is read dynamically, so ordinary tool edits do not require restarting Orange; refresh the browser after saving.
 
-## Step 3: Enjoy!
+## Defaults and User-Owned Files
 
-There is no need to restart the backend when creating or editing tools. Because the Orange server reads the config dynamically, simply **refresh your browser** at the main Orange URL. Your new tool will appear in the sidebar automatically.
-
-## Default Workflows
-
-Orange separates core default workflows from your user customizations.
-- Tracked defaults live in `workflows/defaults/`.
-- Your active settings and customized tools live in `workflows/workflows-config.json`.
-
-If you ever accidentally delete a default tool, or if you want to restore the official default workflows provided with updates, you can copy the `.json` files from `workflows/defaults/` into `workflows/`, or use the **Restore Default Workflows** button in the Admin Dashboard Settings menu.
+Tracked defaults live under `workflows/defaults/`. Active/user-owned configuration lives under `workflows/` and is kept separate so updates can improve Orange without overwriting local tools, prompts, assets, and branding.

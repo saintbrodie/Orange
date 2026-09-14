@@ -40,13 +40,14 @@ class SubmissionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ctx.exception.status_code, 502)
         self.assertIn("may still have started", ctx.exception.public_message.lower())
 
-    async def test_workflow_rejection_does_not_mark_backend_unhealthy(self):
-        client = _FakeClient(response=_response(400, text="bad node"))
+    async def test_workflow_rejection_retries_without_marking_backend_unhealthy(self):
+        client = _FakeClient(response=_response(400, text="value_not_in_list: model missing"))
         with self.assertRaises(SubmissionFailure) as ctx:
             await submit_prompt(client, "http://backend", {"prompt": {}})
-        self.assertFalse(ctx.exception.retryable)
+        self.assertTrue(ctx.exception.retryable)
         self.assertFalse(ctx.exception.mark_backend_failed)
         self.assertEqual(ctx.exception.status_code, 422)
+        self.assertIn("rejected", ctx.exception.public_message.lower())
 
     async def test_backend_500_is_retryable(self):
         client = _FakeClient(response=_response(503, text="temporarily unavailable"))

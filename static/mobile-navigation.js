@@ -44,36 +44,125 @@
         return button;
     }
 
+    function originalToolIsActive(button) {
+        return button.classList.contains('bg-orange-500/10') || button.classList.contains('text-orange-400');
+    }
+
+    function toolButtonLabel(button) {
+        return button.querySelector('span')?.textContent?.trim() || button.textContent.trim();
+    }
+
+    function setCurrentTool(name) {
+        const value = document.getElementById('mobile-current-tool-name');
+        if (value) value.textContent = name || 'Choose a tool';
+    }
+
+    function syncGeneratorTools(toolTabs, drawerList) {
+        const originals = Array.from(toolTabs.children).filter(element => element.tagName === 'BUTTON');
+        drawerList.replaceChildren();
+
+        let activeName = '';
+        originals.forEach(original => {
+            const name = toolButtonLabel(original);
+            const active = originalToolIsActive(original);
+            if (active) activeName = name;
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `mobile-tool-drawer-item${active ? ' active' : ''}`;
+
+            const label = document.createElement('span');
+            label.textContent = name;
+            const mark = document.createElement('span');
+            mark.className = 'mobile-tool-drawer-mark';
+            mark.setAttribute('aria-hidden', 'true');
+            mark.textContent = active ? '✓' : '›';
+            button.append(label, mark);
+
+            button.addEventListener('click', () => {
+                original.click();
+                setCurrentTool(name);
+                closeMenus();
+            });
+            drawerList.appendChild(button);
+        });
+
+        if (!activeName && originals.length === 1) activeName = toolButtonLabel(originals[0]);
+        if (activeName) setCurrentTool(activeName);
+    }
+
     function setupGeneratorMenu() {
         const toolTabs = document.getElementById('tool-tabs');
         const shell = toolTabs?.closest('.max-w-6xl');
         const sidebar = shell?.firstElementChild;
-        const drawer = toolTabs?.parentElement;
-        if (!toolTabs || !sidebar || !drawer) return false;
+        const originalToolList = toolTabs?.parentElement;
+        if (!toolTabs || !sidebar || !originalToolList) return false;
 
-        drawer.id = 'mobile-tool-drawer';
+        // Keep the real tool controls in the desktop sidebar. The mobile drawer is
+        // a body-level proxy so the backdrop can never cover or blur it because of
+        // an ancestor stacking context.
+        originalToolList.classList.add('orange-desktop-tool-list');
 
-        const drawerHeader = document.createElement('div');
-        drawerHeader.id = 'mobile-tool-drawer-head';
-        const drawerTitle = document.createElement('div');
-        drawerTitle.className = 'text-sm font-semibold text-zinc-200';
-        drawerTitle.textContent = 'Choose Tool';
-        const closeButton = makeIconButton('mobile-tool-menu-close', 'Close tool menu', 'x');
-        closeButton.addEventListener('click', closeMenus);
-        drawerHeader.append(drawerTitle, closeButton);
-        drawer.insertBefore(drawerHeader, drawer.firstChild);
+        let currentTool = document.getElementById('mobile-current-tool');
+        if (!currentTool) {
+            currentTool = document.createElement('div');
+            currentTool.id = 'mobile-current-tool';
+            const eyebrow = document.createElement('span');
+            eyebrow.className = 'mobile-current-tool-label';
+            eyebrow.textContent = 'Current tool';
+            const name = document.createElement('strong');
+            name.id = 'mobile-current-tool-name';
+            name.textContent = 'Loading…';
+            currentTool.append(eyebrow, name);
+        }
+
+        let drawer = document.getElementById('mobile-tool-drawer');
+        if (!drawer) {
+            drawer = document.createElement('aside');
+            drawer.id = 'mobile-tool-drawer';
+            drawer.setAttribute('aria-label', 'Tool selector');
+
+            const drawerHeader = document.createElement('div');
+            drawerHeader.id = 'mobile-tool-drawer-head';
+            const drawerTitleWrap = document.createElement('div');
+            const drawerEyebrow = document.createElement('span');
+            drawerEyebrow.className = 'mobile-drawer-eyebrow';
+            drawerEyebrow.textContent = 'Orange';
+            const drawerTitle = document.createElement('div');
+            drawerTitle.className = 'mobile-drawer-title';
+            drawerTitle.textContent = 'Choose Tool';
+            drawerTitleWrap.append(drawerEyebrow, drawerTitle);
+            const closeButton = makeIconButton('mobile-tool-menu-close', 'Close tool menu', 'x');
+            closeButton.addEventListener('click', closeMenus);
+            drawerHeader.append(drawerTitleWrap, closeButton);
+
+            const drawerList = document.createElement('div');
+            drawerList.id = 'mobile-tool-drawer-list';
+            drawer.append(drawerHeader, drawerList);
+            document.body.appendChild(drawer);
+        }
 
         const menuButton = makeIconButton('mobile-tool-menu-btn', 'Choose tool', 'menu');
         menuButton.addEventListener('click', () => {
             if (document.body.classList.contains('orange-mobile-menu-open')) closeMenus();
             else openMenu(menuButton);
         });
+
         const vramWarning = document.getElementById('vram-warning');
+        sidebar.insertBefore(currentTool, vramWarning || sidebar.lastElementChild);
         sidebar.insertBefore(menuButton, vramWarning || sidebar.lastElementChild);
 
-        toolTabs.addEventListener('click', event => {
-            if (event.target.closest('button')) closeMenus();
-        });
+        const drawerList = document.getElementById('mobile-tool-drawer-list');
+        if (!drawerList) return false;
+        syncGeneratorTools(toolTabs, drawerList);
+
+        // app.js replaces #tool-tabs' direct button children whenever a tool is
+        // selected. Watching only those direct child replacements is sufficient.
+        // Do NOT observe subtree/class mutations here: Lucide and Tailwind both
+        // mutate descendants while rendering, which can turn a broad observer into
+        // an infinite DOM-rescan loop and freeze Firefox.
+        const observer = new MutationObserver(() => syncGeneratorTools(toolTabs, drawerList));
+        observer.observe(toolTabs, { childList: true });
 
         return true;
     }
@@ -118,6 +207,13 @@
         if (!authenticated) closeMenus();
     }
 
+    function setAdminDrawerTitle(appName) {
+        const title = document.querySelector('#mobile-admin-drawer .mobile-admin-drawer-head > div');
+        if (!title) return;
+        const nextTitle = `${appName || 'Orange'} Admin`;
+        if (title.textContent !== nextTitle) title.textContent = nextTitle;
+    }
+
     function setupAdminMenu() {
         const originalMenu = document.getElementById('admin-menu');
         const logoutButton = document.getElementById('logout-btn');
@@ -139,7 +235,7 @@
         header.className = 'mobile-admin-drawer-head';
         const title = document.createElement('div');
         title.className = 'text-sm font-semibold text-zinc-200';
-        title.textContent = 'Orange Admin';
+        title.textContent = `${window.__orangeLastPersonalizationName || 'Orange'} Admin`;
         const closeButton = makeIconButton('mobile-admin-menu-close', 'Close admin menu', 'x');
         closeButton.addEventListener('click', closeMenus);
         header.append(title, closeButton);
@@ -148,6 +244,7 @@
         const items = [
             ['tab-general', 'settings'],
             ['tab-tools', 'wrench'],
+            ['tab-personalization', 'palette'],
             ['tab-analytics', 'bar-chart-2'],
             ['tab-gallery', 'image'],
         ];
@@ -180,6 +277,10 @@
         });
         observer.observe(originalMenu, { attributes: true, attributeFilter: ['class'] });
         adminOriginals.forEach(([element]) => observer.observe(element, { attributes: true, attributeFilter: ['class'] }));
+
+        window.addEventListener('orange:personalization-applied', event => {
+            setAdminDrawerTitle(event.detail?.config?.branding?.appName || window.__orangeLastPersonalizationName || 'Orange');
+        });
 
         syncAdminVisibility();
         syncAdminActiveState();

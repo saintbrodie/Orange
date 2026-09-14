@@ -54,7 +54,11 @@ fi
 while true; do
     rm -f RESTART_REQUIRED
     echo "Starting Orange App on port 7070..."
-    uvicorn app.main:app --host 0.0.0.0 --port 7070
+    if [ "${ORANGE_VERBOSE_LOGS:-0}" = "1" ]; then
+        uvicorn app.main:app --host 0.0.0.0 --port 7070
+    else
+        uvicorn app.main:app --host 0.0.0.0 --port 7070 --no-access-log --log-level warning
+    fi
 
     if [ -f "RESTART_REQUIRED" ]; then
         echo "Restart requested..."

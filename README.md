@@ -2,78 +2,126 @@
 
 ![Orange UI Screenshot](docs/Generate.jpg)
 
-Orange is a minimalist, dynamic web frontend wrapper around **ComfyUI**. It replaces the complex node-graph interface with a user-friendly, responsive experience that allows anyone to generate, edit, and upscale media via your local ComfyUI instance without knowing the node-spaghetti underneath.
+Orange is a minimalist web frontend for **ComfyUI**. It turns engineer-built API workflows into simple generation tools without exposing the node graph, model plumbing, or backend fleet to ordinary users.
 
 ## Design Philosophy
 
 Orange is intentionally **not** a generic ComfyUI parameter editor.
 
-The ComfyUI workflow author is responsible for the complicated parts: models, samplers, steps, CFG, LoRAs, conditioning, negative prompts, node-specific settings, and other implementation details. Orange should expose only the small number of choices that a user genuinely needs to make for a generation.
+The workflow author owns the complicated parts: models, samplers, steps, CFG/guidance, LoRAs, conditioning, custom nodes, and other implementation details. Orange should expose only the choices a user genuinely needs for that generation, typically:
 
-In practice, that means Orange prefers semantic inputs such as:
-- Prompt
-- Image / reference image
-- Aspect ratio or resolution choice
+- prompt
+- image/reference image when required
+- an intentionally curated aspect ratio/resolution
 - Generate
 
-The existing `nodeMapping` names should be treated as a curated product API, not an unfinished list of controls waiting to be generalized. A new frontend mapping should be added only when it represents a real, recurring user decision that cannot reasonably be handled inside the workflow.
+`nodeMapping` is a curated product API, not a list of technical controls waiting to be generalized.
 
-**The goal is smarter internals, not a more complicated frontend.** Workflow validation, backend routing, recovery, dependency checks, and diagnostics can become more capable while the Generate page remains deliberately simple.
+**The goal is smarter internals, not a more complicated frontend.**
 
-See [Architecture Overview](docs/ARCHITECTURE.md) for the engineering boundary in more detail.
+See [Architecture Overview](docs/ARCHITECTURE.md) for the engineering boundary and current runtime design.
 
-## Features
-- **Idiot-Proof UI**: Minimalistic design focused on clear inputs rather than backend complexity.
-- **Curated Dynamic Capabilities**: Tool availability adapts to configured workflows while keeping the user-facing control surface deliberately small.
-- **Real-Time Feedback**: Progress bars, queue positions, and system status directly inherited from ComfyUI websockets.
-- **Extensible**: Drop in ComfyUI API workflows to add new generation paths without exposing the workflow's technical controls to users.
-- **Auto-Installer**: Simple `run.bat` and `run.sh` scripts manage the environment on Windows/Mac/Linux.
-- **Admin Tracking**: Secure built-in dashboard to monitor platform usage metrics, IPs, and tool popularity.
-- **Multi-Modal Support**: Native support for Image, Video, and Audio generations.
-- **Output Text Support**: Ability to display generated text (like lyrics, metadata, or logs) directly alongside media outputs.
-- **Intelligent Auto-Mapping**: Admin Tool Editor automatically detects and maps node fields for `RandomNoise`, `CLIPTextEncode`, `EmptyLatentImage`, and more.
-- **LLM Prompt Enhancement**: Interactively expand simple prompts into descriptive, high-quality detailed prompts using OpenAI-compatible, Ollama, Gemini, or Anthropic LLMs.
-- **Git-Safe Custom Prompts**: Configure and edit system prompts per-tool or globally. They are saved to local files that won't get overwritten when pulling updates via git.
+## Highlights
+
+- **Simple Generator UI** — workflow complexity stays hidden behind a small semantic input surface.
+- **ComfyUI API Workflows** — add image, edit, upscale, video, audio, or text-producing tools without rebuilding their logic in Orange.
+- **Multi-Backend Routing** — queue-aware selection across configured ComfyUI servers with priority, health tracking, and short-lived active-request reservations.
+- **Workflow-Aware Compatibility** — Admin Preflight checks each backend for required nodes, mappings, model values, and workflow assets. A healthy machine missing a required model can be excluded from routing for that workflow without being marked globally down.
+- **Safe Failover** — explicit workflow rejections and safe pre-submission failures can retry another backend while ambiguous post-submission failures avoid duplicate jobs.
+- **Workflow Assets** — fixed reference images can be managed by Orange and staged automatically on whichever backend receives a job.
+- **Real-Time Status** — queue/progress information is surfaced from ComfyUI while the generator stays backend-agnostic.
+- **Normalized Outputs** — image, video, audio, and text output handling with backend ownership recorded per prompt.
+- **Prompt Enhancement** — optional OpenAI/OpenAI-compatible, Ollama, Gemini, or Anthropic LLM expansion with local prompt overrides.
+- **Personalization** — Classic, Cyber, Princess, Arcade, Adventure, Midnight, and Custom themes plus white-label app name/logo/icon/colors.
+- **Responsive Admin** — tool editor, workflow preflight, backend health, workflow assets, analytics, database backup/restore, and personalization.
+- **Git-Safe Local State** — active config, prompt overrides, branding, and related deployment state are separated from tracked defaults.
+- **Windows/Linux/macOS Launchers** — launchers create the venv, resync dependencies when `requirements.txt` changes, and support Admin-triggered restart.
 
 ## Requirements
+
 - Python 3
-- A running instance of [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
+- One or more running [ComfyUI](https://github.com/comfyanonymous/ComfyUI) instances
 
-## Installation & Running
+## Installation
 
-### Option 1: Manual Installation (Recommended)
+### Manual
 
-1. **Clone this repository**
-2. **Double click `run.bat` (Windows) or execute `./run.sh` (Linux/Mac)**
-   The startup script will automatically check for Python, install it if missing, create a virtual environment, install requirements, and start the frontend server on port `7070`.
-3. Open your browser and navigate to `http://localhost:7070/`.
+1. Clone this repository.
+2. Start Orange:
+   - Windows: run `run.bat`
+   - Linux/macOS: run `./run.sh`
+3. On a fresh install, the launcher creates the virtual environment, installs Python dependencies, and can optionally run the default-model downloader.
+4. Open `http://localhost:7070/`.
 
-### Option 2: 1-Click Install with Pinokio
+The launcher hashes `requirements.txt`, so dependencies are resynchronized automatically after an Orange update changes them.
 
-You can install and run Orange with 1-click using [Pinokio](https://pinokio.computer):
+### Pinokio
 
-1. Download and install [Pinokio](https://pinokio.computer).
-2. Paste the following URL into the Pinokio search/address bar:
-   `https://beta.pinokio.co/apps/github-com-saintbrodie-orange-pinokio`
-3. Click **Download** and then **Install** to automatically clone the repository, set up the Python virtual environment, and install dependencies.
-4. Once installation is complete, click **Start** to run the server.
+A companion Pinokio installer is available at:
 
-## Documentation
-- [Architecture Overview](docs/ARCHITECTURE.md): Detailed project breakdown, design boundaries, and data flow for AI agents and developers.
-- [Adding Workflows](docs/adding_workflows.md): Guide on how to export and use your own ComfyUI node graphs while keeping the Orange UI intentionally simple.
+`https://beta.pinokio.co/apps/github-com-saintbrodie-orange-pinokio`
+
+Install/start Orange from Pinokio, then use the same browser UI on port `7070`.
+
+## First Admin Setup
+
+Open `http://localhost:7070/admin` and log in with the configured `adminKey` from `workflows/workflows-config.json`.
+
+> [!IMPORTANT]
+> The historical default key is `orangeadmin`. Change it for any deployment that is accessible by other people or machines you do not fully trust.
+
+The Admin area is where technical complexity belongs: workflow setup, compatibility diagnostics, backend health, assets, and branding should be solved there rather than exposed on the Generate page.
+
+## Adding a Tool
+
+1. Build and test the workflow in ComfyUI.
+2. Export it using **Save (API format)**.
+3. Upload it in Orange's Admin **Tools** tab.
+4. Map only the semantic fields Orange should expose.
+5. Add any fixed reference images as **Workflow Assets** rather than relying on backend-local filenames.
+6. Run **Workflow Preflight**.
+7. Confirm at least one backend is routable for the workflow.
+
+See [Adding Workflows](docs/adding_workflows.md) for the full guide.
+
+## Workflow Preflight and Routing
+
+Preflight validates the local workflow/mapping and compares it with each configured backend's ComfyUI `object_info`.
+
+It can detect:
+
+- wrong/UI workflow format
+- missing mapped nodes or fields
+- missing custom nodes
+- required inputs Orange cannot supply
+- unavailable enumerated values such as checkpoint/model names
+- unmanaged image inputs
+- Orange-managed fixed workflow assets
+
+A useful distinction is **backend health vs workflow compatibility**. If a server is online but lacks `model-x.safetensors`, Orange can keep the Admin result yellow while marking that backend not routable for the workflow that requires Model X. Other tools can continue using the same server normally.
+
+After Preflight, the compatibility result is cached using a fingerprint of the workflow and node mapping. Rerun Preflight after materially changing the workflow/dependencies so routing learns the new placement information.
+
+## Backend Failover
+
+Orange records which backend actually accepted each prompt and uses that machine for later status/output access.
+
+Safe submission behavior includes:
+
+- connection failure before a job is accepted → another backend may be tried
+- backend server error → another backend may be tried and health state updated
+- explicit workflow rejection/4xx → another backend may be tried without marking the first server globally unhealthy
+- ambiguous timeout after submission may have reached ComfyUI → Orange does **not** blindly retry and risk creating a duplicate generation
+
+The regression suite includes a two-backend generation test for this behavior.
 
 ## Admin Dashboard
+
 <table border="0">
   <tr>
-    <td align="center" valign="center">
-      <img src="docs/General_Settings.jpg" width="100%" alt="General Settings" />
-    </td>
-    <td align="center" valign="center">
-      <img src="docs/Tool_Editor.jpg" width="100%" alt="Tool Editor" />
-    </td>
-    <td align="center" valign="center">
-      <img src="docs/Analytics.jpg" width="100%" alt="Analytics Dashboard" />
-    </td>
+    <td align="center" valign="center"><img src="docs/General_Settings.jpg" width="100%" alt="General Settings" /></td>
+    <td align="center" valign="center"><img src="docs/Tool_Editor.jpg" width="100%" alt="Tool Editor" /></td>
+    <td align="center" valign="center"><img src="docs/Analytics.jpg" width="100%" alt="Analytics Dashboard" /></td>
   </tr>
   <tr>
     <td align="center"><b>General Settings</b></td>
@@ -82,42 +130,78 @@ You can install and run Orange with 1-click using [Pinokio](https://pinokio.comp
   </tr>
 </table>
 
-Orange features a secure analytics dashboard and an integrated Tool Editor that allows administrators to track usage metrics, manage workflows, and configure tools interactively.
+Admin capabilities include:
 
-1. Navigate to `http://localhost:7070/admin`.
-2. Login using the `adminKey` defined in your `workflows-config.json` (defaults to `orangeadmin`).
+- ComfyUI backend configuration and health visibility
+- workflow upload/editing and semantic node mappings
+- workflow Preflight and per-backend compatibility
+- fixed Workflow Assets
+- tool-specific aspect ratio overrides
+- prompt enhancement configuration
+- system-prompt editing
+- usage analytics/gallery
+- WAL-safe database backup/restore
+- themes and white-label personalization
 
-### Tool Editor Features
-- **Workflow Uploads**: Drag and drop ComfyUI API JSON workflows directly into the browser to automatically parse them. Orange will intelligently map your Prompt, Image, Resolution, and Seed inputs based on common nodes.
-- **Multi-Modal Output Types**: Configure tools as `Image`, `Video`, or `Audio` to unlock specific playback interfaces (like the Waveform visualizer).
-- **Text Mapping**: Bind an `outputText` node to display generated text (like lyrics) in a clean, copyable interface.
-- **Node Mappings**: Manually bind Orange's deliberately small set of frontend inputs to specific ComfyUI node IDs.
-- **Resolution Overrides**: Configure tool-specific output dimensions (1:1, 16:9, 9:16) for workflows that deviate from the global defaults, or turn off resolution scaling entirely.
+## Prompt Enhancement
 
-### LLM & Prompt Enhancement Configuration
-Orange features a powerful prompt enhancement utility that turns short user prompts into rich instructions using local or cloud LLMs.
+Prompt enhancement is optional. In **General Settings**, enable it and choose a provider:
 
-1. Navigate to the **Admin Dashboard** (`http://localhost:7070/admin`) and log in.
-2. Select **General Settings** from the dashboard.
-3. Check **Enable Prompt Enhancement**.
-4. Choose a provider:
-   - **OpenAI**: Requires an API Key. You can use a custom Base URL to point to **LM Studio**, **llama.cpp**, or **OpenRouter**.
-   - **Ollama**: Connects natively to local Ollama installations (defaulting to `http://127.0.0.1:11434`).
-   - **Gemini**: Requires a Google Gemini API Key.
-   - **Anthropic**: Requires an Anthropic API Key.
-5. Provide a model name (or click **Fetch Models** to query your provider's available models).
-6. Click **Save Settings**.
-7. Navigate to the **Tool Editor** tab to configure custom system prompts per tool or globally.
+- **OpenAI** — also supports compatible Base URLs such as LM Studio, llama.cpp, or OpenRouter.
+- **Ollama** — local Ollama endpoint.
+- **Gemini** — Google Gemini API.
+- **Anthropic** — Anthropic API.
 
-> [!TIP]
-> **API Keys via Environment Variables:** Rather than saving API keys in the config file, you can set `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `ANTHROPIC_API_KEY` in your system environment. Environment variables take precedence over UI-configured keys.
+Environment variables can be used instead of storing cloud API keys in Orange config:
+
+- `OPENAI_API_KEY`
+- `GEMINI_API_KEY`
+- `ANTHROPIC_API_KEY`
+
+Environment variables take precedence over UI-configured keys.
+
+System prompt overrides under `workflows/prompts/` are local/user-owned and are not overwritten by normal Git updates.
+
+## Personalization
+
+Orange includes preset themes plus Custom/white-label branding. Built-in themed mascot variants are normal editable SVG assets under `static/theme-assets/logos/`, so vector edits do not need to preserve internal SVG IDs or generated class names.
+
+User-owned personalization and uploaded branding live under `workflows/` and remain separate from tracked theme/runtime files.
+
+See [Personalization](docs/PERSONALIZATION.md).
 
 ## Default Workflows
-Out of the box, Orange is configured with these high-performance workflows:
-- **Realistic Generate**: [Z-Image Turbo](workflows/defaults/image_z_image_turbo.json) + [NiceGirls UltraReal LoRA](https://civitai.com/models/1862761/nicegirls-ultrareal?modelVersionId=2465980)
-- **Detailed Generate**: [Qwen 2512](workflows/defaults/Qwen%20Image%202512.json) using [BF16 Model](https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/blob/main/split_files/diffusion_models/qwen_image_2512_bf16.safetensors) + [8-Step Lightning LoRA](https://huggingface.co/lightx2v/Qwen-Image-2512-Lightning/blob/main/Qwen-Image-2512-Lightning-8steps-V1.0-fp32.safetensors)
-- **Modify Image**: [Klein KV](workflows/defaults/Klein%20Edit.json) (ComfyUI Default)
-- **Upscale Image**: [SeedVR2 4k](workflows/defaults/SeedVR2%20Image%20Upscale.json) (From the [Seed2VR Extension](https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler))
 
-> [!TIP]
-> **Model Downloader Script:** On a fresh installation, the setup scripts (`run.bat` / `run.sh`) will prompt you to automatically download the models and dependencies required for these default workflows. You can also run the download script manually at any time by executing `python scripts/download_models.py` inside your virtual environment.
+The current defaults include:
+
+- **Realistic Generate** — Z-Image Turbo based workflow
+- **Detailed Generate** — Qwen Image 2512 based workflow
+- **Modify Image** — Klein Edit workflow
+- **Upscale Image** — SeedVR2 image upscale workflow
+
+The setup launchers can offer `scripts/download_models.py` during a fresh install. You can also run that script manually inside Orange's virtual environment.
+
+Because exact model filenames/dependencies can change independently across ComfyUI machines, use Workflow Preflight as the authoritative deployment check instead of assuming every backend has every default dependency.
+
+## Local State and Updates
+
+Orange separates tracked defaults from active deployment state. Normal Git updates should not overwrite local prompts, branding, personalization, workflow assets, or other user-owned configuration under the designated `workflows/` locations.
+
+The Admin update action uses a fast-forward-only Git pull and the launcher restart sentinel rather than attempting to overwrite local history.
+
+## Testing
+
+CI currently validates Python 3.10 and 3.12, compiles Python sources, syntax-checks tracked JavaScript modules, validates the theme manifest, and runs the unit/regression suite.
+
+The suite covers routing, preflight, safe submission, route precedence, database migration/backup/restore, output handling, workflow assets, personalization, public config safety, LLM validation, and other operational behavior.
+
+## Documentation
+
+- [Architecture Overview](docs/ARCHITECTURE.md)
+- [Adding Workflows](docs/adding_workflows.md)
+- [Personalization & White-Label Branding](docs/PERSONALIZATION.md)
+- [Personalization Test Checklist](docs/PERSONALIZATION_TESTING.md)
+
+## Current Development Posture
+
+Orange has reached the point where reliability should be driven primarily by **dogfooding real workflows** rather than broad feature expansion. If a new idea makes the Generate page more technical, first ask whether it can be solved once by the workflow engineer or Admin instead.

@@ -1,0 +1,306 @@
+:root {
+  --orange-accent: #f97316;
+  --orange-accent-2: #ea580c;
+  --orange-bg: #09090b;
+  --orange-panel: #18181b;
+  --orange-panel-2: #27272a;
+  --orange-text: #f4f4f5;
+  --orange-muted: #71717a;
+  --orange-radius: 24px;
+  --orange-glow: color-mix(in srgb, var(--orange-accent) 24%, transparent);
+}
+
+html[data-orange-theme] body {
+  background: var(--orange-bg) !important;
+  color: var(--orange-text) !important;
+  isolation: isolate;
+}
+
+/* Theme the legacy mesh instead of leaving the Classic orange/purple blobs behind. */
+html[data-orange-theme] .mesh-container {
+  background: var(--orange-bg) !important;
+}
+html[data-orange-theme]:not([data-orange-effect="classic"]) .mesh-1 {
+  background: radial-gradient(circle, color-mix(in srgb, var(--orange-accent) 90%, white), transparent 70%) !important;
+}
+html[data-orange-theme]:not([data-orange-effect="classic"]) .mesh-2 {
+  background: radial-gradient(circle, color-mix(in srgb, var(--orange-accent-2) 88%, white), transparent 70%) !important;
+}
+html[data-orange-theme]:not([data-orange-effect="classic"]) .mesh-3 {
+  background: radial-gradient(circle, color-mix(in srgb, var(--orange-accent) 58%, var(--orange-accent-2)), transparent 70%) !important;
+}
+html[data-orange-effect="classic"] .mesh-1 { background: radial-gradient(circle, #ff5f00, transparent 70%) !important; }
+html[data-orange-effect="classic"] .mesh-2 { background: radial-gradient(circle, #5b21b6, transparent 70%) !important; }
+html[data-orange-effect="classic"] .mesh-3 { background: radial-gradient(circle, #be185d, transparent 70%) !important; }
+
+/* Tailwind opaque and alpha surface classes both need to follow the preset. */
+html[data-orange-theme] .bg-zinc-950 { background-color: var(--orange-bg) !important; }
+html[data-orange-theme] .bg-zinc-900 { background-color: var(--orange-panel) !important; }
+html[data-orange-theme] .bg-zinc-800 { background-color: var(--orange-panel-2) !important; }
+html[data-orange-theme] [class*="bg-zinc-950/"] { background-color: color-mix(in srgb, var(--orange-bg) 82%, transparent) !important; }
+html[data-orange-theme] [class*="bg-zinc-900/"] { background-color: color-mix(in srgb, var(--orange-panel) 88%, transparent) !important; }
+html[data-orange-theme] [class*="bg-zinc-800/"] { background-color: color-mix(in srgb, var(--orange-panel-2) 80%, transparent) !important; }
+html[data-orange-theme] .border-zinc-800 { border-color: color-mix(in srgb, var(--orange-muted) 28%, transparent) !important; }
+html[data-orange-theme] .border-zinc-700 { border-color: color-mix(in srgb, var(--orange-muted) 42%, transparent) !important; }
+html[data-orange-theme] [class*="border-zinc-800/"] { border-color: color-mix(in srgb, var(--orange-muted) 22%, transparent) !important; }
+html[data-orange-theme] [class*="border-zinc-700/"] { border-color: color-mix(in srgb, var(--orange-muted) 34%, transparent) !important; }
+html[data-orange-theme] .text-zinc-100,
+html[data-orange-theme] .text-zinc-200 { color: var(--orange-text) !important; }
+html[data-orange-theme] .text-zinc-300,
+html[data-orange-theme] .text-zinc-400 { color: color-mix(in srgb, var(--orange-text) 78%, var(--orange-muted)) !important; }
+html[data-orange-theme] .text-zinc-500,
+html[data-orange-theme] .text-zinc-600 { color: var(--orange-muted) !important; }
+html[data-orange-theme] .text-orange-300,
+html[data-orange-theme] .text-orange-400,
+html[data-orange-theme] .text-orange-500,
+html[data-orange-theme] .text-orange-600 { color: var(--orange-accent) !important; }
+html[data-orange-theme] .bg-orange-500,
+html[data-orange-theme] .bg-orange-600 { background-color: var(--orange-accent) !important; }
+html[data-orange-theme] .border-orange-500,
+html[data-orange-theme] .border-orange-600 { border-color: var(--orange-accent) !important; }
+html[data-orange-theme] .from-orange-600,
+html[data-orange-theme] .from-orange-500,
+html[data-orange-theme] .from-orange-400 {
+  --tw-gradient-from: var(--orange-accent-2) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: color-mix(in srgb, var(--orange-accent-2) 0%, transparent) var(--tw-gradient-to-position) !important;
+}
+html[data-orange-theme] .to-orange-600,
+html[data-orange-theme] .to-orange-500,
+html[data-orange-theme] .to-orange-400 { --tw-gradient-to: var(--orange-accent) var(--tw-gradient-to-position) !important; }
+html[data-orange-theme] .focus\:border-orange-500:focus,
+html[data-orange-theme] .focus\:border-orange-600:focus { border-color: var(--orange-accent) !important; }
+
+html[data-orange-theme] .rounded-3xl { border-radius: var(--orange-radius) !important; }
+html[data-orange-theme] .rounded-2xl { border-radius: max(8px, calc(var(--orange-radius) * .72)) !important; }
+html[data-orange-theme] .rounded-xl { border-radius: max(6px, calc(var(--orange-radius) * .5)) !important; }
+
+/* Admin chrome is its own glass layer, so theme it explicitly. */
+html[data-orange-theme] nav {
+  background: color-mix(in srgb, var(--orange-panel) 91%, transparent) !important;
+  border-color: color-mix(in srgb, var(--orange-muted) 30%, transparent) !important;
+  box-shadow: 0 18px 55px color-mix(in srgb, var(--orange-bg) 72%, transparent) !important;
+}
+html[data-orange-theme] #admin-menu { border-color: color-mix(in srgb, var(--orange-muted) 28%, transparent) !important; }
+html[data-orange-theme] #admin-menu .admin-tab.active {
+  background: color-mix(in srgb, var(--orange-accent) 15%, var(--orange-panel)) !important;
+  color: var(--orange-accent) !important;
+  border-color: color-mix(in srgb, var(--orange-accent) 42%, transparent) !important;
+  box-shadow: 0 0 22px color-mix(in srgb, var(--orange-accent) 10%, transparent) !important;
+}
+html[data-orange-theme] #logout-btn {
+  background: color-mix(in srgb, var(--orange-panel-2) 92%, transparent) !important;
+  color: var(--orange-text) !important;
+  border-color: color-mix(in srgb, var(--orange-muted) 34%, transparent) !important;
+}
+
+/* styles.css applies glass to every .max-w-6xl. The editor itself also uses that
+   utility for width, which created the square frame seen around Personalization. */
+#personalization-container.max-w-6xl {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.orange-brand-footer {
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--orange-muted);
+  text-align: center;
+  margin-top: .65rem;
+  max-width: 18rem;
+}
+
+.orange-theme-mascot { transition: transform .35s ease, filter .35s ease; }
+html[data-orange-motion="playful"] .orange-theme-mascot:hover { transform: translateY(-3px) rotate(-1.5deg) scale(1.025); }
+html[data-orange-motion="reduced"] *,
+html[data-orange-motion="reduced"] *::before,
+html[data-orange-motion="reduced"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+/* Preset background layer. Keep it visual-only, event-free, and behind content. */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+}
+body::before { inset: 0; transition: opacity .35s ease; }
+body::after { transition: opacity .35s ease; }
+
+@keyframes orangeMatrixRain {
+  from { background-position: 0 -160px; }
+  to { background-position: 0 160px; }
+}
+@keyframes orangeArcadeGrid {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 0 32px, 32px 0; }
+}
+@keyframes orangePrincessFloat {
+  0%,100% { transform: translateY(0); opacity: .35; }
+  50% { transform: translateY(-8px); opacity: .7; }
+}
+
+/* CYBER: intentionally Matrix/terminal inspired, not generic cyan sci-fi. */
+html[data-orange-effect="cyber"] .mesh-blob { opacity: .075 !important; filter: blur(150px) !important; }
+html[data-orange-effect="cyber"] body::before {
+  opacity: .72;
+  background-image:
+    linear-gradient(180deg, rgba(0,0,0,.12), rgba(0,0,0,.52)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='160'%3E%3Cg fill='%2339ff88' fill-opacity='.18' font-family='monospace' font-size='11'%3E%3Ctext x='7' y='13'%3E1%3C/text%3E%3Ctext x='7' y='39'%3E0%3C/text%3E%3Ctext x='7' y='65'%3E1%3C/text%3E%3Ctext x='7' y='91'%3E0%3C/text%3E%3Ctext x='7' y='117'%3E1%3C/text%3E%3Ctext x='7' y='143'%3E1%3C/text%3E%3Ctext x='31' y='25'%3E0%3C/text%3E%3Ctext x='31' y='51'%3E1%3C/text%3E%3Ctext x='31' y='77'%3E0%3C/text%3E%3Ctext x='31' y='103'%3E1%3C/text%3E%3Ctext x='31' y='129'%3E0%3C/text%3E%3Ctext x='55' y='10'%3E1%3C/text%3E%3Ctext x='55' y='36'%3E1%3C/text%3E%3Ctext x='55' y='62'%3E0%3C/text%3E%3Ctext x='55' y='88'%3E1%3C/text%3E%3Ctext x='55' y='114'%3E0%3C/text%3E%3Ctext x='55' y='140'%3E1%3C/text%3E%3Ctext x='79' y='22'%3E0%3C/text%3E%3Ctext x='79' y='48'%3E0%3C/text%3E%3Ctext x='79' y='74'%3E1%3C/text%3E%3Ctext x='79' y='100'%3E1%3C/text%3E%3Ctext x='79' y='126'%3E0%3C/text%3E%3C/g%3E%3C/svg%3E");
+  background-size: 100% 100%, 96px 160px;
+  animation: orangeMatrixRain 8s linear infinite;
+}
+html[data-orange-effect="cyber"] body::after {
+  inset: 0;
+  opacity: .25;
+  background-image:
+    repeating-linear-gradient(90deg, transparent 0 31px, rgba(57,255,136,.035) 31px 32px),
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(57,255,136,.018) 3px 4px);
+}
+html[data-orange-effect="cyber"] nav,
+html[data-orange-effect="cyber"] .max-w-6xl:not(#personalization-container) {
+  box-shadow: 0 0 0 1px rgba(57,255,136,.05), 0 18px 55px rgba(0,0,0,.55) !important;
+}
+
+/* PRINCESS: intentionally bright/pastel instead of another dark preset. */
+html[data-orange-effect="princess"] .mesh-blob { opacity: .16 !important; filter: blur(105px) !important; }
+html[data-orange-effect="princess"] .mesh-overlay { opacity: .035 !important; mix-blend-mode: multiply !important; }
+html[data-orange-effect="princess"] body::before {
+  opacity: .72;
+  background:
+    radial-gradient(circle at 16% 16%, rgba(255,255,255,.9) 0 2px, transparent 3px),
+    radial-gradient(circle at 82% 22%, rgba(236,72,153,.28) 0 2px, transparent 3px),
+    radial-gradient(circle at 72% 76%, rgba(192,132,252,.28) 0 2px, transparent 3px),
+    radial-gradient(circle at 26% 82%, rgba(255,255,255,.82) 0 1.5px, transparent 2.5px);
+  background-size: 92px 92px, 126px 126px, 108px 108px, 72px 72px;
+  animation: orangePrincessFloat 6s ease-in-out infinite;
+}
+html[data-orange-effect="princess"] nav {
+  background: rgba(255,247,251,.91) !important;
+  box-shadow: 0 18px 50px rgba(190,24,93,.12) !important;
+}
+html[data-orange-effect="princess"] input,
+html[data-orange-effect="princess"] textarea,
+html[data-orange-effect="princess"] select {
+  background-color: rgba(255,255,255,.74) !important;
+  color: #4a1636 !important;
+}
+html[data-orange-effect="princess"] .theme-card,
+html[data-orange-effect="princess"] button:not(#generate-btn):not(#personalization-save) {
+  text-shadow: none !important;
+}
+
+/* ARCADE: 80s cabinet / outrun rather than modern gaming. */
+html[data-orange-effect="arcade"] .mesh-blob { opacity: .13 !important; filter: blur(130px) !important; }
+html[data-orange-effect="arcade"] body::before {
+  inset: 0;
+  opacity: .75;
+  background:
+    radial-gradient(circle at 50% 79%, rgba(255,190,64,.82) 0 5.5%, rgba(255,60,172,.62) 5.7% 9%, transparent 9.4%),
+    linear-gradient(180deg, transparent 0 56%, rgba(255,60,172,.09) 70%, rgba(0,229,255,.08) 100%);
+}
+html[data-orange-effect="arcade"] body::after {
+  left: -12vw;
+  right: -12vw;
+  bottom: -5vh;
+  height: 46vh;
+  opacity: .58;
+  transform-origin: bottom center;
+  transform: perspective(420px) rotateX(61deg);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,60,172,.56) 0 1px, transparent 1px 32px),
+    repeating-linear-gradient(90deg, rgba(0,229,255,.52) 0 1px, transparent 1px 32px);
+  filter: drop-shadow(0 0 7px rgba(255,60,172,.32));
+  animation: orangeArcadeGrid 2.8s linear infinite;
+}
+html[data-orange-effect="arcade"] nav,
+html[data-orange-effect="arcade"] .max-w-6xl:not(#personalization-container) {
+  box-shadow: 0 0 0 1px rgba(0,229,255,.12), 0 0 28px rgba(255,60,172,.12), 0 24px 55px rgba(0,0,0,.55) !important;
+}
+html[data-orange-effect="arcade"] #admin-menu .admin-tab.active {
+  box-shadow: 3px 3px 0 rgba(0,229,255,.48), -2px -2px 0 rgba(255,60,172,.30) !important;
+}
+
+html[data-orange-effect="botanical"] body::before {
+  opacity: .5;
+  background:
+    radial-gradient(ellipse at 8% 90%, rgba(132,169,140,.16), transparent 30%),
+    radial-gradient(ellipse at 92% 5%, rgba(217,119,69,.10), transparent 28%);
+}
+html[data-orange-effect="midnight"] body::before {
+  opacity: .55;
+  background-image:
+    radial-gradient(circle, rgba(214,183,107,.42) 0 1px, transparent 1.4px),
+    radial-gradient(circle, rgba(142,166,201,.30) 0 1px, transparent 1.4px);
+  background-position: 0 0, 29px 41px;
+  background-size: 83px 83px, 113px 113px;
+}
+
+/* Personalization editor */
+#personalization-container .theme-card {
+  background: color-mix(in srgb, var(--orange-panel) 90%, var(--orange-bg));
+  border: 1px solid color-mix(in srgb, var(--orange-muted) 30%, transparent);
+  border-radius: 18px;
+  padding: 14px;
+  text-align: left;
+  transition: border-color .18s ease, transform .18s ease, background .18s ease;
+}
+#personalization-container .theme-card:hover { transform: translateY(-1px); }
+#personalization-container .theme-card.active {
+  border-color: var(--orange-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--orange-accent) 35%, transparent), 0 10px 35px var(--orange-glow);
+}
+#personalization-container .theme-card img { width: 52px; height: 52px; object-fit: contain; }
+#personalization-preview {
+  --preview-accent: #f97316;
+  --preview-accent-2: #ea580c;
+  --preview-bg: #09090b;
+  --preview-panel: #18181b;
+  --preview-text: #f4f4f5;
+  --preview-muted: #71717a;
+  --preview-radius: 24px;
+  background: var(--preview-bg);
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--preview-muted) 28%, transparent);
+  padding: 16px;
+  min-height: 300px;
+  overflow: hidden;
+  position: sticky;
+  top: 20px;
+}
+#personalization-preview .preview-shell {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  min-height: 265px;
+  border-radius: var(--preview-radius);
+  overflow: hidden;
+  background: var(--preview-panel);
+  color: var(--preview-text);
+  border: 1px solid color-mix(in srgb, var(--preview-muted) 30%, transparent);
+}
+#personalization-preview .preview-side {
+  background: color-mix(in srgb, var(--preview-bg) 94%, var(--preview-panel));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 8px;
+}
+#personalization-preview .preview-side img { width: 54px; height: 54px; object-fit: contain; }
+#personalization-preview .preview-name { font-weight: 800; color: var(--preview-accent); font-size: 13px; text-align: center; }
+#personalization-preview .preview-main { padding: 24px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+#personalization-preview .preview-label { color: var(--preview-muted); font-size: 9px; text-transform: uppercase; letter-spacing: .12em; }
+#personalization-preview .preview-input { height: 66px; border-radius: calc(var(--preview-radius) * .6); background: var(--preview-bg); border: 1px solid color-mix(in srgb, var(--preview-muted) 30%, transparent); }
+#personalization-preview .preview-button { border: 0; border-radius: calc(var(--preview-radius) * .6); background: linear-gradient(90deg, var(--preview-accent-2), var(--preview-accent)); color: white; padding: 11px; font-weight: 700; }
+
+@media (max-width: 900px) {
+  #personalization-grid { grid-template-columns: 1fr !important; }
+  #personalization-preview { position: static; }
+}
