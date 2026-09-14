@@ -111,15 +111,16 @@ class PersonalizationTests(unittest.TestCase):
                 self.assertNotIn('href="../../', svg)
                 self.assertIn("<svg", svg)
 
-    def test_theme_mascots_preserve_geometry_and_add_identity(self):
-        cyber = personalization.render_theme_svg("cyber", "head")
-        princess = personalization.render_theme_svg("princess", "head")
-        arcade = personalization.render_theme_svg("arcade", "full")
-        adventure = personalization.render_theme_svg("adventure", "full")
-        self.assertIn("orangeCyberScan", cyber)
-        self.assertIn("orangeTwinkle", princess)
-        self.assertIn("#00e5ff", arcade)
-        self.assertIn("#c57a3c", adventure)
+    def test_preset_mascots_are_distinct_static_assets(self):
+        classic_head = personalization.render_theme_svg("classic", "head")
+        classic_full = personalization.render_theme_svg("classic", "full")
+        for theme in ("cyber", "princess", "arcade", "adventure", "midnight"):
+            head = personalization.render_theme_svg(theme, "head")
+            full = personalization.render_theme_svg(theme, "full")
+            self.assertNotEqual(head, classic_head, f"{theme} head should be a distinct editable asset")
+            self.assertNotEqual(full, classic_full, f"{theme} full mascot should be a distinct editable asset")
+            self.assertEqual(ET.fromstring(head).tag.rsplit("}", 1)[-1], "svg")
+            self.assertEqual(ET.fromstring(full).tag.rsplit("}", 1)[-1], "svg")
 
     def test_custom_uses_classic_mascot_geometry(self):
         self.assertEqual(
