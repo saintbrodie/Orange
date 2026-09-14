@@ -4,7 +4,6 @@ on:
   push:
     branches: [chatgpt/personalization-themes]
     paths:
-      - '.logo-upload/chunk-03'
       - '.github/workflows/apply-logo-upload.yml'
 
 permissions:
@@ -28,10 +27,7 @@ jobs:
             for kind in full head; do
               src="/tmp/logos/${theme}-${kind}(1).svg"
               dst="static/theme-assets/logos/${theme}-${kind}.svg"
-              python - "$src" <<'PY'
-import sys, xml.etree.ElementTree as ET
-ET.parse(sys.argv[1])
-PY
+              python -c 'import sys, xml.etree.ElementTree as ET; ET.parse(sys.argv[1])' "$src"
               cp "$src" "$dst"
             done
           done
