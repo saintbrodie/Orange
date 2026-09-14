@@ -1,222 +1,325 @@
 # Orange Architecture & Technical Breakdown
 
-Orange is a minimalist, dynamic web frontend wrapper around **ComfyUI**. It aims to replace the complex node-graph interface with a user-friendly, responsive experience that allows anyone to generate, edit, and upscale media via a local ComfyUI instance without understanding the underlying nodes.
+Orange is a deliberately small web frontend for **ComfyUI**. Its job is not to recreate the ComfyUI editor. It turns engineer-built API workflows into simple tools for people who should not need to understand nodes, models, samplers, or backend topology.
 
-## Core Product Boundary
+## Product Boundary
 
-Orange intentionally separates **workflow engineering** from **generation UX**.
+Orange separates **workflow engineering** from **generation UX**.
 
-The user-facing Orange interface should expose only the decisions that a normal user genuinely needs to make for each generation. The ComfyUI workflow author should absorb the technical complexity inside the workflow itself.
+### Keep inside the ComfyUI workflow
 
-### Belongs in the ComfyUI workflow
+- model/checkpoint choice
+- sampler and scheduler
+- steps, CFG/guidance, denoise
+- LoRAs and strengths
+- negative conditioning
+- ControlNet/adapter internals
+- custom-node tuning
+- implementation-specific video/audio settings
+- other values the workflow engineer can decide once
 
-Examples include:
-- Model and checkpoint selection
-- Sampler and scheduler choices
-- Steps, CFG, denoise, guidance, and other tuning values
-- LoRAs and their strengths
-- Negative prompts and conditioning logic
-- ControlNet / adapter internals
-- Node-specific implementation details
-- Internal resolution transforms
-- Video/audio implementation settings that do not need user choice
-- Custom-node complexity
+### Expose through Orange only when it is a real user decision
 
-### Belongs in Orange
-
-Orange should expose semantic, user-facing choices such as:
-- Prompt
-- Image / reference image
-- A second reference image when the tool genuinely requires it
-- Aspect ratio or an intentionally curated resolution choice
+- prompt
+- image/reference image
+- second image when genuinely required
+- curated aspect ratio/resolution
 - Generate
-- Output display appropriate to the tool (image, video, audio, or text)
+- the appropriate output presentation
 
-A new frontend mapping is **not** automatically desirable just because a ComfyUI node has another configurable value. New mappings should be rare and should represent a real, recurring user decision that cannot reasonably be fixed or automated by the workflow engineer.
+`nodeMapping` is therefore a curated product API, not an unfinished generic schema.
 
-This constraint is intentional. Orange is not trying to become a generic ComfyUI form builder, parameter editor, or replacement for ComfyUI itself.
+> Smarter internals, simpler surface.
 
-## Engineering Principle: Smarter Internals, Simple Surface
+## High-Level Runtime
 
-Orange can become significantly more capable without adding more controls to the Generate page.
+```text
+Browser
+  |
+  |  semantic inputs only
+  v
+FastAPI / Orange
+  |
+  +-- config + tool mapping
+  +-- workflow assets
+  +-- workflow compatibility cache
+  +-- backend health/load routing
+  +-- safe submission/failover
+  +-- usage/job database
+  |
+  v
+Selected ComfyUI backend
+  |
+  +-- /upload/image
+  +-- /prompt
+  +-- /queue
+  +-- /history
+  +-- websocket progress
+```
 
-Preferred areas for complexity include:
-- Workflow validation and preflight checks
-- Automatic mapping assistance for the administrator
-- Backend health monitoring and routing
-- Queue recovery and transient-error handling
-- Model/custom-node dependency diagnostics
-- Better error translation from ComfyUI into useful user messages
-- Persistent job/history reliability
-- Multi-backend scheduling
-- Admin-side workflow diagnostics
-
-These improvements should primarily help the **workflow engineer or administrator**. The end user should continue seeing a deliberately small interface.
-
-A useful architectural test for new features is:
-
-> Does the user actually need to decide this every generation, or can the workflow engineer decide it once inside ComfyUI?
-
-If the engineer can decide it, it normally should not become an Orange control.
-
-When extending `nodeMapping`, treat the existing mapping names as a curated product API rather than an open-ended list. Add a new mapping type only when a new first-class user interaction is intentionally being added to Orange.
+The selected backend is recorded with the generation so status and output retrieval continue talking to the machine that actually accepted the job.
 
 ## Project Structure
 
-The project has recently been refactored into a more professional, modular layout:
-
-```
+```text
 Orange/
-│
-├── app/                      # Backend FastAPI Application
-│   ├── main.py               # Application entry point, mounts static, registers routers
-│   ├── api/                  # API Route Handlers
-│   │   ├── admin.py          # Admin dashboard API (usage, config, system updates, prompt/LLM management)
-│   │   ├── generate.py       # Generation logic (submits prompts, handles uploads, prompt enhancement)
-│   │   ├── status.py         # SSE connection for live queue and generation progress
-│   │   └── workflows.py      # Retrieves available tools and aspect ratios
-│   └── core/                 # Core utilities
-│       ├── config.py         # In-memory config caching, prompt resolution, and workflow parsing
-│       ├── database.py       # SQLite logic for usage logging
-│       ├── llm.py            # Asynchronous multi-provider LLM connector
-│       └── utils.py          # Image manipulation (metadata stripping)
-│
-├── static/                   # Frontend UI Files
-│   ├── index.html            # Main User Generator Interface (with Prompt Enhancement)
-│   ├── admin.html            # Admin Dashboard Interface (with LLM Settings & Prompt Editor)
-│   ├── app.js                # Frontend logic for the generator (SSE, prompt enhance animation)
-│   ├── admin.js              # Frontend logic for the admin panel (Tool Settings, Prompts management)
-│   ├── styles.css            # Common styling (Glassmorphism, custom scrollbars)
-│   ├── tailwind.min.js       # Runtime Tailwind CSS configuration
-│   └── lucide.min.js         # Icons
-│
-├── workflows/                # User Configuration & Workflows
-│   ├── defaults/             # Tracked default workflows, configs, and prompts
-│   │   ├── prompts/          # Tracked default system prompts (.txt files)
-│   │   ├── workflows-config.json
-│   │   └── *.json
-│   ├── prompts/              # User's local system prompt overrides (gitignored)
-│   ├── workflows-config.json # User's local override configuration
-│   └── *.json                # User's local workflows
-│
-├── usage_logs.db             # SQLite database storing generation requests/IPs
-├── run.bat                   # Windows startup & environment script
-├── run.sh                    # Linux/Mac startup & environment script
-└── requirements.txt          # Python dependencies
+├── app/
+│   ├── main.py
+│   ├── api/
+│   │   ├── generation_v2.py      # active safe /api/generate route
+│   │   ├── outputs.py            # normalized output retrieval
+│   │   ├── status.py             # queue/progress/status handling
+│   │   ├── preflight.py          # admin workflow/backend compatibility API
+│   │   ├── backend_status.py     # admin backend health surface
+│   │   ├── workflow_assets.py    # fixed workflow asset API
+│   │   ├── personalization.py    # theme/branding API
+│   │   ├── llm_api.py            # hardened LLM/admin routes
+│   │   ├── db_admin.py           # SQLite backup/restore
+│   │   └── admin.py              # admin config/analytics/system endpoints
+│   └── core/
+│       ├── backends.py            # health state, queue-aware selection, compatibility cache
+│       ├── preflight.py           # workflow/object_info validation
+│       ├── submission.py          # safe Comfy request classification
+│       ├── workflow_assets.py     # managed fixed-image discovery/storage
+│       ├── outputs.py             # output normalization helpers
+│       ├── config.py              # config/default merging and workflow loading
+│       ├── config_validation.py   # config validation
+│       ├── database.py            # usage/job SQLite storage and migrations
+│       ├── personalization.py     # personalization validation/persistence
+│       ├── public_config.py       # safe public config projection
+│       ├── llm.py                 # multi-provider async LLM client
+│       └── rate_limit.py          # request limiting helpers
+├── static/
+│   ├── index.html / app.js
+│   ├── admin.html / admin.js
+│   ├── preflight.js
+│   ├── backend-status.js
+│   ├── workflow-assets.js
+│   ├── personalization.js
+│   ├── theme-runtime.js
+│   ├── theme-effects.js
+│   ├── themes/presets.json
+│   └── theme-assets/
+├── workflows/
+│   ├── defaults/
+│   ├── prompts/
+│   ├── branding/
+│   ├── personalization.json
+│   └── workflows-config.json
+├── tests/
+├── run.bat
+├── run.sh
+└── requirements.txt
 ```
 
-## Backend Breakdown
+Some older route implementations remain in the repository for compatibility, but `app/main.py` deliberately registers the hardened routes first. Route-precedence regression tests protect the active generation, output, LLM, and database paths from accidentally falling back to their legacy implementations.
 
-The backend is built using **FastAPI** to provide a fast, asynchronous middle-layer between the end-user and the ComfyUI server.
+## Generation Pipeline
 
-### 1. Generation Pipeline (`app/api/generate.py`)
-- **Configuration Merging:** `app/core/config.py` intelligently loads `workflows/defaults/workflows-config.json` and then merges `workflows/workflows-config.json` on top. This allows the backend to automatically receive new default features while preserving user modifications (such as custom `tools` or `adminKey`).
-- **Image Uploads:** Receives `image` or `image2` from the frontend and forwards them to ComfyUI's `/upload/image` endpoint using `httpx`.
-- **Node Mapping:** Reads the merged config to map Orange's small semantic input set (prompt string, uploaded image names, calculated width/height from aspect ratio, and random seeds) directly into the parsed workflow JSON's node fields.
-- **Queueing:** Submits the modified workflow to ComfyUI's `/prompt` endpoint.
-- **Prompt Enhancement Endpoint (`/api/enhance-prompt`):** Resolves the target system prompt for the specified tool and invokes the configured LLM provider asynchronously to expand user descriptions before generation.
+The active submission path is `app/api/generation_v2.py`.
 
-The constrained mapping layer is a product boundary, not an incomplete generic schema. Workflow-specific parameters should normally remain fixed or automated inside the ComfyUI graph.
+### 1. Resolve tool and workflow
 
-### 2. Status & Progress Tracking (`app/api/status.py`)
-- **Server-Sent Events (SSE):** Provides real-time updates to the frontend by multiplexing two sources:
-  - **Queue Polling:** Regularly checks ComfyUI's `/queue` endpoint to determine the user's position before generation starts.
-  - **WebSocket Listening:** Connects directly to ComfyUI's WebSocket to receive `execution_start`, `executing` (node transitions), `progress` events, and binary preview images.
-- **Friendly Naming:** Maps technical ComfyUI node class names (e.g., `KSamplerAdvanced`, `AnimateDiffEvolve`) to user-friendly status strings (e.g., "Generating...", "Generating Video...").
+Orange loads the tool configuration, its API workflow, and `nodeMapping`. It calculates a **workflow compatibility key** from the workflow filename, workflow JSON, and mapping. Changing the workflow or mapping changes the key.
 
-### 3. Admin & Analytics (`app/api/admin.py`)
-- **Security:** Protected by an `Authorization` header matched against `adminKey` in the config.
-- **Usage Logging:** Reads from the local SQLite `usage_logs.db` to provide dashboard analytics (top tools, top IPs, timeline).
-- **System Commands:** Can trigger git updates and restart the application server through a `RESTART_REQUIRED` lock file watched by the launcher scripts.
-- **LLM Config & Prompt Admin:** Handles LLM model list retrieval from providers (`POST /api/admin/llm/models`) and prompt management endpoints (`GET /api/admin/prompts/{tool_id}` and `POST /api/admin/prompts/{tool_id}`) ensuring safety using path-traversal prevention.
+### 2. Validate/read user inputs once
 
-The Admin area is the preferred place for engineering-facing diagnostics. Workflow preflight, mapping validation, missing-node warnings, backend compatibility, and dependency checks should live here rather than appearing as extra controls on the Generate page.
+Uploaded images are validated for type/size/content and read into bytes before backend selection. This matters because a retry cannot safely depend on an already-consumed upload stream.
 
-### 4. Asynchronous LLM Client & Prompt Management (`app/core/llm.py`, `app/core/config.py`)
-- **Multi-Provider LLM Client:** `app/core/llm.py` provides an asynchronous connection layer (`call_llm`) supporting OpenAI (and OpenAI-compatible local APIs like LM Studio, llama.cpp, OpenRouter), Ollama, Gemini, and Anthropic.
-- **API Key Precedence:** Supports setting API keys directly via environmental variables (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`) or via the Admin settings panel in the frontend. Environment variables always take precedence.
-- **Git-Safe System Prompts:** To ensure user modifications to system prompts are not overwritten by git updates, prompts are split:
-  - `workflows/defaults/prompts/`: Houses the original system prompts tracked in the repository (e.g., `global.txt`, `z-image.txt`, `qwen-2512.txt`).
-  - `workflows/prompts/`: Holds user-modified system prompts. This directory is gitignored to protect user configurations from being overwritten. On startup or when "Restore Defaults" is clicked, any missing prompts are copied from `defaults/prompts/` to `prompts/`.
-- **System Prompt Resolution Order:** When fetching the system prompt for a tool:
-  1. Active tool-specific prompt override (`workflows/prompts/{tool_id}.txt`).
-  2. Default tool-specific prompt override (`workflows/defaults/prompts/{tool_id}.txt`).
-  3. Active global prompt override (`workflows/prompts/global.txt`).
-  4. Default global prompt override (`workflows/defaults/prompts/global.txt`).
-  5. Hardcoded fallback global prompt.
+A random seed is also generated once per Orange request. If failover occurs, the retry keeps the same seed rather than silently becoming a different creative request.
 
-## Frontend Breakdown
+### 3. Select a backend
 
-The frontend uses Vanilla HTML/JS with **TailwindCSS** for rapid, responsive styling. It prioritizes a "glassmorphism" aesthetic with a dark theme.
+`app/core/backends.py` maintains lightweight state for configured ComfyUI servers:
 
-### 1. The Generator (`static/index.html` & `static/app.js`)
-- Dynamically generates the deliberately small set of Orange inputs (prompt boxes, image dropzones, aspect ratio selectors) based on the currently selected tool's node mappings.
-- Handles complex output types (Image, Video, Audio) and initializes appropriate players (e.g., `WaveSurfer.js` for audio visualization).
-- Uses `EventSource` to listen to the SSE backend endpoint for live progress bars and preview image updates.
-- **Enhance Prompt UI:** Features an interactive "Enhance Prompt" button next to the prompt input. Animates during expansion, allows undoing the enhancement, and automatically resizes the input box dynamically based on text size and available screen height without triggering global page scrollbars.
+- health
+- running and pending queue counts
+- probe latency
+- configured priority
+- short-lived Orange active-request reservations
+- consecutive failures/circuit state
+- per-workflow compatibility learned from Preflight
 
-The generator should remain intentionally simple even as backend/admin capabilities grow.
+Healthy compatible candidates are scored primarily by effective queue depth, then configured priority, latency, and URL for deterministic tie-breaking.
 
-### 2. Admin Dashboard (`static/admin.html` & `static/admin.js`)
-- **Tool Editor:** Provides a drag-and-drop interface for uploading `.json` workflows. It automatically detects and maps nodes like `CLIPTextEncode` or `EmptyLatentImage` to Orange's supported semantic frontend inputs.
-- **Analytics:** Visualizes the `usage_logs.db` data with time-period filtering and CSV export capabilities.
-- **LLM Settings Panel:** Allows administrators to enable prompt enhancement, choose an LLM provider, enter API keys and custom base URLs, test connections, fetch available models, and edit system prompts per-tool or globally.
+The short-lived `active_requests` reservation bridges the gap between Orange accepting a request and ComfyUI's next `/queue` response, reducing the chance that a burst of simultaneous jobs all choose the same apparently-empty backend.
 
-## Workflow Preflight Direction
+### 4. Stage fixed and user media
 
-A future workflow-preflight system should help the engineer answer questions such as:
+Orange starts every backend attempt from a fresh deep copy of the base workflow.
+
+- **Workflow Assets** are Orange-managed fixed files required by unmapped image nodes. They are uploaded to the backend chosen for this attempt.
+- **User images** are uploaded to that same backend.
+- The workflow is rewritten with the backend-side filenames.
+
+Backend-specific filenames from a failed attempt never leak into the next backend attempt.
+
+### 5. Apply semantic mappings
+
+Orange patches only its supported semantic inputs: prompt, image(s), dimensions, seed, and similar first-class concepts.
+
+### 6. Submit safely
+
+`app/core/submission.py` classifies failures based on whether retrying can be done without risking duplicate work.
+
+Examples:
+
+- connection failure before submission: retryable, backend health failure
+- backend HTTP 5xx: retryable, backend health failure
+- explicit workflow rejection/4xx: retryable on another backend, **does not** make the server globally unhealthy
+- read timeout after the request may have been accepted: not automatically retried, because a second submission could duplicate the generation
+
+A successful response must contain a `prompt_id`.
+
+### 7. Persist backend ownership
+
+The accepted `prompt_id` and final backend URL are written to SQLite. Later status/output calls use that association instead of assuming the first configured ComfyUI server owns the job.
+
+## Workflow Preflight and Compatibility Routing
+
+Preflight is implemented, not a future concept.
+
+`app/core/preflight.py` validates Orange's local workflow/mapping and queries each reachable ComfyUI backend's `object_info` to compare the workflow with that backend's actual capabilities.
+
+It detects issues such as:
+
+- UI-format JSON instead of API-format JSON
+- mapped node IDs that do not exist
+- mapped fields that do not exist
+- missing custom-node classes
+- missing required inputs
+- enumerated values/models unavailable on a backend
+- unmanaged image inputs
+- managed workflow assets that Orange will supply
+
+### UI severity is not the same as routing eligibility
+
+A backend can be healthy but unable to run one workflow.
+
+For example, `value_unavailable` (such as a missing checkpoint) remains a **yellow Admin warning** because the server itself is not broken. The preflight API separately marks that backend `routing_compatible: false`, and the compatibility cache excludes it when routing that workflow.
+
+This means:
 
 ```text
-Workflow: Klein Edit
-
-✓ Prompt mapping -> node 756 / text
-✓ Image mapping -> node 734 / image
-✓ Seed mapping -> node 748 / noise_seed
-
-✓ Required node types available on Server 1
-⚠ Server 2 missing: SeedVR2VideoUpscaler
-
-Ready on 1 of 2 backends
+Backend 1: healthy, missing model X  -> warning, not routable for Workflow A
+Backend 2: healthy, has model X      -> routable for Workflow A
 ```
 
-Preflight should validate and explain the workflow. It should **not** expose the missing technical parameters to the end user.
+Backend 1 can still run other workflows.
 
-Useful checks include:
-- Mapped node IDs exist in the workflow
-- Mapped fields exist on those nodes
-- Referenced workflow files are valid API workflows
-- Required node classes are installed on each configured ComfyUI backend
-- A workflow is compatible with at least one configured backend
-- Required models/custom nodes can be identified when ComfyUI exposes enough metadata
-- Friendly warnings are shown to the administrator before a broken tool reaches users
+Preflight also returns `summary.routable_backends` so the Admin view can distinguish general reachability from actual workflow placement options.
 
-## Data Flow: End-to-End Generation
+## Backend Health vs Workflow Failure
 
-1. **User Action:** The user selects a tool and provides only the semantic inputs that tool intentionally exposes.
-2. **Prompt Enhancement (Optional):** The user clicks the "Enhance" (✨) button. The frontend calls `POST /api/enhance-prompt` with the current prompt and tool ID. The backend resolves the system prompt, invokes `llm.py` asynchronously to generate the expanded prompt, and returns it to the generator textarea with an option to undo.
-3. **Submission:** The user clicks "Generate", and `app.js` sends a `multipart/form-data` request to `/api/generate` (with the raw or enhanced prompt and any intentionally exposed media inputs).
-4. **Processing:** `generate.py` validates inputs, uploads any images to ComfyUI, patches the workflow JSON based on mapped nodes, and queues the job.
-5. **Monitoring:** `app.js` opens an SSE connection to `/api/status`. `status.py` listens to ComfyUI's websocket and yields progress events back to the frontend.
-6. **Retrieval:** Once completed, `app.js` requests the final output from `/api/output`, which fetches the file from ComfyUI, strips metadata when configured, and serves it to the browser for display/download.
+These concepts intentionally remain separate:
 
-## Direction for Future Development
+- **Health failure** means the server/network appears unavailable or failing generally.
+- **Workflow incompatibility** means that backend cannot satisfy this particular workflow.
+- **Submission rejection** may reveal incompatibility that was not known from cached Preflight data.
 
-Future work should favor operational intelligence over frontend configuration depth.
+A workflow-specific rejection can fail over to another backend without poisoning the first backend's global health state. Regression tests cover this two-backend path at the actual generation handler level.
 
-### Preferred
-- Admin workflow preflight and compatibility diagnostics
-- Better backend health monitoring and routing
-- Persistent job/history reliability
-- Better recovery from ComfyUI disconnects
-- Clearer end-user error messages derived from technical backend failures
-- Dependency/model/custom-node diagnostics for workflow engineers
-- Better auto-mapping assistance for the existing semantic input types
+## Status and Output Handling
 
-### Generally avoid
-- A generic arbitrary-control schema
-- Automatically exposing every configurable workflow value
-- Sampler/model/CFG/steps/LoRA dropdowns on the Generate page
-- Recreating ComfyUI's advanced controls in Orange
-- Adding a user-facing mapping merely because a node supports a parameter
+`app/api/status.py` combines ComfyUI queue/history/websocket information into user-facing generation status.
 
-When a truly new user interaction is needed (for example, a mask for an inpainting tool or duration for a tool where duration is central to the user's intent), it can be added deliberately as a first-class Orange concept rather than opening the entire node graph to the frontend.
+The output layer normalizes ComfyUI outputs across image, video, audio, and text. Image metadata stripping is performed before serving user-facing images where applicable.
+
+Because Orange stores the backend that accepted each prompt, status and output retrieval can target the correct ComfyUI machine in a multi-backend deployment.
+
+## Workflow Assets
+
+Fixed reference images are deployment-owned assets, not fake user uploads.
+
+The workflow asset subsystem namespaces files by workflow so identically named assets from different tools do not collide. During submission, Orange discovers managed asset references, uploads each file once per backend attempt, and rewrites every matching workflow input.
+
+Mapped user-image nodes are excluded from static-asset discovery.
+
+## Configuration and User-Owned State
+
+Tracked defaults live in `workflows/defaults/`. Active local configuration lives in `workflows/` and is kept separate so updates do not overwrite deployment-specific state.
+
+Examples of user-owned state include:
+
+- `workflows/workflows-config.json`
+- `workflows/prompts/`
+- `workflows/personalization.json`
+- `workflows/branding/`
+- workflow assets
+
+Configuration validation rejects malformed backend URLs, unsafe workflow paths, duplicate tool IDs, invalid mappings, and other broken shapes before they can become runtime surprises.
+
+## Database Reliability
+
+Orange uses SQLite for generation/usage records.
+
+The active database uses WAL mode and additive schema migrations. Backup uses SQLite's backup API to produce a transactionally consistent, self-contained file rather than copying a live WAL-backed database blindly.
+
+Restore validates the uploaded database, restores through SQLite, and immediately reapplies current additive migrations so older Orange backups remain usable.
+
+Optional usage retention can be controlled with `ORANGE_USAGE_RETENTION_DAYS`; `0` keeps records indefinitely.
+
+## LLM Prompt Enhancement
+
+Prompt enhancement is optional and intentionally separate from generation routing.
+
+`app/core/llm.py` supports OpenAI/OpenAI-compatible endpoints, Ollama, Gemini, and Anthropic. Provider validation prevents unsafe/malformed base URLs and avoids leaking keys in provider errors. Environment variables can override configured cloud API keys.
+
+Tool-specific and global prompt files use a tracked-default/local-override pattern so Git updates do not overwrite deployment-specific prompts.
+
+## Personalization
+
+Personalization changes presentation without changing the generation contract.
+
+Built-in themes are defined in `static/themes/presets.json`. Their mascot/head variants are explicit editable SVG files under `static/theme-assets/logos/`; CI verifies that these remain valid assets without depending on editor-specific SVG IDs.
+
+White-label state is stored under `workflows/personalization.json` and `workflows/branding/` so application updates do not overwrite deployment branding.
+
+A small pre-paint theme bootstrap prevents a flash of Classic styling when reloading under another theme. Runtime integrations use the explicit `orange:personalization-applied` event rather than a document-wide mutation observer.
+
+See [PERSONALIZATION.md](PERSONALIZATION.md).
+
+## Frontend
+
+The user interface is intentionally vanilla HTML/JavaScript with a bundled Tailwind browser runtime and local Lucide bundle. The current styling system is stable and self-contained, but Tailwind's browser-build warning remains known console noise; replacing it with a compiled CSS toolchain would be a separate frontend build-system migration rather than part of runtime routing hardening.
+
+The generator remains small even as Admin/operations code grows.
+
+## Deployment
+
+`run.bat` and `run.sh`:
+
+1. ensure Python/venv availability
+2. create the Orange virtual environment on first run
+3. hash `requirements.txt`
+4. resync Python dependencies only when that hash changes
+5. optionally offer the default model downloader on a fresh install
+6. run Uvicorn on port `7070`
+7. watch the `RESTART_REQUIRED` sentinel so an Admin-triggered restart can relaunch cleanly
+
+Set `ORANGE_VERBOSE_LOGS=1` to enable normal Uvicorn access logging during troubleshooting.
+
+## Testing Strategy
+
+CI runs on supported Python versions and checks:
+
+- Python compilation
+- JavaScript syntax for the tracked frontend modules
+- theme manifest JSON validity
+- unit/regression tests
+
+Coverage includes configuration safety, SQLite backup/restore, output normalization, LLM validation, personalization persistence/assets, preflight semantics, workflow assets, backend scoring/compatibility, route precedence, submission retry safety, and a two-backend generation failover regression.
+
+## Development Direction After Stable v1
+
+Orange should now be **dogfooded before broadening the feature set**.
+
+Good future work should be driven by failures observed in real use across actual ComfyUI machines. Favor:
+
+- better Admin diagnostics
+- clearer workflow dependency explanations
+- operational reliability
+- status/history correctness
+- targeted compatibility improvements
+
+Avoid turning Orange into a generic node-control surface. The fastest way to make the product harder to operate is to push workflow-engineering decisions back onto ordinary users.
