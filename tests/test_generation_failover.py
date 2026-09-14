@@ -43,7 +43,13 @@ class GenerationFailoverTests(unittest.IsolatedAsyncioTestCase):
             mark_backend_failed=False,
         )
 
-        get_best = AsyncMock(side_effect=["http://backend-1:8188", "http://backend-2:8188"])
+        seen_exclusions = []
+        backend_choices = iter(["http://backend-1:8188", "http://backend-2:8188"])
+
+        async def choose_backend(*, exclude_urls=None, compatibility_key=None):
+            seen_exclusions.append(list(exclude_urls or []))
+            return next(backend_choices)
+
         submit = AsyncMock(side_effect=[rejection, {"prompt_id": "prompt-on-backend-2"}])
         backend_client = object()
 
@@ -53,7 +59,7 @@ class GenerationFailoverTests(unittest.IsolatedAsyncioTestCase):
             patch.object(generation_v2, "_prepare_asset_payloads", return_value=([], {})),
             patch.object(generation_v2, "load_config", return_value={}),
             patch.object(generation_v2, "get_comfy_servers", return_value=servers),
-            patch.object(generation_v2, "get_best_backend", get_best),
+            patch.object(generation_v2, "get_best_backend", side_effect=choose_backend) as get_best,
             patch.object(generation_v2, "get_backend_client", AsyncMock(return_value=backend_client)),
             patch.object(generation_v2, "submit_prompt", submit),
             patch.object(generation_v2, "increment_active") as increment_active,
@@ -80,9 +86,8 @@ class GenerationFailoverTests(unittest.IsolatedAsyncioTestCase):
         report_backend_failure.assert_not_called()
         report_backend_success.assert_called_once_with("http://backend-2:8188")
 
-        self.assertEqual(get_best.await_count, 2)
-        self.assertEqual(get_best.await_args_list[0].kwargs["exclude_urls"], [])
-        self.assertEqual(get_best.await_args_list[1].kwargs["exclude_urls"], ["http://backend-1:8188"])
+        self.assertEqual(get_best.call_count, 2)
+        self.assertEqual(seen_exclusions, [[], ["http://backend-1:8188"]])
 
         submit.assert_any_await(
             backend_client,
