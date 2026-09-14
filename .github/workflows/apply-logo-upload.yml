@@ -1,0 +1,56 @@
+name: Apply uploaded theme logos
+
+on:
+  push:
+    branches: [chatgpt/personalization-themes]
+    paths:
+      - '.logo-upload/chunk-03'
+      - '.github/workflows/apply-logo-upload.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/personalization-themes
+      - name: Apply uploaded SVGs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .logo-upload/chunk-* | base64 -d > /tmp/logos.tar.gz
+          mkdir -p /tmp/logos
+          tar -xzf /tmp/logos.tar.gz -C /tmp/logos
+          for theme in adventure arcade cyber princess; do
+            for kind in full head; do
+              src="/tmp/logos/${theme}-${kind}(1).svg"
+              dst="static/theme-assets/logos/${theme}-${kind}.svg"
+              python - "$src" <<'PY'
+import sys, xml.etree.ElementTree as ET
+ET.parse(sys.argv[1])
+PY
+              cp "$src" "$dst"
+            done
+          done
+          test "$(git hash-object static/theme-assets/logos/adventure-full.svg)" = d19d186c62cd83d3c853858b0e6286b12345a8fd
+          test "$(git hash-object static/theme-assets/logos/adventure-head.svg)" = 594be2805c57ebb663d21e7e38d4068a68ee9efc
+          test "$(git hash-object static/theme-assets/logos/arcade-full.svg)" = deab5607ee1c83ffaf42194e73b0f261a002db80
+          test "$(git hash-object static/theme-assets/logos/arcade-head.svg)" = 8e6d407b5c9b9ee251f8f33a3a63231be2f30412
+          test "$(git hash-object static/theme-assets/logos/cyber-full.svg)" = 0e35ae6e31e24886ee526630ead45c5a012c8a78
+          test "$(git hash-object static/theme-assets/logos/cyber-head.svg)" = e6a6ab5c6972804a89e950854d93c2fbe5a2303f
+          test "$(git hash-object static/theme-assets/logos/princess-full.svg)" = 8a99eebe338b0b3c257a08d478b52a255d21def9
+          test "$(git hash-object static/theme-assets/logos/princess-head.svg)" = 6ab8ff31adc8205fd4794638ba8e8fb34f12c383
+      - name: Commit logos and clean staging files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .logo-upload
+          rm -f .github/workflows/apply-logo-upload.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Update hand-edited theme logos"
+          git push origin HEAD:chatgpt/personalization-themes
