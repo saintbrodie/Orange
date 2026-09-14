@@ -35,3 +35,4 @@ workflows/*.json
 !workflows/defaults/
 workflows/prompts/
 workflows/branding/
+workflows/assets/
