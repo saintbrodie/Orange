@@ -50,3 +50,4 @@ jobs:
           git add -A
           git commit -m "Update hand-edited theme logos"
           git push origin HEAD:chatgpt/personalization-themes
+# retry after payload verification
