@@ -12,6 +12,14 @@ Orange should expose only decisions the user genuinely needs to make for each ge
 
 The mapping system is deliberately small. It is not intended to become a generic form builder for every ComfyUI node input.
 
+## User Tools vs Curated Workflow Packs
+
+Most workflows should be added as ordinary user tools using the Tool Editor described below.
+
+Use a **curated workflow pack** only when the workflow is intended to ship as an official Orange capability with managed model dependencies, hardware-aware precision selection, and automated installation/Preflight. Current curated packs include Z-Image Turbo, Krea 2 Turbo, Klein 9B Turbo, and SeedVR2 7B Upscale.
+
+Curated packs live under `workflow-packs/` and are documented in [WORKFLOW_PACKS.md](WORKFLOW_PACKS.md). Do not add pack machinery just because a workflow uses models; ordinary user workflows should continue to rely on the administrator's existing ComfyUI/model setup and Preflight.
+
 ## 1. Export an API Workflow from ComfyUI
 
 Orange needs ComfyUI's execution/API JSON, not the normal UI workflow containing node positions and editor metadata.
@@ -24,7 +32,7 @@ Orange needs ComfyUI's execution/API JSON, not the normal UI workflow containing
 ## 2. Add It Through the Tool Editor
 
 1. Open `http://localhost:7070/admin`.
-2. Log in with the configured `adminKey`.
+2. Log in with the configured Admin password/key.
 3. Open **Tools**.
 4. Upload or drag in the exported API workflow JSON.
 5. Configure the tool name, output type, and Orange node mappings.
