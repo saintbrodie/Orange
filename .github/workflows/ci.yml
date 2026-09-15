@@ -38,6 +38,6 @@ jobs:
       - name: Validate JSON manifests
         run: |
           python -m json.tool static/themes/presets.json >/dev/null
-          python -m json.tool workflow-packs/z-image-turbo/manifest.json >/dev/null
+          for manifest in workflow-packs/*/manifest.json; do python -m json.tool "$manifest" >/dev/null; done
       - name: Run unit tests
         run: python -m unittest discover -s tests -v

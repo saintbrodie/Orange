@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Set up Orange</title>
-  <link rel="stylesheet" href="/static/setup.css?v=1">
+  <link rel="stylesheet" href="/static/setup.css?v=2">
 </head>
 <body>
   <main class="shell">
@@ -34,21 +34,25 @@
     <section class="card">
       <div class="step">2</div>
       <div class="content">
-        <h2>Starter generator</h2>
+        <h2>Choose your tools</h2>
         <div class="pack selected">
           <div>
-            <div class="pack-title">Z-Image Turbo <span>Recommended</span></div>
-            <p>Fast, general-purpose text-to-image generation using stock ComfyUI nodes.</p>
+            <div class="pack-title">Z-Image Turbo <span>Starter</span></div>
+            <p>Fast, general-purpose text-to-image generation. Orange chooses the best model precision for the connected GPU.</p>
           </div>
           <label class="toggle"><input id="install-starter" type="checkbox" checked> Install required model files</label>
         </div>
+
+        <div class="optional-heading">
+          <strong>Add more now <span>Optional</span></strong>
+          <p>You can start with Z-Image and add these later, or install any of them during setup.</p>
+        </div>
+        <div id="optional-packs" class="optional-packs"></div>
+
         <label for="models-root">ComfyUI models folder</label>
         <input id="models-root" placeholder="Orange will try to detect this automatically">
         <p class="hint">Pinokio-managed installs fill this automatically. For an existing local ComfyUI, choose its <code>models</code> folder if Orange cannot detect it.</p>
-        <div class="coming">
-          <strong>More tools after setup</strong>
-          <span>Krea 2 Turbo for advanced text-to-image and Klein 9B Turbo for image editing are the next curated packs.</span>
-        </div>
+        <p class="hint"><strong>Model precision is automatic:</strong> Orange prefers native INT8 ConvRot on supported NVIDIA/ComfyUI installs, otherwise it chooses FP8 or BF16 based on the pack and available VRAM.</p>
       </div>
     </section>
 
@@ -67,6 +71,6 @@
       <p id="setup-result" class="status"></p>
     </section>
   </main>
-  <script src="/static/setup.js?v=1"></script>
+  <script src="/static/setup.js?v=2"></script>
 </body>
 </html>

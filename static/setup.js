@@ -8,32 +8,29 @@ function setStatus(el, message, kind = "") {
   el.className = `status ${kind}`.trim();
 }
 
-function errorMessage(detail, fallback = "Request failed") {
-  if (typeof detail === "string") return detail;
-  if (!detail || typeof detail !== "object") return fallback;
+function renderOptionalPacks() {
+  const container = $("optional-packs");
+  if (!container) return;
+  const packs = (setupStatus?.packs || []).filter((pack) => !pack.recommended && pack.id !== "z-image-turbo");
+  if (!packs.length) {
+    container.innerHTML = '<p class="hint">No additional curated packs are available yet.</p>';
+    return;
+  }
 
-  let message = detail.message || fallback;
-  const backends = detail.preflight?.backends || [];
-  const unavailable = [];
-  for (const backend of backends) {
-    for (const warning of backend.warnings || []) {
-      if (warning?.code === "value_unavailable" && warning.value) unavailable.push(warning.value);
-    }
-    for (const error of backend.errors || []) {
-      if (error?.message) unavailable.push(error.message);
-    }
-  }
-  if (unavailable.length) {
-    message += ` Missing or incompatible: ${[...new Set(unavailable)].join(", ")}`;
-  }
-  return message;
+  container.innerHTML = packs.map((pack) => `
+    <label class="pack optional-pack">
+      <input type="checkbox" data-pack-id="${pack.id}">
+      <div>
+        <div class="pack-title">${pack.name}</div>
+        <p>${pack.description || ""}</p>
+      </div>
+    </label>
+  `).join("");
 }
 
 async function loadStatus() {
   const response = await fetch("/api/setup/status");
-  const data = await response.json();
-  if (!response.ok) throw new Error(errorMessage(data.detail, "Could not load setup"));
-  setupStatus = data;
+  setupStatus = await response.json();
   if (!setupStatus.required) {
     window.location.replace("/");
     return;
@@ -52,6 +49,17 @@ async function loadStatus() {
   } else {
     modeCopy.innerHTML = "<strong>Existing ComfyUI.</strong> Enter a local or remote ComfyUI URL. Orange does not require Pinokio when installed from GitHub or manually.";
   }
+
+  renderOptionalPacks();
+}
+
+function hardwareLabel(hardware) {
+  if (!hardware) return "";
+  const parts = [];
+  if (hardware.deviceName) parts.push(hardware.deviceName);
+  if (hardware.vramGb) parts.push(`${hardware.vramGb} GB VRAM`);
+  if (hardware.int8ConvRot) parts.push("INT8 ConvRot ready");
+  return parts.length ? ` · ${parts.join(" · ")}` : "";
 }
 
 async function testBackend() {
@@ -65,11 +73,11 @@ async function testBackend() {
       body: JSON.stringify({url: $("comfy-url").value.trim()}),
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(errorMessage(data.detail, "Connection failed"));
+    if (!response.ok) throw new Error(data.detail || "Connection failed");
     backendOk = true;
     setStatus(
       $("backend-result"),
-      `✓ ComfyUI found · ${data.nodeCount} node types · ${data.queueRunning} running / ${data.queuePending} queued`,
+      `✓ ComfyUI found · ${data.nodeCount} node types · ${data.queueRunning} running / ${data.queuePending} queued${hardwareLabel(data.hardware)}`,
       "ok",
     );
   } catch (error) {
@@ -78,6 +86,10 @@ async function testBackend() {
   } finally {
     button.disabled = false;
   }
+}
+
+function selectedExtraPacks() {
+  return Array.from(document.querySelectorAll("[data-pack-id]:checked")).map((input) => input.dataset.packId);
 }
 
 async function finishSetup() {
@@ -97,11 +109,11 @@ async function finishSetup() {
 
   button.disabled = true;
   const installStarter = $("install-starter").checked;
+  const extras = selectedExtraPacks();
+  const installing = installStarter || extras.length;
   setStatus(
     $("setup-result"),
-    installStarter
-      ? "Setting up Orange, checking the starter workflow, and downloading any missing Z-Image files…"
-      : "Checking the starter workflow and saving your Orange setup…",
+    installing ? "Downloading the selected model files and checking the workflows…" : "Saving your Orange setup…",
   );
 
   try {
@@ -113,12 +125,38 @@ async function finishSetup() {
         modelsRoot: $("models-root").value.trim(),
         adminKey,
         installStarter,
+        extraPacks: extras,
       }),
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(errorMessage(data.detail, "Setup failed"));
-    setStatus($("setup-result"), "✓ Orange is ready. Opening your generator…", "ok");
-    setTimeout(() => window.location.replace("/"), 500);
+    if (!response.ok) {
+      let detail = typeof data.detail === "string" ? data.detail : (data.detail?.message || "Setup failed");
+      const preflight = data.detail?.preflight;
+      if (preflight?.backends?.[0]) {
+        const backend = preflight.backends[0];
+        const findings = [...(backend.errors || []), ...(backend.warnings || [])];
+        if (findings.length) detail += ` ${findings.map((item) => item.message).join(" ")}`;
+      }
+      throw new Error(detail);
+    }
+
+    const optionalFailures = (data.optionalPacks || []).filter((pack) => !pack.installed);
+    if (optionalFailures.length) {
+      setStatus(
+        $("setup-result"),
+        `✓ Orange is ready. ${optionalFailures.map((pack) => `${pack.pack}: ${pack.error || "not installed"}`).join(" · ")} Opening your generator…`,
+        "ok",
+      );
+      setTimeout(() => window.location.replace("/"), 2800);
+    } else {
+      const extraCount = (data.optionalPacks || []).filter((pack) => pack.installed).length;
+      setStatus(
+        $("setup-result"),
+        extraCount ? `✓ Orange is ready with ${extraCount + 1} curated tools. Opening your generator…` : "✓ Orange is ready. Opening your generator…",
+        "ok",
+      );
+      setTimeout(() => window.location.replace("/"), 900);
+    }
   } catch (error) {
     setStatus($("setup-result"), error.message, "error");
     button.disabled = false;
@@ -132,4 +170,4 @@ $("comfy-url").addEventListener("input", () => {
   setStatus($("backend-result"), "");
 });
 
-loadStatus().catch((error) => setStatus($("setup-result"), error.message, "error"));
+loadStatus().catch((error) => setStatus($("setup-result"), `Could not load setup: ${error.message}`, "error"));
