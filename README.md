@@ -147,6 +147,8 @@ python scripts/download_models.py --pack z-image-turbo --models-root /path/to/Co
 
 Without live `/system_stats`, the CLI uses conservative pack fallbacks. The browser first-run/Admin installers are preferred when automatic hardware selection matters.
 
+See [Curated Workflow Packs](docs/WORKFLOW_PACKS.md) for the pack format, hardware-selection policy, and maintainer workflow.
+
 ## Adding Curated Tools Later
 
 Open **Admin → General Settings → Curated Tools**.
@@ -284,6 +286,7 @@ The suite covers onboarding migration, hardware-aware workflow packs, Admin pack
 ## Documentation
 
 - [Architecture Overview](docs/ARCHITECTURE.md)
+- [Curated Workflow Packs](docs/WORKFLOW_PACKS.md)
 - [Adding Workflows](docs/adding_workflows.md)
 - [Personalization & White-Label Branding](docs/PERSONALIZATION.md)
 - [Personalization Test Checklist](docs/PERSONALIZATION_TESTING.md)
