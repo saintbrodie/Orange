@@ -43,6 +43,15 @@ jobs:
             echo 'First-run setup should use the Orange cat-head brand, not a literal orange emoji.'
             exit 1
           fi
+      - name: Validate Admin tools library
+        run: |
+          grep -q '/static/workflow-pack-library.js' static/admin.html
+          grep -q 'tools-subtab-curated' static/workflow-pack-library.js
+          grep -q 'Curated Library' static/workflow-pack-library.js
+          if grep -q 'restore-defaults-btn' static/admin.html; then
+            echo 'Legacy Restore Default Workflows control should not be present in the Admin UI.'
+            exit 1
+          fi
       - name: Validate JSON manifests
         run: |
           python -m json.tool static/themes/presets.json >/dev/null
