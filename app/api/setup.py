@@ -1,19 +1,48 @@
 import asyncio
+import ipaddress
+import os
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
-from app.core.backends import backend_manager
-from app.core.config import load_config, save_config
+from app.core.backends import backend_manager, workflow_compatibility_key
+from app.core.config import get_base_workflow, load_config, save_config
 from app.core.onboarding import detect_install_mode, managed_comfy_dir, managed_models_root, mark_setup_complete, setup_required
+from app.core.preflight import run_preflight
 from app.core.workflow_packs import install_workflow_pack, list_workflow_packs, resolve_models_root
 
 router = APIRouter()
+ROUTING_BLOCKING_WARNING_CODES = {"value_unavailable"}
 
 
 def _require_setup_pending() -> None:
     if not setup_required():
         raise HTTPException(status_code=409, detail="Initial setup is already complete")
+
+
+def _setup_client_allowed(host: str | None) -> bool:
+    if os.environ.get("ORANGE_ALLOW_REMOTE_SETUP", "").strip().lower() in {"1", "true", "yes"}:
+        return True
+    if not host:
+        return False
+    if host.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def _require_setup_client(request: Request) -> None:
+    host = request.client.host if request.client else None
+    if not _setup_client_allowed(host):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "First-run setup is restricted to the local machine by default. "
+                "Run setup locally, use an SSH tunnel, or set ORANGE_ALLOW_REMOTE_SETUP=1 if you intentionally want remote setup."
+            ),
+        )
 
 
 def _normalize_url(value: str) -> str:
@@ -23,8 +52,33 @@ def _normalize_url(value: str) -> str:
     return url
 
 
+def _routing_compatible(backend: dict) -> bool:
+    if not backend.get("reachable") or backend.get("errors"):
+        return False
+    return not any(
+        isinstance(warning, dict) and warning.get("code") in ROUTING_BLOCKING_WARNING_CODES
+        for warning in (backend.get("warnings") or [])
+    )
+
+
+def _cacheable_preflight_results(backends: list[dict]) -> list[dict]:
+    cached = []
+    for backend in backends:
+        item = dict(backend)
+        if backend.get("reachable") and not _routing_compatible(backend) and not backend.get("errors"):
+            item["errors"] = list(item.get("errors") or []) + [
+                {
+                    "code": "routing_incompatible",
+                    "message": "Backend cannot run this workflow with its current model/input inventory.",
+                }
+            ]
+        cached.append(item)
+    return cached
+
+
 @router.get("/api/setup/status")
-def get_setup_status():
+def get_setup_status(request: Request):
+    _require_setup_client(request)
     required = setup_required()
     mode = detect_install_mode()
     if not required:
@@ -43,7 +97,8 @@ def get_setup_status():
 
 
 @router.post("/api/setup/test-backend")
-async def test_setup_backend(payload: dict):
+async def test_setup_backend(payload: dict, request: Request):
+    _require_setup_client(request)
     _require_setup_pending()
     url = _normalize_url(payload.get("url"))
     try:
@@ -68,7 +123,8 @@ async def test_setup_backend(payload: dict):
 
 
 @router.post("/api/setup/complete")
-async def complete_setup(payload: dict):
+async def complete_setup(payload: dict, request: Request):
+    _require_setup_client(request)
     _require_setup_pending()
 
     admin_key = str(payload.get("adminKey") or "").strip()
@@ -99,8 +155,31 @@ async def complete_setup(payload: dict):
             raise HTTPException(status_code=502, detail={"message": "One or more model downloads failed", "result": install_result})
 
     config = dict(load_config())
+    starter_tool = next((tool for tool in config.get("tools", []) if tool.get("id") == "z-image"), None)
+    if not starter_tool:
+        raise HTTPException(status_code=500, detail="Z-Image starter tool is missing from the fresh-install config")
+
+    workflow_file = starter_tool.get("workflowFile", "image_z_image_turbo.json")
+    node_mapping = starter_tool.get("nodeMapping") or {}
+    workflow = get_base_workflow(workflow_file)
+    server = {"url": comfy_url, "priority": 1}
+    preflight = await run_preflight(workflow_file, workflow, node_mapping, [server])
+    backends = preflight.get("backends") or []
+    routable_backends = [backend for backend in backends if _routing_compatible(backend)]
+    if not routable_backends:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "ComfyUI is reachable, but the Z-Image starter workflow is not ready on this backend.",
+                "preflight": preflight,
+            },
+        )
+
+    compatibility_key = workflow_compatibility_key(workflow_file, workflow, node_mapping)
+    backend_manager.record_preflight(compatibility_key, _cacheable_preflight_results(backends))
+
     config["adminKey"] = admin_key
-    config["comfyServers"] = [{"url": comfy_url, "priority": 1}]
+    config["comfyServers"] = [server]
     save_config(config)
     mark_setup_complete()
     await backend_manager.refresh_all()
@@ -109,4 +188,8 @@ async def complete_setup(payload: dict):
         "status": "success",
         "comfyUrl": comfy_url,
         "starter": install_result,
+        "preflight": {
+            "status": preflight.get("summary", {}).get("status"),
+            "routableBackends": len(routable_backends),
+        },
     }
