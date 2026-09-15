@@ -24,6 +24,8 @@ See [Architecture Overview](docs/ARCHITECTURE.md) for the engineering boundary a
 ## Highlights
 
 - **Simple Generator UI** — workflow complexity stays hidden behind a small semantic input surface.
+- **First-Run Setup** — fresh installs connect ComfyUI, create an Admin password, detect local model storage when available, and can install a known-good starter generator.
+- **Workflow Packs** — curated workflows can declare their model dependencies so Orange can install only the files that tool needs when it has filesystem access to the backend's model storage.
 - **ComfyUI API Workflows** — add image, edit, upscale, video, audio, or text-producing tools without rebuilding their logic in Orange.
 - **Multi-Backend Routing** — queue-aware selection across configured ComfyUI servers with priority, health tracking, and short-lived active-request reservations.
 - **Workflow-Aware Compatibility** — Admin Preflight checks each backend for required nodes, mappings, model values, and workflow assets. A healthy machine missing a required model can be excluded from routing for that workflow without being marked globally down.
@@ -39,19 +41,26 @@ See [Architecture Overview](docs/ARCHITECTURE.md) for the engineering boundary a
 
 ## Requirements
 
+For a manual/GitHub install:
+
 - Python 3
 - One or more running [ComfyUI](https://github.com/comfyanonymous/ComfyUI) instances
 
+The companion Pinokio launcher can instead install Orange and a managed local ComfyUI together.
+
 ## Installation
 
-### Manual
+### Manual / GitHub
 
 1. Clone this repository.
 2. Start Orange:
    - Windows: run `run.bat`
    - Linux/macOS: run `./run.sh`
-3. On a fresh install, the launcher creates the virtual environment, installs Python dependencies, and can optionally run the default-model downloader.
-4. Open `http://localhost:7070/`.
+3. Open `http://localhost:7070/`.
+4. On a genuinely fresh install, Orange opens its first-run setup wizard instead of the normal Generate page.
+5. Connect an existing local or remote ComfyUI instance. If Orange can identify a local models directory, it can also install the Z-Image Turbo starter dependencies for you.
+
+Manual installs do **not** require or recommend Pinokio. Orange works with any reachable ComfyUI backend.
 
 The launcher hashes `requirements.txt`, so dependencies are resynchronized automatically after an Orange update changes them.
 
@@ -61,16 +70,52 @@ A companion Pinokio installer is available at:
 
 `https://beta.pinokio.co/apps/github-com-saintbrodie-orange-pinokio`
 
-Install/start Orange from Pinokio, then use the same browser UI on port `7070`.
+Pinokio offers two install modes:
 
-## First Admin Setup
+- **Orange + ComfyUI (Recommended)** — installs a managed local ComfyUI, the Z-Image Turbo starter dependencies, and Orange. Orange receives the managed model paths automatically.
+- **Orange Only** — installs only Orange for users who already have ComfyUI locally, through another manager, or on another machine.
 
-Open `http://localhost:7070/admin` and log in with the configured `adminKey` from `workflows/workflows-config.json`.
+Pinokio is an enhanced deployment option, not an Orange dependency.
 
-> [!IMPORTANT]
-> The historical default key is `orangeadmin`. Change it for any deployment that is accessible by other people or machines you do not fully trust.
+## First-Run Setup
+
+Fresh installs are redirected to `/setup`. The wizard:
+
+1. Connects to ComfyUI and verifies `/object_info` is reachable.
+2. Offers the minimal **Z-Image Turbo** starter generator.
+3. Installs its required model files automatically when Orange has filesystem access to the selected ComfyUI model directory.
+4. Requires a new Admin password.
+5. Opens the normal Generate UI after setup completes.
+
+Existing Orange installations are automatically treated as already configured when they update, so they are **not** forced through the new wizard and their active config is not replaced.
+
+The historical `orangeadmin` value remains only in the tracked default template for compatibility. A genuinely fresh launch replaces it with a random temporary credential before setup and then stores the password chosen in the wizard.
 
 The Admin area is where technical complexity belongs: workflow setup, compatibility diagnostics, backend health, assets, and branding should be solved there rather than exposed on the Generate page.
+
+## Starter Workflow and Workflow Packs
+
+Fresh installs intentionally start small. The only starter tool enabled by default is:
+
+- **Generate Image** — a minimal Z-Image Turbo text-to-image workflow using stock ComfyUI nodes.
+
+Its workflow pack declares only three model dependencies:
+
+- `diffusion_models/z_image_turbo_bf16.safetensors`
+- `text_encoders/qwen_3_4b.safetensors`
+- `vae/ae.safetensors`
+
+The old realism LoRA is not part of the starter workflow.
+
+Workflow packs live under `workflow-packs/<pack-id>/manifest.json`. The included `scripts/download_models.py` now installs dependencies for a selected pack instead of downloading every historical default model family at once.
+
+For example:
+
+```bash
+python scripts/download_models.py --pack z-image-turbo --models-root /path/to/ComfyUI/models
+```
+
+If Orange is connected to a remote ComfyUI server without filesystem access to its model storage, Preflight can still detect missing models, but Orange will not pretend it can write files to that remote machine. A local/shared model path can be supplied when available.
 
 ## Adding a Tool
 
@@ -170,19 +215,6 @@ User-owned personalization and uploaded branding live under `workflows/` and rem
 
 See [Personalization](docs/PERSONALIZATION.md).
 
-## Default Workflows
-
-The current defaults include:
-
-- **Realistic Generate** — Z-Image Turbo based workflow
-- **Detailed Generate** — Qwen Image 2512 based workflow
-- **Modify Image** — Klein Edit workflow
-- **Upscale Image** — SeedVR2 image upscale workflow
-
-The setup launchers can offer `scripts/download_models.py` during a fresh install. You can also run that script manually inside Orange's virtual environment.
-
-Because exact model filenames/dependencies can change independently across ComfyUI machines, use Workflow Preflight as the authoritative deployment check instead of assuming every backend has every default dependency.
-
 ## Local State and Updates
 
 Orange separates tracked defaults from active deployment state. Normal Git updates should not overwrite local prompts, branding, personalization, workflow assets, or other user-owned configuration under the designated `workflows/` locations.
@@ -191,9 +223,9 @@ The Admin update action uses a fast-forward-only Git pull and the launcher resta
 
 ## Testing
 
-CI currently validates Python 3.10 and 3.12, compiles Python sources, syntax-checks tracked JavaScript modules, validates the theme manifest, and runs the unit/regression suite.
+CI currently validates Python 3.10 and 3.12, compiles Python sources, syntax-checks tracked JavaScript modules including the first-run setup UI, validates theme/workflow-pack manifests, and runs the unit/regression suite.
 
-The suite covers routing, preflight, safe submission, route precedence, database migration/backup/restore, output handling, workflow assets, personalization, public config safety, LLM validation, and other operational behavior.
+The suite covers onboarding migration, workflow packs, routing, preflight, safe submission, route precedence, database migration/backup/restore, output handling, workflow assets, personalization, public config safety, LLM validation, and other operational behavior.
 
 ## Documentation
 
