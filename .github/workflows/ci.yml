@@ -34,7 +34,10 @@ jobs:
           node --check static/theme-effects.js
           node --check static/personalization.js
           node --check static/personalization-tab-state.js
-      - name: Validate theme manifest
-        run: python -m json.tool static/themes/presets.json >/dev/null
+          node --check static/setup.js
+      - name: Validate JSON manifests
+        run: |
+          python -m json.tool static/themes/presets.json >/dev/null
+          python -m json.tool workflow-packs/z-image-turbo/manifest.json >/dev/null
       - name: Run unit tests
         run: python -m unittest discover -s tests -v

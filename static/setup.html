@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Set up Orange</title>
+  <link rel="stylesheet" href="/static/setup.css?v=1">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="mascot">🍊</div>
+      <div>
+        <p class="eyebrow">FIRST RUN</p>
+        <h1>Welcome to Orange</h1>
+        <p>Let’s get your first image generator running without turning this into a ComfyUI training class.</p>
+      </div>
+    </section>
+
+    <section class="card" id="connection-card">
+      <div class="step">1</div>
+      <div class="content">
+        <h2>Connect ComfyUI</h2>
+        <div id="mode-copy" class="notice"></div>
+        <label for="comfy-url">ComfyUI URL</label>
+        <div class="row">
+          <input id="comfy-url" value="http://127.0.0.1:8188" spellcheck="false">
+          <button id="test-backend" class="secondary">Test connection</button>
+        </div>
+        <p id="backend-result" class="status"></p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="step">2</div>
+      <div class="content">
+        <h2>Starter generator</h2>
+        <div class="pack selected">
+          <div>
+            <div class="pack-title">Z-Image Turbo <span>Recommended</span></div>
+            <p>Fast, general-purpose text-to-image generation using stock ComfyUI nodes.</p>
+          </div>
+          <label class="toggle"><input id="install-starter" type="checkbox" checked> Install required model files</label>
+        </div>
+        <label for="models-root">ComfyUI models folder</label>
+        <input id="models-root" placeholder="Orange will try to detect this automatically">
+        <p class="hint">Pinokio-managed installs fill this automatically. For an existing local ComfyUI, choose its <code>models</code> folder if Orange cannot detect it.</p>
+        <div class="coming">
+          <strong>More tools after setup</strong>
+          <span>Krea 2 Turbo for advanced text-to-image and Klein 9B Turbo for image editing are the next curated packs.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="step">3</div>
+      <div class="content">
+        <h2>Secure Admin</h2>
+        <label for="admin-key">Create an Admin password</label>
+        <input id="admin-key" type="password" minlength="8" autocomplete="new-password" placeholder="At least 8 characters">
+        <p class="hint">Fresh installs no longer rely on the historical <code>orangeadmin</code> default.</p>
+      </div>
+    </section>
+
+    <section class="finish">
+      <button id="finish-setup" class="primary">Set up Orange</button>
+      <p id="setup-result" class="status"></p>
+    </section>
+  </main>
+  <script src="/static/setup.js?v=1"></script>
+</body>
+</html>

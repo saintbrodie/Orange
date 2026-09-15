@@ -42,13 +42,7 @@ if errorlevel 1 exit /b 1
 echo Dependency sync complete!
 
 :deps_done
-if "%FRESH_INSTALL%"=="0" goto skip_download
-echo.
-set /p "DOWNLOAD_MODELS=Do you want to download the default workflow models for ComfyUI now? (y/n): "
-if /i "%DOWNLOAD_MODELS%"=="y" (
-    python scripts\download_models.py
-)
-:skip_download
+if "%FRESH_INSTALL%"=="1" echo Fresh install detected. Continue setup in the Orange browser wizard.
 
 :loop
 if exist "RESTART_REQUIRED" del "RESTART_REQUIRED"

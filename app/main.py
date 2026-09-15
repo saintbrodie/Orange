@@ -1,14 +1,16 @@
 import os
+import secrets
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, backend_status, db_admin, generate, generation_debug, generation_v2, llm_api, outputs, personalization, preflight, status, workflow_assets, workflows
+from app.api import admin, backend_status, db_admin, generate, generation_debug, generation_v2, llm_api, outputs, personalization, preflight, setup, status, workflow_assets, workflows
 from app.core.backends import backend_manager
-from app.core.config import restore_defaults
+from app.core.config import USER_CONFIG_PATH, load_config, restore_defaults, save_config
 from app.core.database import init_db
+from app.core.onboarding import initialize_setup_state, setup_required
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 STATIC_DIR = os.path.join(PROJECT_ROOT, "static")
@@ -16,8 +18,14 @@ STATIC_DIR = os.path.join(PROJECT_ROOT, "static")
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    was_fresh_install = not os.path.exists(USER_CONFIG_PATH)
     init_db()
     restore_defaults(overwrite=False)
+    if was_fresh_install:
+        bootstrap_config = dict(load_config())
+        bootstrap_config["adminKey"] = secrets.token_urlsafe(32)
+        save_config(bootstrap_config)
+    initialize_setup_state(was_fresh_install)
     await backend_manager.start()
     try:
         yield
@@ -35,6 +43,7 @@ app.include_router(personalization.router)
 app.include_router(generate.router)
 app.include_router(status.router)
 app.include_router(db_admin.router)
+app.include_router(setup.router)
 app.include_router(admin.router)
 app.include_router(workflows.router)
 app.include_router(preflight.router)
@@ -53,8 +62,21 @@ THEME_HEAD = (
 )
 
 
+@app.get("/setup")
+def serve_setup():
+    if not setup_required():
+        return RedirectResponse(url="/", status_code=302)
+    try:
+        with open(os.path.join(STATIC_DIR, "setup.html"), "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Setup UI not found. Ensure static/setup.html exists.")
+
+
 @app.get("/")
 def serve_index():
+    if setup_required():
+        return RedirectResponse(url="/setup", status_code=302)
     try:
         with open(os.path.join(STATIC_DIR, "index.html"), "r", encoding="utf-8") as f:
             content = f.read()
@@ -78,6 +100,8 @@ def serve_index():
 
 @app.get("/admin")
 def serve_admin():
+    if setup_required():
+        return RedirectResponse(url="/setup", status_code=302)
     try:
         with open(os.path.join(STATIC_DIR, "admin.html"), "r", encoding="utf-8") as f:
             content = f.read()
