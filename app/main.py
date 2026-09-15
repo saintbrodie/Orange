@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, backend_status, db_admin, generate, generation_debug, generation_v2, llm_api, outputs, personalization, preflight, setup, status, workflow_assets, workflows
+from app.api import admin, backend_status, db_admin, generate, generation_debug, generation_v2, llm_api, outputs, personalization, preflight, setup, status, workflow_assets, workflow_pack_admin, workflows
 from app.core.backends import backend_manager
 from app.core.config import USER_CONFIG_PATH, load_config, restore_defaults, save_config
 from app.core.database import init_db
@@ -47,6 +47,7 @@ app.include_router(setup.router)
 app.include_router(admin.router)
 app.include_router(workflows.router)
 app.include_router(preflight.router)
+app.include_router(workflow_pack_admin.router)
 app.include_router(backend_status.router)
 app.include_router(generation_debug.router)
 app.include_router(workflow_assets.router)
@@ -116,6 +117,7 @@ def serve_admin():
             '    <script src="/static/backend-status.js?v=3"></script>\n'
             '    <script src="/static/tool-ratios.js?v=1"></script>\n'
             '    <script src="/static/workflow-assets.js?v=2"></script>\n'
+            '    <script src="/static/workflow-pack-library.js?v=1"></script>\n'
             '    <script src="/static/personalization.js?v=1"></script>\n'
             '    <script src="/static/personalization-tab-state.js?v=1"></script>\n'
             '    <script src="/static/mobile-navigation.js?v=3"></script>\n'
