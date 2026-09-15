@@ -132,7 +132,7 @@ A failure in an optional pack does not prevent a working Z-Image starter from co
 
 ## Installing Packs Later
 
-Use **Admin → General Settings → Curated Tools**.
+Use **Admin → Tools → Curated Library**.
 
 Each configured ComfyUI server can have an optional `modelsRoot` path. That path represents model storage Orange can write to for that backend.
 
