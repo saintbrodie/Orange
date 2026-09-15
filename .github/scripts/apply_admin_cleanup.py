@@ -3,19 +3,19 @@ from pathlib import Path
 admin = Path("static/admin.html")
 text = admin.read_text(encoding="utf-8")
 
-start = text.find('                    <div class="pt-4 border-t border-zinc-800/50">\n                        <h3 class="text-sm font-semibold text-zinc-300 mb-4">Workflow Management</h3>')
-if start == -1:
-    raise SystemExit("Could not find legacy Workflow Management block")
-end_marker = '                    </div>\n'
-end = text.find(end_marker, start)
-if end == -1:
-    raise SystemExit("Could not find end of legacy Workflow Management block")
-# The first closing div is the inner flex container; include the outer closing div too.
-end = text.find(end_marker, end + len(end_marker))
-if end == -1:
-    raise SystemExit("Could not find outer end of legacy Workflow Management block")
-end += len(end_marker)
-text = text[:start] + text[end:]
+if 'id="restore-defaults-btn"' in text:
+    start = text.find('                    <div class="pt-4 border-t border-zinc-800/50">\n                        <h3 class="text-sm font-semibold text-zinc-300 mb-4">Workflow Management</h3>')
+    if start == -1:
+        raise SystemExit("Could not find legacy Workflow Management block")
+    end_marker = '                    </div>\n'
+    end = text.find(end_marker, start)
+    if end == -1:
+        raise SystemExit("Could not find end of legacy Workflow Management block")
+    end = text.find(end_marker, end + len(end_marker))
+    if end == -1:
+        raise SystemExit("Could not find outer end of legacy Workflow Management block")
+    end += len(end_marker)
+    text = text[:start] + text[end:]
 
 text = text.replace(
     '<i data-lucide="wrench" class="w-4 h-4"></i> Tool Editor',
@@ -39,3 +39,15 @@ docs_text = docs_text.replace(
     "Use **Admin → Tools → Curated Library**.",
 )
 docs.write_text(docs_text, encoding="utf-8")
+
+readme = Path("README.md")
+readme_text = readme.read_text(encoding="utf-8")
+readme_text = readme_text.replace(
+    "- **Add Tools Later** — the Admin General Settings page includes a Curated Tools installer, so users can start with Z-Image and add editing/upscaling/advanced T2I later.",
+    "- **Add Tools Later** — **Admin → Tools → Curated Library** installs Orange-tested packs, so users can start with Z-Image and add editing/upscaling/advanced T2I later.",
+)
+readme_text = readme_text.replace(
+    "Open **Admin → General Settings → Curated Tools**.",
+    "Open **Admin → Tools → Curated Library**.",
+)
+readme.write_text(readme_text, encoding="utf-8")
