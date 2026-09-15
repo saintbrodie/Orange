@@ -1,43 +1,57 @@
 import json
+import os
+import tempfile
+import unittest
+from unittest import mock
 
 from app.core import onboarding
 
 
-def test_fresh_install_requires_setup(tmp_path, monkeypatch):
-    state_path = tmp_path / "setup-state.json"
-    config_path = tmp_path / "workflows-config.json"
-    monkeypatch.setattr(onboarding, "SETUP_STATE_PATH", str(state_path))
-    monkeypatch.setattr(onboarding, "USER_CONFIG_PATH", str(config_path))
+class OnboardingTests(unittest.TestCase):
+    def test_fresh_install_requires_setup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = os.path.join(tmp, "setup-state.json")
+            config_path = os.path.join(tmp, "workflows-config.json")
+            with mock.patch.object(onboarding, "SETUP_STATE_PATH", state_path), mock.patch.object(
+                onboarding, "USER_CONFIG_PATH", config_path
+            ):
+                onboarding.initialize_setup_state(was_fresh_install=True)
+                with open(state_path, "r", encoding="utf-8") as handle:
+                    state = json.load(handle)
 
-    onboarding.initialize_setup_state(was_fresh_install=True)
-    state = json.loads(state_path.read_text())
+                self.assertFalse(state["complete"])
+                self.assertTrue(onboarding.setup_required())
 
-    assert state["complete"] is False
-    assert onboarding.setup_required() is True
+    def test_existing_install_is_migrated_as_complete(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = os.path.join(tmp, "setup-state.json")
+            config_path = os.path.join(tmp, "workflows-config.json")
+            with open(config_path, "w", encoding="utf-8") as handle:
+                handle.write("{}")
+
+            with mock.patch.object(onboarding, "SETUP_STATE_PATH", state_path), mock.patch.object(
+                onboarding, "USER_CONFIG_PATH", config_path
+            ):
+                onboarding.initialize_setup_state(was_fresh_install=False)
+                with open(state_path, "r", encoding="utf-8") as handle:
+                    state = json.load(handle)
+
+                self.assertTrue(state["complete"])
+                self.assertTrue(state["migratedExistingInstall"])
+                self.assertFalse(onboarding.setup_required())
+
+    def test_mark_setup_complete(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = os.path.join(tmp, "setup-state.json")
+            config_path = os.path.join(tmp, "workflows-config.json")
+            with mock.patch.object(onboarding, "SETUP_STATE_PATH", state_path), mock.patch.object(
+                onboarding, "USER_CONFIG_PATH", config_path
+            ):
+                onboarding.initialize_setup_state(was_fresh_install=True)
+                onboarding.mark_setup_complete()
+
+                self.assertFalse(onboarding.setup_required())
 
 
-def test_existing_install_is_migrated_as_complete(tmp_path, monkeypatch):
-    state_path = tmp_path / "setup-state.json"
-    config_path = tmp_path / "workflows-config.json"
-    config_path.write_text("{}")
-    monkeypatch.setattr(onboarding, "SETUP_STATE_PATH", str(state_path))
-    monkeypatch.setattr(onboarding, "USER_CONFIG_PATH", str(config_path))
-
-    onboarding.initialize_setup_state(was_fresh_install=False)
-    state = json.loads(state_path.read_text())
-
-    assert state["complete"] is True
-    assert state["migratedExistingInstall"] is True
-    assert onboarding.setup_required() is False
-
-
-def test_mark_setup_complete(tmp_path, monkeypatch):
-    state_path = tmp_path / "setup-state.json"
-    config_path = tmp_path / "workflows-config.json"
-    monkeypatch.setattr(onboarding, "SETUP_STATE_PATH", str(state_path))
-    monkeypatch.setattr(onboarding, "USER_CONFIG_PATH", str(config_path))
-
-    onboarding.initialize_setup_state(was_fresh_install=True)
-    onboarding.mark_setup_complete()
-
-    assert onboarding.setup_required() is False
+if __name__ == "__main__":
+    unittest.main()
