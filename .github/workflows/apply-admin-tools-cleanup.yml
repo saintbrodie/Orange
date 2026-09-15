@@ -1,10 +1,11 @@
-name: Apply admin tools cleanup
+name: Apply Admin Tools Cleanup
 
 on:
   push:
     branches: [main]
     paths:
-      - .github/workflows/apply-admin-tools-cleanup.yml
+      - ".github/workflows/apply-admin-tools-cleanup.yml"
+      - ".github/scripts/apply_admin_cleanup.py"
 
 permissions:
   contents: write
@@ -16,60 +17,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Reorganize Admin tools UI
-        run: |
-          python <<'PY'
-          from pathlib import Path
-
-          admin = Path('static/admin.html')
-          text = admin.read_text(encoding='utf-8')
-
-          old_restore = '''
-                    <div class="pt-4 border-t border-zinc-800/50">
-                        <h3 class="text-sm font-semibold text-zinc-300 mb-4">Workflow Management</h3>
-                        <div class="flex flex-col gap-2">
-                            <button id="restore-defaults-btn"
-                                class="w-max bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 border border-zinc-700 shadow-sm">
-                                <i data-lucide="folder-sync" class="w-4 h-4"></i> Restore Default Workflows
-                            </button>
-                            <span class="text-xs text-zinc-500">Copies default `.json` files from `workflows/defaults/` back into your active configuration.</span>
-                        </div>
-                    </div>
-'''
-          if old_restore not in text:
-              raise SystemExit('Could not find legacy Restore Default Workflows block')
-          text = text.replace(old_restore, '\n')
-
-          text = text.replace(
-              '<i data-lucide="wrench" class="w-4 h-4"></i> Tool Editor',
-              '<i data-lucide="wrench" class="w-4 h-4"></i> Tools',
-              1,
-          )
-
-          admin_script = '    <script src="/static/admin.js?v=6"></script>'
-          library_script = '    <script src="/static/workflow-pack-library.js?v=3"></script>'
-          if library_script not in text:
-              if admin_script not in text:
-                  raise SystemExit('Could not find Admin script insertion point')
-              text = text.replace(admin_script, admin_script + '\n' + library_script, 1)
-
-          admin.write_text(text, encoding='utf-8')
-
-          docs = Path('docs/WORKFLOW_PACKS.md')
-          docs_text = docs.read_text(encoding='utf-8')
-          docs_text = docs_text.replace(
-              'Use **Admin → General Settings → Curated Tools**.',
-              'Use **Admin → Tools → Curated Library**.',
-          )
-          docs.write_text(docs_text, encoding='utf-8')
-          PY
-
+      - name: Apply cleanup
+        run: python .github/scripts/apply_admin_cleanup.py
       - name: Commit cleanup
         run: |
           git config user.name "Orange CI"
           git config user.email "actions@users.noreply.github.com"
           git add static/admin.html docs/WORKFLOW_PACKS.md
-          git diff --cached --quiet && exit 0
+          if git diff --cached --quiet; then
+            exit 0
+          fi
           git commit -m "Reorganize curated tools in Admin"
           git push
