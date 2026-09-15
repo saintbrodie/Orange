@@ -8,9 +8,32 @@ function setStatus(el, message, kind = "") {
   el.className = `status ${kind}`.trim();
 }
 
+function errorMessage(detail, fallback = "Request failed") {
+  if (typeof detail === "string") return detail;
+  if (!detail || typeof detail !== "object") return fallback;
+
+  let message = detail.message || fallback;
+  const backends = detail.preflight?.backends || [];
+  const unavailable = [];
+  for (const backend of backends) {
+    for (const warning of backend.warnings || []) {
+      if (warning?.code === "value_unavailable" && warning.value) unavailable.push(warning.value);
+    }
+    for (const error of backend.errors || []) {
+      if (error?.message) unavailable.push(error.message);
+    }
+  }
+  if (unavailable.length) {
+    message += ` Missing or incompatible: ${[...new Set(unavailable)].join(", ")}`;
+  }
+  return message;
+}
+
 async function loadStatus() {
   const response = await fetch("/api/setup/status");
-  setupStatus = await response.json();
+  const data = await response.json();
+  if (!response.ok) throw new Error(errorMessage(data.detail, "Could not load setup"));
+  setupStatus = data;
   if (!setupStatus.required) {
     window.location.replace("/");
     return;
@@ -42,7 +65,7 @@ async function testBackend() {
       body: JSON.stringify({url: $("comfy-url").value.trim()}),
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || "Connection failed");
+    if (!response.ok) throw new Error(errorMessage(data.detail, "Connection failed"));
     backendOk = true;
     setStatus(
       $("backend-result"),
@@ -76,7 +99,9 @@ async function finishSetup() {
   const installStarter = $("install-starter").checked;
   setStatus(
     $("setup-result"),
-    installStarter ? "Setting up Orange and downloading the Z-Image starter files…" : "Saving your Orange setup…",
+    installStarter
+      ? "Setting up Orange, checking the starter workflow, and downloading any missing Z-Image files…"
+      : "Checking the starter workflow and saving your Orange setup…",
   );
 
   try {
@@ -91,10 +116,7 @@ async function finishSetup() {
       }),
     });
     const data = await response.json();
-    if (!response.ok) {
-      const detail = typeof data.detail === "string" ? data.detail : (data.detail?.message || "Setup failed");
-      throw new Error(detail);
-    }
+    if (!response.ok) throw new Error(errorMessage(data.detail, "Setup failed"));
     setStatus($("setup-result"), "✓ Orange is ready. Opening your generator…", "ok");
     setTimeout(() => window.location.replace("/"), 500);
   } catch (error) {
@@ -110,4 +132,4 @@ $("comfy-url").addEventListener("input", () => {
   setStatus($("backend-result"), "");
 });
 
-loadStatus().catch((error) => setStatus($("setup-result"), `Could not load setup: ${error.message}`, "error"));
+loadStatus().catch((error) => setStatus($("setup-result"), error.message, "error"));
