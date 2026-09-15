@@ -1,4 +1,5 @@
 import os
+import secrets
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -7,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api import admin, backend_status, db_admin, generate, generation_debug, generation_v2, llm_api, outputs, personalization, preflight, setup, status, workflow_assets, workflows
 from app.core.backends import backend_manager
-from app.core.config import USER_CONFIG_PATH, restore_defaults
+from app.core.config import USER_CONFIG_PATH, load_config, restore_defaults, save_config
 from app.core.database import init_db
 from app.core.onboarding import initialize_setup_state, setup_required
 
@@ -20,6 +21,10 @@ async def lifespan(_app: FastAPI):
     was_fresh_install = not os.path.exists(USER_CONFIG_PATH)
     init_db()
     restore_defaults(overwrite=False)
+    if was_fresh_install:
+        bootstrap_config = dict(load_config())
+        bootstrap_config["adminKey"] = secrets.token_urlsafe(32)
+        save_config(bootstrap_config)
     initialize_setup_state(was_fresh_install)
     await backend_manager.start()
     try:
