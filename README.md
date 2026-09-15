@@ -27,7 +27,7 @@ See [Architecture Overview](docs/ARCHITECTURE.md) for the engineering boundary a
 - **First-Run Setup** — fresh installs connect ComfyUI, inspect the available GPU/VRAM, create an Admin password, detect local model storage when available, and install a known-good starter generator.
 - **Curated Workflow Packs** — Orange ships tested Z-Image Turbo, Krea 2 Turbo, Klein 9B Turbo, and SeedVR2 7B Upscale packs with dependency manifests.
 - **Hardware-Aware Model Selection** — curated packs prefer native INT8 ConvRot where the connected ComfyUI/GPU supports it, then choose FP8 or BF16/FP16 fallbacks according to the pack and available VRAM.
-- **Add Tools Later** — the Admin General Settings page includes a Curated Tools installer, so users can start with Z-Image and add editing/upscaling/advanced T2I later.
+- **Add Tools Later** — **Admin → Tools → Curated Library** installs Orange-tested packs, so users can start with Z-Image and add editing/upscaling/advanced T2I later.
 - **ComfyUI API Workflows** — add image, edit, upscale, video, audio, or text-producing tools without rebuilding their logic in Orange.
 - **Multi-Backend Routing** — queue-aware selection across configured ComfyUI servers with priority, health tracking, and short-lived active-request reservations.
 - **Workflow-Aware Compatibility** — Admin Preflight checks each backend for required nodes, mappings, model values, and workflow assets. A healthy machine missing a required model can be excluded from routing for that workflow without being marked globally down.
@@ -151,7 +151,7 @@ See [Curated Workflow Packs](docs/WORKFLOW_PACKS.md) for the pack format, hardwa
 
 ## Adding Curated Tools Later
 
-Open **Admin → General Settings → Curated Tools**.
+Open **Admin → Tools → Curated Library**.
 
 Choose:
 
