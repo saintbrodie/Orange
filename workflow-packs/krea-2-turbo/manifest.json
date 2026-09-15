@@ -1,0 +1,73 @@
+{
+  "id": "krea-2-turbo",
+  "name": "Krea 2 Turbo",
+  "type": "text-to-image",
+  "description": "Advanced 8-step text-to-image generation with Krea 2 Turbo.",
+  "recommended": false,
+  "workflowFile": "image_krea2_turbo_t2i_int8.json",
+  "tool": {
+    "id": "krea-2",
+    "name": "Krea 2 Turbo",
+    "workflowFile": "image_krea2_turbo_t2i_int8.json",
+    "nodeMapping": {
+      "prompt": {"nodeId": "52", "field": "text"},
+      "width": {"nodeId": "53", "field": "width"},
+      "height": {"nodeId": "53", "field": "height"},
+      "seed": {"nodeId": "54", "field": "seed", "generateRandom": true}
+    }
+  },
+  "models": [
+    {
+      "id": "diffusion",
+      "folder": "diffusion_models",
+      "bf16MinVramGb": 48,
+      "variants": [
+        {
+          "precision": "int8",
+          "filename": "krea2_turbo_int8_convrot.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_int8_convrot.safetensors",
+          "requiresInt8ConvRot": true
+        },
+        {
+          "precision": "fp8",
+          "filename": "krea2_turbo_fp8_scaled.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_fp8_scaled.safetensors"
+        },
+        {
+          "precision": "bf16",
+          "filename": "krea2_turbo_bf16.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_bf16.safetensors"
+        }
+      ]
+    },
+    {
+      "id": "text_encoder",
+      "folder": "text_encoders",
+      "bf16MinVramGb": 48,
+      "variants": [
+        {
+          "precision": "fp8",
+          "filename": "qwen3vl_4b_fp8_scaled.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors"
+        },
+        {
+          "precision": "bf16",
+          "filename": "qwen3vl_4b_bf16.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_bf16.safetensors"
+        }
+      ]
+    },
+    {
+      "id": "vae",
+      "folder": "vae",
+      "precision": "fp16",
+      "filename": "wan_2.1_vae.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors"
+    }
+  ],
+  "bindings": [
+    {"modelId": "diffusion", "nodeId": "56", "field": "unet_name"},
+    {"modelId": "text_encoder", "nodeId": "57", "field": "clip_name"},
+    {"modelId": "vae", "nodeId": "58", "field": "vae_name"}
+  ]
+}

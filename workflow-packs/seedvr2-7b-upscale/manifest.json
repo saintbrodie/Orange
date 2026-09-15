@@ -1,0 +1,53 @@
+{
+  "id": "seedvr2-7b-upscale",
+  "name": "SeedVR2 7B Upscale",
+  "type": "image-to-image",
+  "description": "4× image upscaling with ComfyUI's native SeedVR2 nodes.",
+  "recommended": false,
+  "workflowFile": "utility_seedvr2_7b_int8_upscale_image.json",
+  "tool": {
+    "id": "seedvr2-upscale",
+    "name": "Upscale Image",
+    "workflowFile": "utility_seedvr2_7b_int8_upscale_image.json",
+    "nodeMapping": {
+      "image": {"nodeId": "1", "field": "image"},
+      "seed": {"nodeId": "66:54", "field": "seed", "generateRandom": true}
+    }
+  },
+  "models": [
+    {
+      "id": "diffusion",
+      "folder": "diffusion_models",
+      "bf16MinVramGb": 24,
+      "variants": [
+        {
+          "precision": "int8",
+          "filename": "seedvr2_7b_int8_convrot.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/diffusion_models/seedvr2_7b_int8_convrot.safetensors",
+          "requiresInt8ConvRot": true
+        },
+        {
+          "precision": "fp8",
+          "filename": "seedvr2_7b_fp8_e4m3fn.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/diffusion_models/seedvr2_7b_fp8_e4m3fn.safetensors"
+        },
+        {
+          "precision": "bf16",
+          "filename": "seedvr2_7b_fp16.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/diffusion_models/seedvr2_7b_fp16.safetensors"
+        }
+      ]
+    },
+    {
+      "id": "vae",
+      "folder": "vae",
+      "precision": "fp16",
+      "filename": "seedvr2_ema_vae_fp16.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/vae/seedvr2_ema_vae_fp16.safetensors"
+    }
+  ],
+  "bindings": [
+    {"modelId": "diffusion", "nodeId": "66:52", "field": "unet_name"},
+    {"modelId": "vae", "nodeId": "66:51", "field": "vae_name"}
+  ]
+}

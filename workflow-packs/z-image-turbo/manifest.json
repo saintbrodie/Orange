@@ -5,21 +5,64 @@
   "description": "Fast general-purpose text-to-image starter workflow using stock ComfyUI nodes.",
   "recommended": true,
   "workflowFile": "image_z_image_turbo.json",
+  "tool": {
+    "id": "z-image",
+    "name": "Generate Image",
+    "workflowFile": "image_z_image_turbo.json",
+    "nodeMapping": {
+      "prompt": {"nodeId": "67", "field": "text"},
+      "width": {"nodeId": "68", "field": "width"},
+      "height": {"nodeId": "68", "field": "height"},
+      "seed": {"nodeId": "70", "field": "seed", "generateRandom": true}
+    }
+  },
   "models": [
     {
-      "filename": "z_image_turbo_bf16.safetensors",
+      "id": "diffusion",
       "folder": "diffusion_models",
-      "url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors"
+      "bf16MinVramGb": 24,
+      "variants": [
+        {
+          "precision": "int8",
+          "filename": "z_image_turbo_int8_convrot.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_int8_convrot.safetensors",
+          "requiresInt8ConvRot": true
+        },
+        {
+          "precision": "bf16",
+          "filename": "z_image_turbo_bf16.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors"
+        }
+      ]
     },
     {
-      "filename": "qwen_3_4b.safetensors",
+      "id": "text_encoder",
       "folder": "text_encoders",
-      "url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors"
+      "bf16MinVramGb": 24,
+      "variants": [
+        {
+          "precision": "fp8",
+          "filename": "qwen_3_4b_fp8_mixed.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b_fp8_mixed.safetensors"
+        },
+        {
+          "precision": "bf16",
+          "filename": "qwen_3_4b.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors"
+        }
+      ]
     },
     {
-      "filename": "ae.safetensors",
+      "id": "vae",
       "folder": "vae",
+      "precision": "bf16",
+      "filename": "ae.safetensors",
       "url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors"
     }
+  ],
+  "bindings": [
+    {"modelId": "diffusion", "nodeId": "66", "field": "unet_name"},
+    {"modelId": "text_encoder", "nodeId": "62", "field": "clip_name"},
+    {"modelId": "vae", "nodeId": "63", "field": "vae_name"}
   ]
 }

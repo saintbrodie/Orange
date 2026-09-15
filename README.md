@@ -24,8 +24,10 @@ See [Architecture Overview](docs/ARCHITECTURE.md) for the engineering boundary a
 ## Highlights
 
 - **Simple Generator UI** — workflow complexity stays hidden behind a small semantic input surface.
-- **First-Run Setup** — fresh installs connect ComfyUI, create an Admin password, detect local model storage when available, and can install a known-good starter generator.
-- **Workflow Packs** — curated workflows can declare their model dependencies so Orange can install only the files that tool needs when it has filesystem access to the backend's model storage.
+- **First-Run Setup** — fresh installs connect ComfyUI, inspect the available GPU/VRAM, create an Admin password, detect local model storage when available, and install a known-good starter generator.
+- **Curated Workflow Packs** — Orange ships tested Z-Image Turbo, Krea 2 Turbo, Klein 9B Turbo, and SeedVR2 7B Upscale packs with dependency manifests.
+- **Hardware-Aware Model Selection** — curated packs prefer native INT8 ConvRot where the connected ComfyUI/GPU supports it, then choose FP8 or BF16/FP16 fallbacks according to the pack and available VRAM.
+- **Add Tools Later** — the Admin General Settings page includes a Curated Tools installer, so users can start with Z-Image and add editing/upscaling/advanced T2I later.
 - **ComfyUI API Workflows** — add image, edit, upscale, video, audio, or text-producing tools without rebuilding their logic in Orange.
 - **Multi-Backend Routing** — queue-aware selection across configured ComfyUI servers with priority, health tracking, and short-lived active-request reservations.
 - **Workflow-Aware Compatibility** — Admin Preflight checks each backend for required nodes, mappings, model values, and workflow assets. A healthy machine missing a required model can be excluded from routing for that workflow without being marked globally down.
@@ -35,7 +37,7 @@ See [Architecture Overview](docs/ARCHITECTURE.md) for the engineering boundary a
 - **Normalized Outputs** — image, video, audio, and text output handling with backend ownership recorded per prompt.
 - **Prompt Enhancement** — optional OpenAI/OpenAI-compatible, Ollama, Gemini, or Anthropic LLM expansion with local prompt overrides.
 - **Personalization** — Classic, Cyber, Princess, Arcade, Adventure, Midnight, and Custom themes plus white-label app name/logo/icon/colors.
-- **Responsive Admin** — tool editor, workflow preflight, backend health, workflow assets, analytics, database backup/restore, and personalization.
+- **Responsive Admin** — tool editor, workflow preflight, backend health, curated packs, workflow assets, analytics, database backup/restore, and personalization.
 - **Git-Safe Local State** — active config, prompt overrides, branding, and related deployment state are separated from tracked defaults.
 - **Windows/Linux/macOS Launchers** — launchers create the venv, resync dependencies when `requirements.txt` changes, and support Admin-triggered restart.
 
@@ -58,7 +60,7 @@ The companion Pinokio launcher can instead install Orange and a managed local Co
    - Linux/macOS: run `./run.sh`
 3. Open `http://localhost:7070/`.
 4. On a genuinely fresh install, Orange opens its first-run setup wizard instead of the normal Generate page.
-5. Connect an existing local or remote ComfyUI instance. If Orange can identify a local models directory, it can also install the Z-Image Turbo starter dependencies for you.
+5. Connect an existing local or remote ComfyUI instance. If Orange can access that backend's models directory, it can install curated workflow dependencies for you.
 
 Manual installs do **not** require or recommend Pinokio. Orange works with any reachable ComfyUI backend.
 
@@ -72,8 +74,10 @@ A companion Pinokio installer is available at:
 
 Pinokio offers two install modes:
 
-- **Orange + ComfyUI (Recommended)** — installs a managed local ComfyUI, the Z-Image Turbo starter dependencies, and Orange. Orange receives the managed model paths automatically.
+- **Orange + ComfyUI (Recommended)** — installs a managed local ComfyUI and Orange. The browser setup wizard starts after ComfyUI is available, detects the actual hardware, and downloads the appropriate curated model files.
 - **Orange Only** — installs only Orange for users who already have ComfyUI locally, through another manager, or on another machine.
+
+Pinokio intentionally does not pre-download one fixed Z-Image precision anymore. Orange makes that decision after it can inspect the real backend.
 
 Pinokio is an enhanced deployment option, not an Orange dependency.
 
@@ -82,42 +86,93 @@ Pinokio is an enhanced deployment option, not an Orange dependency.
 Fresh installs are redirected to `/setup`. The wizard:
 
 1. Connects to ComfyUI and verifies `/object_info` is reachable.
-2. Offers the minimal **Z-Image Turbo** starter generator.
-3. Installs its required model files automatically when Orange has filesystem access to the selected ComfyUI model directory.
-4. Requires a new Admin password.
-5. Opens the normal Generate UI after setup completes.
+2. Reads `/system_stats` to identify the available GPU, VRAM, ComfyUI version, and PyTorch information.
+3. Offers the minimal **Z-Image Turbo** starter generator.
+4. Optionally offers **Krea 2 Turbo**, **Klein 9B Turbo**, and **SeedVR2 7B Upscale**.
+5. Selects the appropriate curated model precision for that backend.
+6. Downloads required files when Orange has filesystem access to the selected ComfyUI model directory.
+7. Materializes the workflow with the selected model filenames and runs Workflow Preflight.
+8. Exposes an optional tool only if the selected backend is actually routable for it.
+9. Requires a new Admin password.
+10. Opens the normal Generate UI after the starter passes Preflight.
 
-Existing Orange installations are automatically treated as already configured when they update, so they are **not** forced through the new wizard and their active config is not replaced.
+An optional-pack failure does not prevent the Z-Image starter from completing setup. The failed pack can be repaired later from Admin.
+
+Existing Orange installations are automatically treated as already configured when they update, so they are **not** forced through the wizard and their active config is not replaced.
 
 The historical `orangeadmin` value remains only in the tracked default template for compatibility. A genuinely fresh launch replaces it with a random temporary credential before setup and then stores the password chosen in the wizard.
 
-The Admin area is where technical complexity belongs: workflow setup, compatibility diagnostics, backend health, assets, and branding should be solved there rather than exposed on the Generate page.
+First-run setup is restricted to the local machine by default. `ORANGE_ALLOW_REMOTE_SETUP=1` can be used when remote setup is intentionally required.
 
-## Starter Workflow and Workflow Packs
+## Curated Workflow Packs
 
-Fresh installs intentionally start small. The only starter tool enabled by default is:
+Fresh installs intentionally start small. The only tool enabled by default is:
 
-- **Generate Image** — a minimal Z-Image Turbo text-to-image workflow using stock ComfyUI nodes.
+- **Z-Image Turbo / Generate Image** — minimal general-purpose text-to-image using stock ComfyUI nodes.
 
-Its workflow pack declares only three model dependencies:
+Additional curated packs are optional:
 
-- `diffusion_models/z_image_turbo_bf16.safetensors`
-- `text_encoders/qwen_3_4b.safetensors`
-- `vae/ae.safetensors`
+- **Krea 2 Turbo** — advanced 8-step text-to-image. The Orange workflow intentionally uses `wan_2.1_vae.safetensors`; this is a deliberate quality choice rather than the VAE used by the upstream example workflow.
+- **Klein 9B Turbo** — instruction-based image editing using the existing native-node Orange Klein workflow.
+- **SeedVR2 7B Upscale** — 4× image upscaling using ComfyUI's current native SeedVR2 preprocess/conditioning/post-process nodes rather than the older custom-node implementation.
 
-The old realism LoRA is not part of the starter workflow.
+Workflow packs live under `workflow-packs/<pack-id>/manifest.json`. A pack declares:
 
-Workflow packs live under `workflow-packs/<pack-id>/manifest.json`. The included `scripts/download_models.py` now installs dependencies for a selected pack instead of downloading every historical default model family at once.
+- the curated API workflow
+- the Orange tool mapping
+- model dependency categories
+- supported precision variants
+- model-to-node filename bindings
 
-For example:
+Orange only rewrites declared model filenames when selecting a precision; it does not otherwise redesign the curated workflow.
+
+### Model selection
+
+The current policy is intentionally conservative:
+
+- modern NVIDIA/CUDA + ComfyUI with native INT8 ConvRot support → prefer **INT8 ConvRot** when the pack publishes it
+- systems where INT8 is not selected → prefer **FP8** for larger models when available
+- sufficiently high-VRAM systems → use **BF16/FP16** where the pack provides it and the extra memory cost is reasonable
+- AMD/ROCm currently avoids automatic INT8 ConvRot selection and uses the pack's FP8/BF16 fallback because INT8 diffusion support is not yet equally reliable there
+
+Not every model family publishes every precision. For example, the Z-Image curated pack has an official INT8/BF16 diffusion choice and an FP8/BF16 text-encoder choice.
+
+Most dependencies are downloaded from current **Comfy-Org** Hugging Face repacks. Klein is the exception: Comfy-Org redistributes its text encoder and VAE, while the licensed FLUX.2 Klein 9B diffusion checkpoint is downloaded from Black Forest Labs.
+
+The command-line dependency installer remains available:
 
 ```bash
 python scripts/download_models.py --pack z-image-turbo --models-root /path/to/ComfyUI/models
 ```
 
-If Orange is connected to a remote ComfyUI server without filesystem access to its model storage, Preflight can still detect missing models, but Orange will not pretend it can write files to that remote machine. A local/shared model path can be supplied when available.
+Without live `/system_stats`, the CLI uses conservative pack fallbacks. The browser first-run/Admin installers are preferred when automatic hardware selection matters.
 
-## Adding a Tool
+See [Curated Workflow Packs](docs/WORKFLOW_PACKS.md) for the pack format, hardware-selection policy, and maintainer workflow.
+
+## Adding Curated Tools Later
+
+Open **Admin → General Settings → Curated Tools**.
+
+Choose:
+
+1. the target configured ComfyUI backend
+2. a local/shared models path Orange can write to
+3. **Install** on the desired pack
+
+Orange then:
+
+1. inspects that backend's hardware
+2. chooses the pack's model variants
+3. downloads only missing files
+4. writes the selected filenames into the active workflow copy
+5. runs Workflow Preflight against the chosen backend
+6. adds the tool to Orange only if that backend is routable
+
+The chosen models path is remembered on that server's Orange configuration. This is useful for normal local ComfyUI installs, Stability Matrix model locations, or a shared/network model directory.
+
+If Orange is connected to a remote ComfyUI server without filesystem access to its model storage, Preflight can still detect missing models, but Orange will not pretend it can write files to that remote machine.
+
+## Adding Your Own Tool
 
 1. Build and test the workflow in ComfyUI.
 2. Export it using **Save (API format)**.
@@ -178,6 +233,7 @@ The regression suite includes a two-backend generation test for this behavior.
 Admin capabilities include:
 
 - ComfyUI backend configuration and health visibility
+- curated workflow-pack installation/repair
 - workflow upload/editing and semantic node mappings
 - workflow Preflight and per-backend compatibility
 - fixed Workflow Assets
@@ -223,13 +279,14 @@ The Admin update action uses a fast-forward-only Git pull and the launcher resta
 
 ## Testing
 
-CI currently validates Python 3.10 and 3.12, compiles Python sources, syntax-checks tracked JavaScript modules including the first-run setup UI, validates theme/workflow-pack manifests, and runs the unit/regression suite.
+CI validates Python 3.10 and 3.12, compiles Python sources, syntax-checks tracked JavaScript modules, validates every theme/workflow-pack manifest, and runs the unit/regression suite.
 
-The suite covers onboarding migration, workflow packs, routing, preflight, safe submission, route precedence, database migration/backup/restore, output handling, workflow assets, personalization, public config safety, LLM validation, and other operational behavior.
+The suite covers onboarding migration, hardware-aware workflow packs, Admin pack installation, routing, preflight, safe submission, route precedence, database migration/backup/restore, output handling, workflow assets, personalization, public config safety, LLM validation, and other operational behavior.
 
 ## Documentation
 
 - [Architecture Overview](docs/ARCHITECTURE.md)
+- [Curated Workflow Packs](docs/WORKFLOW_PACKS.md)
 - [Adding Workflows](docs/adding_workflows.md)
 - [Personalization & White-Label Branding](docs/PERSONALIZATION.md)
 - [Personalization Test Checklist](docs/PERSONALIZATION_TESTING.md)
