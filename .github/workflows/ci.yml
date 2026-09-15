@@ -36,6 +36,13 @@ jobs:
           node --check static/personalization.js
           node --check static/personalization-tab-state.js
           node --check static/setup.js
+      - name: Validate first-run branding
+        run: |
+          grep -q '/static/orange-head.svg' static/setup.html
+          if grep -q '🍊' static/setup.html; then
+            echo 'First-run setup should use the Orange cat-head brand, not a literal orange emoji.'
+            exit 1
+          fi
       - name: Validate JSON manifests
         run: |
           python -m json.tool static/themes/presets.json >/dev/null
