@@ -19,7 +19,8 @@ class ConfigValidationTests(unittest.TestCase):
 
     def test_duplicate_tool_ids_are_rejected(self):
         config = copy.deepcopy(self.default_config)
-        config["tools"][1]["id"] = config["tools"][0]["id"]
+        duplicate = copy.deepcopy(config["tools"][0])
+        config["tools"].append(duplicate)
 
         result = validate_config(config)
 
