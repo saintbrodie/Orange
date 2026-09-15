@@ -44,11 +44,7 @@ if [ "$FRESH_INSTALL" = "1" ] || [ "$REQ_HASH" != "$OLD_HASH" ]; then
 fi
 
 if [ "$FRESH_INSTALL" = "1" ]; then
-    echo ""
-    read -p "Do you want to download the default workflow models for ComfyUI now? (y/n): " DOWNLOAD_MODELS
-    if [ "$DOWNLOAD_MODELS" = "y" ] || [ "$DOWNLOAD_MODELS" = "Y" ]; then
-        python scripts/download_models.py
-    fi
+    echo "Fresh install detected. Continue setup in the Orange browser wizard."
 fi
 
 while true; do
