@@ -62,6 +62,18 @@ def _supported_variant(variant: dict, hardware: dict) -> bool:
     return True
 
 
+def _matching_option(options: list, filename: str | None) -> str | None:
+    target = str(filename or "").replace("\\", "/")
+    if not target:
+        return None
+    target_base = target.rsplit("/", 1)[-1]
+    for option in options:
+        value = str(option or "").replace("\\", "/")
+        if value == target or value.rsplit("/", 1)[-1] == target_base:
+            return str(option)
+    return None
+
+
 def plan_selected_models(selected_models: list[dict], models_root: str | None = None) -> list[dict]:
     root = os.path.abspath(os.path.expanduser(models_root)) if models_root else None
     plan = []
@@ -161,11 +173,28 @@ def inspect_workflow_pack(pack_id: str, object_info: dict, system_stats: dict | 
             )
             continue
 
-        existing = [item for item in variants if item.get("filename") in options]
+        existing = []
+        for variant in variants:
+            matched = _matching_option(options, variant.get("filename"))
+            if not matched:
+                continue
+            bound = deepcopy(variant)
+            bound["declaredFilename"] = variant.get("filename")
+            bound["filename"] = matched
+            bound["reuseExisting"] = True
+            existing.append(bound)
+
         chosen = None
         if preferred_model:
-            preferred_filename = preferred_model.get("filename")
-            chosen = next((item for item in existing if item.get("filename") == preferred_filename), None)
+            preferred_filename = os.path.basename(str(preferred_model.get("filename") or ""))
+            chosen = next(
+                (
+                    item
+                    for item in existing
+                    if os.path.basename(str(item.get("declaredFilename") or item.get("filename") or "")) == preferred_filename
+                ),
+                None,
+            )
         if chosen is None and existing:
             chosen = existing[0]
 
