@@ -105,6 +105,17 @@ body {
   color: #f4f4f5;
 }
 
+.optional-label {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  margin-left: 6px;
+  color: #a1a1aa;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  vertical-align: 2px;
+}
+
 .notice,
 .coming {
   background: #111113;
@@ -240,9 +251,11 @@ button {
   margin: 6px 0;
 }
 
+.setup-choice-copy { margin-bottom: 16px; }
+
 .optional-packs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 18px;
 }
@@ -257,13 +270,58 @@ button {
 }
 
 .optional-pack input { margin: 4px 0 0; }
+.optional-pack .pack-body { min-width: 0; width: 100%; }
 .optional-pack .pack-title { font-size: 14px; }
-.optional-pack p { font-size: 12px; margin: 4px 0; line-height: 1.4; }
+.optional-pack p { font-size: 12px; margin: 4px 0 8px; line-height: 1.4; }
 
 .optional-pack:has(input:checked) {
   border-color: rgba(249, 115, 22, .65);
   background: #1c120d;
 }
+
+.pack-status {
+  border-radius: 8px;
+  padding: 8px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin-top: 8px;
+}
+
+.pack-status.ready { color: #86efac; background: #052e16; border: 1px solid #14532d; }
+.pack-status.warning { color: #fde68a; background: #2e2208; border: 1px solid #713f12; }
+.pack-status.error { color: #fca5a5; background: #2f1010; border: 1px solid #7f1d1d; }
+.pack-status.neutral { color: #a1a1aa; background: #18181b; border: 1px solid #27272a; }
+
+.file-plan {
+  margin-top: 8px;
+  border: 1px solid #27272a;
+  border-radius: 9px;
+  overflow: hidden;
+  background: #09090b;
+}
+
+.file-plan-heading {
+  padding: 7px 9px;
+  color: #71717a;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #27272a;
+}
+
+.file-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 9px;
+  border-bottom: 1px solid #18181b;
+}
+
+.file-row:last-child { border-bottom: 0; }
+.file-row code { overflow-wrap: anywhere; font-size: 10px; }
+.file-row span { color: #71717a; font-size: 10px; overflow-wrap: anywhere; }
 
 .hint,
 .status {
