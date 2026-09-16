@@ -62,11 +62,12 @@ def _supported_variant(variant: dict, hardware: dict) -> bool:
     return True
 
 
-def plan_workflow_pack(pack_id: str, system_stats: dict | None = None, models_root: str | None = None) -> list[dict]:
-    selected = select_model_dependencies(pack_id, system_stats)
+def plan_selected_models(selected_models: list[dict], models_root: str | None = None) -> list[dict]:
     root = os.path.abspath(os.path.expanduser(models_root)) if models_root else None
     plan = []
-    for model in selected:
+    for model in selected_models:
+        if not isinstance(model, dict):
+            continue
         folder = str(model.get("folder") or "").strip()
         filename = os.path.basename(str(model.get("filename") or "").strip())
         destination = os.path.join(root, folder, filename) if root and folder and filename else None
@@ -83,6 +84,21 @@ def plan_workflow_pack(pack_id: str, system_stats: dict | None = None, models_ro
             }
         )
     return plan
+
+
+def plan_workflow_pack(pack_id: str, system_stats: dict | None = None, models_root: str | None = None) -> list[dict]:
+    return plan_selected_models(select_model_dependencies(pack_id, system_stats), models_root)
+
+
+def selection_for_install(inspection: dict) -> list[dict]:
+    """Keep compatible existing variants and download only dependencies that are actually missing."""
+    selected = [deepcopy(item) for item in (inspection.get("selectedModels") or []) if isinstance(item, dict)]
+    selected.extend(
+        deepcopy(item)
+        for item in (inspection.get("recommendedDownloads") or [])
+        if isinstance(item, dict)
+    )
+    return selected
 
 
 def inspect_workflow_pack(pack_id: str, object_info: dict, system_stats: dict | None = None) -> dict:
