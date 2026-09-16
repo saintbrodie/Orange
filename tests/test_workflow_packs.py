@@ -9,7 +9,7 @@ from app.core import workflow_packs
 
 
 class WorkflowPackTests(unittest.TestCase):
-    def test_curated_pack_catalog_contains_starter_and_optional_tools(self):
+    def test_curated_pack_catalog_contains_recommended_and_optional_tools(self):
         packs = {pack["id"]: pack for pack in workflow_packs.list_workflow_packs()}
         self.assertEqual(
             set(packs),
@@ -26,12 +26,10 @@ class WorkflowPackTests(unittest.TestCase):
         self.assertNotIn("LoraLoaderModelOnly", class_types)
         self.assertEqual(workflow["69"]["inputs"]["model"], ["66", 0])
 
-    def test_fresh_default_config_only_exposes_starter_tool(self):
+    def test_fresh_default_config_requires_no_curated_tool(self):
         root = Path(__file__).resolve().parents[1]
         config = json.loads((root / "workflows" / "defaults" / "workflows-config.json").read_text())
-
-        self.assertEqual([tool["id"] for tool in config["tools"]], ["z-image"])
-        self.assertEqual(config["tools"][0]["workflowFile"], "image_z_image_turbo.json")
+        self.assertEqual(config["tools"], [])
 
     def test_krea_pack_preserves_wan_vae_choice(self):
         manifest = workflow_packs.get_workflow_pack("krea-2-turbo")
@@ -110,6 +108,43 @@ class WorkflowPackTests(unittest.TestCase):
                 set(downloaded),
                 {"z_image_turbo_bf16.safetensors", "qwen_3_4b_fp8_mixed.safetensors"},
             )
+
+    def test_pack_installer_reuses_inventory_model_without_downloading_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            models_root = Path(tmp) / "models"
+            models_root.mkdir()
+            selected = [
+                {
+                    "id": "diffusion",
+                    "folder": "diffusion_models",
+                    "filename": "organized/z_image_turbo_bf16.safetensors",
+                    "precision": "bf16",
+                    "url": "https://example.test/z.safetensors",
+                    "reuseExisting": True,
+                },
+                {
+                    "id": "vae",
+                    "folder": "vae",
+                    "filename": "ae.safetensors",
+                    "precision": "bf16",
+                    "url": "https://example.test/ae.safetensors",
+                },
+            ]
+            downloaded = []
+
+            def fake_download(url, destination):
+                Path(destination).write_bytes(b"downloaded")
+                downloaded.append(Path(destination).name)
+
+            with mock.patch.object(workflow_packs, "_download_file", side_effect=fake_download):
+                result = workflow_packs.install_workflow_pack(
+                    "z-image-turbo",
+                    str(models_root),
+                    selected_models=selected,
+                )
+
+            self.assertEqual(downloaded, ["ae.safetensors"])
+            self.assertIn("organized/z_image_turbo_bf16.safetensors", result["skipped"])
 
     def test_materialize_workflow_binds_selected_model_filenames(self):
         stats = {
