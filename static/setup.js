@@ -2,27 +2,85 @@ const $ = (id) => document.getElementById(id);
 
 let setupStatus = null;
 let backendOk = false;
+let compatibilityByPack = new Map();
 
 function setStatus(el, message, kind = "") {
   el.textContent = message || "";
   el.className = `status ${kind}`.trim();
 }
 
-function renderOptionalPacks() {
+function sourceLabel(url) {
+  if (!url) return "";
+  try {
+    const parsed = new URL(url);
+    const pieces = parsed.pathname.split("/").filter(Boolean);
+    if (parsed.hostname === "huggingface.co" && pieces.length >= 2) {
+      return `${pieces[0]}/${pieces[1]}`;
+    }
+    return parsed.hostname;
+  } catch (_) {
+    return url;
+  }
+}
+
+function filePlanHtml(files, heading) {
+  if (!files?.length) return "";
+  return `
+    <div class="file-plan">
+      <div class="file-plan-heading">${heading}</div>
+      ${files.map((file) => `
+        <div class="file-row">
+          <code>${file.filename || "unknown"}</code>
+          <span>${file.folder || "model"}${file.precision ? ` · ${String(file.precision).toUpperCase()}` : ""}${file.url ? ` · ${sourceLabel(file.url)}` : ""}</span>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function packStatusHtml(packId) {
+  const inspection = compatibilityByPack.get(packId);
+  if (!inspection) {
+    return '<div class="pack-status neutral">Test & scan ComfyUI to check whether this tool is already runnable.</div>';
+  }
+  if (inspection.ready) {
+    return `
+      <div class="pack-status ready">✓ Ready — compatible models already found. No download required.</div>
+      ${filePlanHtml(inspection.selectedModels, "Will use")}
+    `;
+  }
+  if (inspection.missingNodes?.length) {
+    return `<div class="pack-status error">Missing ComfyUI nodes: ${inspection.missingNodes.join(", ")}</div>`;
+  }
+  if (inspection.unknownModels?.length) {
+    return `<div class="pack-status warning">Orange could not verify the model inventory for this workflow on this ComfyUI build.</div>`;
+  }
+  const count = inspection.downloadPlan?.length || inspection.missingModels?.length || 0;
+  return `
+    <div class="pack-status warning">Needs ${count} model download${count === 1 ? "" : "s"}.</div>
+    ${filePlanHtml(inspection.downloadPlan, "Orange will download")}
+  `;
+}
+
+function renderPacks() {
   const container = $("optional-packs");
   if (!container) return;
-  const packs = (setupStatus?.packs || []).filter((pack) => !pack.recommended && pack.id !== "z-image-turbo");
+  const checked = new Set(
+    Array.from(document.querySelectorAll("[data-pack-id]:checked")).map((input) => input.dataset.packId),
+  );
+  const packs = setupStatus?.packs || [];
   if (!packs.length) {
-    container.innerHTML = '<p class="hint">No additional curated packs are available yet.</p>';
+    container.innerHTML = '<p class="hint">No curated packs are available.</p>';
     return;
   }
 
   container.innerHTML = packs.map((pack) => `
     <label class="pack optional-pack">
-      <input type="checkbox" data-pack-id="${pack.id}">
-      <div>
-        <div class="pack-title">${pack.name}</div>
+      <input type="checkbox" data-pack-id="${pack.id}" ${checked.has(pack.id) ? "checked" : ""}>
+      <div class="pack-body">
+        <div class="pack-title">${pack.name}${pack.recommended ? " <span>Recommended</span>" : ""}</div>
         <p>${pack.description || ""}</p>
+        ${packStatusHtml(pack.id)}
       </div>
     </label>
   `).join("");
@@ -43,14 +101,14 @@ async function loadStatus() {
 
   const modeCopy = $("mode-copy");
   if (setupStatus.installMode === "pinokio" && setupStatus.managedComfyAvailable) {
-    modeCopy.innerHTML = "<strong>Managed setup detected.</strong> Pinokio installed ComfyUI with Orange, so the local backend and model folder should already be filled in.";
+    modeCopy.innerHTML = "<strong>Managed setup detected.</strong> Pinokio installed ComfyUI with Orange. Pick any curated tools you want, or install none and configure Orange yourself.";
   } else if (setupStatus.installMode === "pinokio") {
-    modeCopy.innerHTML = "<strong>Orange-only Pinokio install.</strong> Connect an existing ComfyUI instance. Pinokio is optional; Orange works normally with any reachable ComfyUI backend.";
+    modeCopy.innerHTML = "<strong>Orange-only Pinokio install.</strong> Connect your existing ComfyUI. Orange will scan its nodes and model dropdowns before offering downloads.";
   } else {
-    modeCopy.innerHTML = "<strong>Existing ComfyUI.</strong> Enter a local or remote ComfyUI URL. Orange does not require Pinokio when installed from GitHub or manually.";
+    modeCopy.innerHTML = "<strong>Existing ComfyUI.</strong> Enter a local or remote ComfyUI URL. Orange can reuse compatible model variants that are already installed; Pinokio is not required.";
   }
 
-  renderOptionalPacks();
+  renderPacks();
 }
 
 function hardwareLabel(hardware) {
@@ -65,31 +123,47 @@ function hardwareLabel(hardware) {
 async function testBackend() {
   const button = $("test-backend");
   button.disabled = true;
-  setStatus($("backend-result"), "Checking ComfyUI…");
+  setStatus($("backend-result"), "Checking ComfyUI nodes and model inventory…");
   try {
     const response = await fetch("/api/setup/test-backend", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({url: $("comfy-url").value.trim()}),
+      body: JSON.stringify({
+        url: $("comfy-url").value.trim(),
+        modelsRoot: $("models-root").value.trim(),
+      }),
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || "Connection failed");
     backendOk = true;
+    compatibilityByPack = new Map((data.packCompatibility || []).map((pack) => [pack.pack, pack]));
+    if (data.modelsRoot && !$("models-root").value.trim()) $("models-root").value = data.modelsRoot;
+    renderPacks();
+    const readyCount = (data.packCompatibility || []).filter((pack) => pack.ready).length;
     setStatus(
       $("backend-result"),
-      `✓ ComfyUI found · ${data.nodeCount} node types · ${data.queueRunning} running / ${data.queuePending} queued${hardwareLabel(data.hardware)}`,
+      `✓ ComfyUI found · ${data.nodeCount} node types · ${readyCount}/${(data.packCompatibility || []).length} curated tools already have compatible models${hardwareLabel(data.hardware)}`,
       "ok",
     );
   } catch (error) {
     backendOk = false;
+    compatibilityByPack = new Map();
+    renderPacks();
     setStatus($("backend-result"), error.message, "error");
   } finally {
     button.disabled = false;
   }
 }
 
-function selectedExtraPacks() {
+function selectedPacks() {
   return Array.from(document.querySelectorAll("[data-pack-id]:checked")).map((input) => input.dataset.packId);
+}
+
+function selectedNeedsDownloads(packIds) {
+  return packIds.some((packId) => {
+    const inspection = compatibilityByPack.get(packId);
+    return inspection && !inspection.ready && (inspection.downloadPlan?.length || inspection.missingModels?.length);
+  });
 }
 
 async function finishSetup() {
@@ -107,14 +181,15 @@ async function finishSetup() {
     }
   }
 
+  const packs = selectedPacks();
   button.disabled = true;
-  const installStarter = $("install-starter").checked;
-  const extras = selectedExtraPacks();
-  const installing = installStarter || extras.length;
-  setStatus(
-    $("setup-result"),
-    installing ? "Downloading the selected model files and checking the workflows…" : "Saving your Orange setup…",
-  );
+  if (!packs.length) {
+    setStatus($("setup-result"), "Saving Orange with no curated tools selected…");
+  } else if (selectedNeedsDownloads(packs)) {
+    setStatus($("setup-result"), "Installing only the missing model files, binding the workflows, and running Preflight…");
+  } else {
+    setStatus($("setup-result"), "Adding the selected workflows using models already on this ComfyUI…");
+  }
 
   try {
     const response = await fetch("/api/setup/complete", {
@@ -124,35 +199,32 @@ async function finishSetup() {
         comfyUrl: $("comfy-url").value.trim(),
         modelsRoot: $("models-root").value.trim(),
         adminKey,
-        installStarter,
-        extraPacks: extras,
+        selectedPacks: packs,
       }),
     });
     const data = await response.json();
     if (!response.ok) {
-      let detail = typeof data.detail === "string" ? data.detail : (data.detail?.message || "Setup failed");
-      const preflight = data.detail?.preflight;
-      if (preflight?.backends?.[0]) {
-        const backend = preflight.backends[0];
-        const findings = [...(backend.errors || []), ...(backend.warnings || [])];
-        if (findings.length) detail += ` ${findings.map((item) => item.message).join(" ")}`;
-      }
-      throw new Error(detail);
+      throw new Error(typeof data.detail === "string" ? data.detail : (data.detail?.message || "Setup failed"));
     }
 
-    const optionalFailures = (data.optionalPacks || []).filter((pack) => !pack.installed);
-    if (optionalFailures.length) {
+    const failures = (data.packs || []).filter((pack) => !pack.installed);
+    if (failures.length) {
       setStatus(
         $("setup-result"),
-        `✓ Orange is ready. ${optionalFailures.map((pack) => `${pack.pack}: ${pack.error || "not installed"}`).join(" · ")} Opening your generator…`,
+        `✓ Orange setup is complete. ${failures.map((pack) => `${pack.name || pack.pack}: ${pack.error || "not added"}`).join(" · ")}`,
         "ok",
       );
-      setTimeout(() => window.location.replace("/"), 2800);
+      setTimeout(() => window.location.replace(data.installedPackCount ? "/" : "/admin"), 2800);
+      return;
+    }
+
+    if (!packs.length) {
+      setStatus($("setup-result"), "✓ Orange is ready with no curated tools installed. Opening Admin…", "ok");
+      setTimeout(() => window.location.replace("/admin"), 900);
     } else {
-      const extraCount = (data.optionalPacks || []).filter((pack) => pack.installed).length;
       setStatus(
         $("setup-result"),
-        extraCount ? `✓ Orange is ready with ${extraCount + 1} curated tools. Opening your generator…` : "✓ Orange is ready. Opening your generator…",
+        `✓ Orange is ready with ${data.installedPackCount} curated tool${data.installedPackCount === 1 ? "" : "s"}. Opening Generate…`,
         "ok",
       );
       setTimeout(() => window.location.replace("/"), 900);
@@ -167,7 +239,13 @@ $("test-backend").addEventListener("click", testBackend);
 $("finish-setup").addEventListener("click", finishSetup);
 $("comfy-url").addEventListener("input", () => {
   backendOk = false;
+  compatibilityByPack = new Map();
+  renderPacks();
   setStatus($("backend-result"), "");
+});
+$("models-root").addEventListener("change", () => {
+  backendOk = false;
+  setStatus($("backend-result"), "Models path changed — scan again to refresh the download plan.");
 });
 
 loadStatus().catch((error) => setStatus($("setup-result"), `Could not load setup: ${error.message}`, "error"));
