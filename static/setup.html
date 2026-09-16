@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Set up Orange</title>
   <link rel="icon" href="/static/orange-head.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/setup.css?v=3">
+  <link rel="stylesheet" href="/static/setup.css?v=4">
 </head>
 <body>
   <main class="shell">
@@ -16,7 +16,7 @@
       <div class="hero-copy">
         <p class="eyebrow">FIRST RUN</p>
         <h1>Welcome to Orange</h1>
-        <p>Connect ComfyUI, choose your starter tools, and get generating without turning setup into a ComfyUI training class.</p>
+        <p>Connect ComfyUI, optionally add Orange-tested tools, and keep the node graph where it belongs.</p>
       </div>
     </header>
 
@@ -28,7 +28,7 @@
         <label for="comfy-url">ComfyUI URL</label>
         <div class="row">
           <input id="comfy-url" value="http://127.0.0.1:8188" spellcheck="false">
-          <button id="test-backend" class="secondary">Test connection</button>
+          <button id="test-backend" class="secondary">Test &amp; scan</button>
         </div>
         <p id="backend-result" class="status"></p>
       </div>
@@ -37,25 +37,15 @@
     <section class="card">
       <div class="step">2</div>
       <div class="content">
-        <h2>Choose your tools</h2>
-        <div class="pack selected">
-          <div>
-            <div class="pack-title">Z-Image Turbo <span>Starter</span></div>
-            <p>Fast, general-purpose text-to-image generation. Orange chooses the best model precision for the connected GPU.</p>
-          </div>
-          <label class="toggle"><input id="install-starter" type="checkbox" checked> Install required model files</label>
-        </div>
+        <h2>Choose tools <span class="optional-label">Optional</span></h2>
+        <p class="hint setup-choice-copy">Install nothing if you already know what you want. Orange can scan the connected ComfyUI for models you already have, or you can add curated tools later from <strong>Admin → Tools → Curated Library</strong>.</p>
 
-        <div class="optional-heading">
-          <strong>Add more now <span>Optional</span></strong>
-          <p>You can start with Z-Image and add these later, or install any of them during setup.</p>
-        </div>
         <div id="optional-packs" class="optional-packs"></div>
 
-        <label for="models-root">ComfyUI models folder</label>
+        <label for="models-root">ComfyUI models folder <span class="optional-label">Only needed for downloads</span></label>
         <input id="models-root" placeholder="Orange will try to detect this automatically">
-        <p class="hint">Pinokio-managed installs fill this automatically. For an existing local ComfyUI, choose its <code>models</code> folder if Orange cannot detect it.</p>
-        <p class="hint"><strong>Model precision is automatic:</strong> Orange prefers native INT8 ConvRot on supported NVIDIA/ComfyUI installs, otherwise it chooses FP8 or BF16 based on the pack and available VRAM.</p>
+        <p class="hint">Pinokio-managed installs fill this automatically. Existing or remote ComfyUI servers do not need a writable models path when Orange finds compatible models already installed.</p>
+        <p class="hint"><strong>Model precision is automatic:</strong> Orange will reuse a compatible declared variant you already have. For missing dependencies it prefers INT8 ConvRot on supported NVIDIA/ComfyUI installs, otherwise FP8 or BF16/FP16 according to the pack and hardware.</p>
       </div>
     </section>
 
@@ -70,10 +60,10 @@
     </section>
 
     <section class="finish">
-      <button id="finish-setup" class="primary">Set up Orange</button>
+      <button id="finish-setup" class="primary">Finish setup</button>
       <p id="setup-result" class="status"></p>
     </section>
   </main>
-  <script src="/static/setup.js?v=2"></script>
+  <script src="/static/setup.js?v=3"></script>
 </body>
 </html>
