@@ -271,6 +271,7 @@ def install_workflow_pack(
     models_root: str,
     system_stats: dict | None = None,
     materialize: bool = False,
+    selected_models: list[dict] | None = None,
 ) -> dict:
     manifest = get_workflow_pack(pack_id)
     root = os.path.abspath(os.path.expanduser(models_root))
@@ -278,7 +279,7 @@ def install_workflow_pack(
         raise FileNotFoundError(f"ComfyUI models directory does not exist: {root}")
 
     hardware = summarize_system_stats(system_stats)
-    selected_models = select_model_dependencies(pack_id, system_stats)
+    selected_models = list(selected_models) if selected_models is not None else select_model_dependencies(pack_id, system_stats)
     installed = []
     skipped = []
     failures = []
