@@ -19,7 +19,7 @@ class SetupApiTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {"ORANGE_ALLOW_REMOTE_SETUP": "1"}, clear=False):
             self.assertTrue(setup._setup_client_allowed("192.168.1.50"))
 
-    def test_missing_model_warning_blocks_starter_routing(self):
+    def test_missing_model_warning_blocks_routing(self):
         backend = {
             "reachable": True,
             "errors": [],
@@ -29,13 +29,28 @@ class SetupApiTests(unittest.TestCase):
         cached = setup._cacheable_preflight_results([backend])
         self.assertEqual(cached[0]["errors"][0]["code"], "routing_incompatible")
 
-    def test_nonblocking_warning_keeps_starter_routable(self):
+    def test_nonblocking_warning_keeps_backend_routable(self):
         backend = {
             "reachable": True,
             "errors": [],
             "warnings": [{"code": "node_metadata_incomplete"}],
         }
         self.assertTrue(setup._routing_compatible(backend))
+
+    def test_new_setup_payload_can_select_no_curated_packs(self):
+        self.assertEqual(
+            setup._selected_pack_ids({"selectedPacks": []}, {"z-image-turbo", "krea-2-turbo"}),
+            [],
+        )
+
+    def test_legacy_setup_payload_remains_backward_compatible(self):
+        self.assertEqual(
+            setup._selected_pack_ids(
+                {"installStarter": True, "extraPacks": ["krea-2-turbo"]},
+                {"z-image-turbo", "krea-2-turbo"},
+            ),
+            ["z-image-turbo", "krea-2-turbo"],
+        )
 
 
 if __name__ == "__main__":
