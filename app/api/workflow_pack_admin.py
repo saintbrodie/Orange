@@ -8,7 +8,11 @@ from app.api.preflight import _routing_cache_results, _routing_compatible
 from app.core.backends import backend_manager, workflow_compatibility_key
 from app.core.config import get_base_workflow, load_config, save_config
 from app.core.preflight import run_preflight
-from app.core.workflow_pack_probe import inspect_workflow_pack, plan_workflow_pack
+from app.core.workflow_pack_probe import (
+    inspect_workflow_pack,
+    plan_selected_models,
+    selection_for_install,
+)
 from app.core.workflow_packs import (
     add_pack_tool_to_config,
     get_workflow_pack,
@@ -48,11 +52,6 @@ async def _backend_metadata(url: str) -> tuple[dict, dict]:
             return object_info, system_stats
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Could not inspect ComfyUI: {exc}")
-
-
-async def _system_stats(url: str) -> dict:
-    _object_info, system_stats = await _backend_metadata(url)
-    return system_stats
 
 
 async def _preflight_and_enable(
@@ -156,7 +155,7 @@ async def inspect_admin_workflow_packs(payload: dict, _=Depends(verify_admin)):
         pack_id = str(manifest.get("id"))
         inspection = inspect_workflow_pack(pack_id, object_info, system_stats)
         inspection["installed"] = bool((manifest.get("tool") or {}).get("id") in installed_tool_ids)
-        inspection["downloadPlan"] = plan_workflow_pack(pack_id, system_stats, models_root)
+        inspection["downloadPlan"] = plan_selected_models(inspection.get("recommendedDownloads") or [], models_root)
         packs.append(inspection)
 
     return {
@@ -189,7 +188,7 @@ async def activate_admin_workflow_pack(payload: dict, _=Depends(verify_admin)):
             detail={
                 "message": "The connected ComfyUI does not already have everything this workflow needs.",
                 "inspection": inspection,
-                "downloadPlan": plan_workflow_pack(pack_id, system_stats, server.get("modelsRoot")),
+                "downloadPlan": plan_selected_models(inspection.get("recommendedDownloads") or [], server.get("modelsRoot")),
             },
         )
 
@@ -237,14 +236,26 @@ async def install_admin_workflow_pack(payload: dict, _=Depends(verify_admin)):
             ),
         )
 
-    system_stats = await _system_stats(server_url)
-    download_plan = plan_workflow_pack(pack_id, system_stats, models_root)
+    object_info, system_stats = await _backend_metadata(server_url)
+    inspection = inspect_workflow_pack(pack_id, object_info, system_stats)
+    if inspection.get("missingNodes") or inspection.get("unknownModels"):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "This ComfyUI build is missing required nodes or did not expose enough model inventory to install this pack safely.",
+                "inspection": inspection,
+            },
+        )
+
+    selected_models = selection_for_install(inspection)
+    download_plan = plan_selected_models(inspection.get("recommendedDownloads") or [], models_root)
     install_result = await asyncio.to_thread(
         install_workflow_pack,
         pack_id,
         models_root,
         system_stats,
         True,
+        selected_models,
     )
     if install_result.get("failures"):
         raise HTTPException(
