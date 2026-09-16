@@ -19,17 +19,5 @@
     "16:9": {"width": 1344, "height": 768}
   },
   "targetMegapixels": "1.0",
-  "tools": [
-    {
-      "id": "z-image",
-      "name": "Generate Image",
-      "workflowFile": "image_z_image_turbo.json",
-      "nodeMapping": {
-        "prompt": {"nodeId": "67", "field": "text"},
-        "width": {"nodeId": "68", "field": "width"},
-        "height": {"nodeId": "68", "field": "height"},
-        "seed": {"nodeId": "70", "field": "seed", "generateRandom": true}
-      }
-    }
-  ]
+  "tools": []
 }
