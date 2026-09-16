@@ -9,11 +9,17 @@ from app.core.backends import backend_manager, workflow_compatibility_key
 from app.core.config import get_base_workflow, load_config, save_config
 from app.core.onboarding import detect_install_mode, managed_comfy_dir, managed_models_root, mark_setup_complete, setup_required
 from app.core.preflight import run_preflight
+from app.core.workflow_pack_probe import (
+    inspect_workflow_pack,
+    plan_selected_models,
+    selection_for_install,
+)
 from app.core.workflow_packs import (
     add_pack_tool_to_config,
     get_workflow_pack,
     install_workflow_pack,
     list_workflow_packs,
+    materialize_workflow_pack,
     resolve_models_root,
     summarize_system_stats,
 )
@@ -85,17 +91,18 @@ def _cacheable_preflight_results(backends: list[dict]) -> list[dict]:
 
 async def _read_backend_metadata(url: str) -> tuple[dict, dict, dict]:
     try:
-        async with httpx.AsyncClient(timeout=6.0) as client:
-            object_response = await client.get(f"{url}/object_info")
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            object_response, queue_response, stats_response = await asyncio.gather(
+                client.get(f"{url}/object_info"),
+                client.get(f"{url}/queue"),
+                client.get(f"{url}/system_stats"),
+            )
             object_response.raise_for_status()
             object_info = object_response.json()
             if not isinstance(object_info, dict):
                 raise ValueError("Unexpected ComfyUI /object_info response")
 
-            queue_response = await client.get(f"{url}/queue")
             queue = queue_response.json() if queue_response.status_code == 200 else {}
-
-            stats_response = await client.get(f"{url}/system_stats")
             system_stats = stats_response.json() if stats_response.status_code == 200 else {}
             if not isinstance(system_stats, dict):
                 system_stats = {}
@@ -116,6 +123,39 @@ async def _preflight_pack(pack_id: str, server: dict) -> tuple[dict, bool]:
     compatibility_key = workflow_compatibility_key(workflow_file, workflow, node_mapping)
     backend_manager.record_preflight(compatibility_key, _cacheable_preflight_results(backends))
     return preflight, routable
+
+
+def _selected_pack_ids(payload: dict, known_packs: set[str]) -> list[str]:
+    requested = payload.get("selectedPacks")
+    if requested is None:
+        # Backward compatibility with the first onboarding UI shipped before all
+        # curated packs became optional.
+        requested = []
+        if payload.get("installStarter"):
+            requested.append("z-image-turbo")
+        extras = payload.get("extraPacks") or []
+        if isinstance(extras, list):
+            requested.extend(extras)
+    if not isinstance(requested, list):
+        raise HTTPException(status_code=400, detail="selectedPacks must be a list")
+
+    result = []
+    for value in requested:
+        pack_id = str(value)
+        if pack_id not in known_packs:
+            raise HTTPException(status_code=400, detail=f"Unknown workflow pack: {pack_id}")
+        if pack_id not in result:
+            result.append(pack_id)
+    return result
+
+
+def _inspection_payload(manifest: dict, inspection: dict, models_root: str | None) -> dict:
+    item = dict(inspection)
+    item["description"] = manifest.get("description")
+    item["type"] = manifest.get("type")
+    item["recommended"] = bool(manifest.get("recommended"))
+    item["downloadPlan"] = plan_selected_models(inspection.get("recommendedDownloads") or [], models_root)
+    return item
 
 
 @router.get("/api/setup/status")
@@ -143,8 +183,15 @@ async def test_setup_backend(payload: dict, request: Request):
     _require_setup_client(request)
     _require_setup_pending()
     url = _normalize_url(payload.get("url"))
+    requested_root = str(payload.get("modelsRoot") or "").strip() or None
+    models_root = resolve_models_root(requested_root)
     object_info, queue, system_stats = await _read_backend_metadata(url)
     hardware = summarize_system_stats(system_stats)
+
+    compatibility = []
+    for manifest in list_workflow_packs():
+        inspection = inspect_workflow_pack(str(manifest.get("id")), object_info, system_stats)
+        compatibility.append(_inspection_payload(manifest, inspection, models_root))
 
     return {
         "ok": True,
@@ -153,6 +200,8 @@ async def test_setup_backend(payload: dict, request: Request):
         "queueRunning": len(queue.get("queue_running", [])),
         "queuePending": len(queue.get("queue_pending", [])),
         "hardware": hardware,
+        "modelsRoot": models_root,
+        "packCompatibility": compatibility,
     }
 
 
@@ -166,104 +215,82 @@ async def complete_setup(payload: dict, request: Request):
         raise HTTPException(status_code=400, detail="Admin password must be at least 8 characters")
 
     comfy_url = _normalize_url(payload.get("comfyUrl") or "http://127.0.0.1:8188")
-    install_starter = bool(payload.get("installStarter", True))
     requested_root = str(payload.get("modelsRoot") or "").strip() or None
-    requested_extra = payload.get("extraPacks") or []
-    if not isinstance(requested_extra, list):
-        raise HTTPException(status_code=400, detail="extraPacks must be a list")
+    known_packs = {str(pack["id"]) for pack in list_workflow_packs()}
+    selected_packs = _selected_pack_ids(payload, known_packs)
 
-    known_packs = {pack["id"] for pack in list_workflow_packs()}
-    extra_packs = []
-    for pack_id in requested_extra:
-        pack_id = str(pack_id)
-        if pack_id == "z-image-turbo":
-            continue
-        if pack_id not in known_packs:
-            raise HTTPException(status_code=400, detail=f"Unknown workflow pack: {pack_id}")
-        if pack_id not in extra_packs:
-            extra_packs.append(pack_id)
-
-    _object_info, _queue, system_stats = await _read_backend_metadata(comfy_url)
+    object_info, _queue, system_stats = await _read_backend_metadata(comfy_url)
     hardware = summarize_system_stats(system_stats)
-
-    models_root = None
-    if install_starter or extra_packs:
-        models_root = resolve_models_root(requested_root)
-        if not models_root:
-            raise HTTPException(
-                status_code=400,
-                detail="Orange could not determine this ComfyUI installation's models folder. Choose the models folder or skip automatic model installation.",
-            )
-
-    install_results = {}
-    if install_starter:
-        starter_result = await asyncio.to_thread(
-            install_workflow_pack,
-            "z-image-turbo",
-            models_root,
-            system_stats,
-            True,
-        )
-        install_results["z-image-turbo"] = starter_result
-        if starter_result.get("failures"):
-            raise HTTPException(
-                status_code=502,
-                detail={"message": "One or more Z-Image starter model downloads failed", "result": starter_result},
-            )
-
-    config = dict(load_config())
-    starter_tool = next((tool for tool in config.get("tools", []) if tool.get("id") == "z-image"), None)
-    if not starter_tool:
-        raise HTTPException(status_code=500, detail="Z-Image starter tool is missing from the fresh-install config")
+    models_root = resolve_models_root(requested_root)
 
     server = {"url": comfy_url, "priority": 1}
     if models_root:
         server["modelsRoot"] = models_root
 
-    starter_preflight, starter_routable = await _preflight_pack("z-image-turbo", server)
-    if not starter_routable:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": "ComfyUI is reachable, but the Z-Image starter workflow is not ready on this backend.",
-                "preflight": starter_preflight,
-            },
-        )
+    # A fresh Orange install is valid with no curated tools at all. Advanced
+    # users can connect their own ComfyUI and build/import tools later.
+    config = dict(load_config())
+    config["tools"] = []
+    pack_results = []
 
-    optional_results = []
-    for pack_id in extra_packs:
+    for pack_id in selected_packs:
+        manifest = get_workflow_pack(pack_id)
+        inspection = inspect_workflow_pack(pack_id, object_info, system_stats)
         pack_result = {
             "pack": pack_id,
+            "name": manifest.get("name"),
             "installed": False,
-            "routable": False,
+            "mode": None,
             "error": None,
+            "inspection": _inspection_payload(manifest, inspection, models_root),
         }
         try:
-            install_result = await asyncio.to_thread(
-                install_workflow_pack,
-                pack_id,
-                models_root,
-                system_stats,
-                True,
-            )
-            install_results[pack_id] = install_result
-            if install_result.get("failures"):
-                pack_result["error"] = "One or more model downloads failed."
-                pack_result["downloadFailures"] = install_result["failures"]
-                optional_results.append(pack_result)
-                continue
+            if inspection.get("ready"):
+                materialize_workflow_pack(pack_id, inspection.get("selectedModels") or [])
+                pack_result["mode"] = "existing"
+            else:
+                if inspection.get("missingNodes"):
+                    pack_result["error"] = "This ComfyUI build is missing required workflow nodes."
+                    pack_results.append(pack_result)
+                    continue
+                if inspection.get("unknownModels"):
+                    pack_result["error"] = "ComfyUI did not expose enough model inventory to install this workflow safely."
+                    pack_results.append(pack_result)
+                    continue
+                if not models_root:
+                    pack_result["error"] = "Required models are missing and Orange does not have a writable models folder for this backend."
+                    pack_results.append(pack_result)
+                    continue
+
+                selected_models = selection_for_install(inspection)
+                install_result = await asyncio.to_thread(
+                    install_workflow_pack,
+                    pack_id,
+                    models_root,
+                    system_stats,
+                    True,
+                    selected_models,
+                )
+                pack_result["mode"] = "downloaded"
+                pack_result["downloadPlan"] = plan_selected_models(inspection.get("recommendedDownloads") or [], models_root)
+                pack_result["installedFiles"] = install_result.get("installed", [])
+                pack_result["skippedFiles"] = install_result.get("skipped", [])
+                if install_result.get("failures"):
+                    pack_result["error"] = "One or more model downloads failed."
+                    pack_result["downloadFailures"] = install_result["failures"]
+                    pack_results.append(pack_result)
+                    continue
 
             preflight, routable = await _preflight_pack(pack_id, server)
             pack_result["preflight"] = preflight.get("summary", {})
-            pack_result["routable"] = routable
             if routable:
                 config = add_pack_tool_to_config(config, pack_id)
                 pack_result["installed"] = True
             else:
-                pack_result["error"] = "Models were installed, but this ComfyUI build is missing something the workflow needs."
+                pack_result["error"] = "The workflow was prepared, but this backend is not routable for it."
         except Exception as exc:
             pack_result["error"] = str(exc)
-        optional_results.append(pack_result)
+        pack_results.append(pack_result)
 
     config["adminKey"] = admin_key
     config["comfyServers"] = [server]
@@ -275,10 +302,7 @@ async def complete_setup(payload: dict, request: Request):
         "status": "success",
         "comfyUrl": comfy_url,
         "hardware": hardware,
-        "starter": install_results.get("z-image-turbo"),
-        "optionalPacks": optional_results,
-        "preflight": {
-            "status": starter_preflight.get("summary", {}).get("status"),
-            "routableBackends": 1 if starter_routable else 0,
-        },
+        "selectedPackCount": len(selected_packs),
+        "installedPackCount": sum(1 for item in pack_results if item.get("installed")),
+        "packs": pack_results,
     }
