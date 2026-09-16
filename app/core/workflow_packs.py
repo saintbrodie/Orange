@@ -127,9 +127,6 @@ def summarize_system_stats(system_stats: dict | None) -> dict:
     version_tuple = _parse_version(comfy_version)
     comfy_has_native_int8 = version_tuple is not None and version_tuple >= (0, 27, 0)
 
-    # Native INT8 ConvRot landed in ComfyUI 0.27. It is currently the safest
-    # default on modern NVIDIA/CUDA installs; ROCm still has known diffusion
-    # model correctness issues, so AMD intentionally falls back to FP8/BF16.
     int8_convrot = bool(is_nvidia and not is_amd and comfy_has_native_int8)
 
     return {
@@ -284,6 +281,9 @@ def install_workflow_pack(
     skipped = []
     failures = []
     for model in selected_models:
+        if model.get("reuseExisting"):
+            skipped.append(str(model.get("filename") or "existing model"))
+            continue
         folder = str(model.get("folder", "")).strip()
         filename = os.path.basename(str(model.get("filename", "")).strip())
         url = str(model.get("url", "")).strip()
