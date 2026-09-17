@@ -7,7 +7,7 @@
   "workflowFile": "image_z_image_turbo.json",
   "tool": {
     "id": "z-image",
-    "name": "Generate Image",
+    "name": "Realistic Generation",
     "workflowFile": "image_z_image_turbo.json",
     "nodeMapping": {
       "prompt": {"nodeId": "67", "field": "text"},
