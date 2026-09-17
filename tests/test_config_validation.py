@@ -3,7 +3,7 @@ import json
 import os
 import unittest
 
-from app.core.config import DEFAULT_CONFIG_PATH, get_base_workflow
+from app.core.config import DEFAULT_CONFIG_PATH, _normalize_curated_tool_defaults, get_base_workflow
 from app.core.config_validation import validate_config
 
 
@@ -33,6 +33,35 @@ class ConfigValidationTests(unittest.TestCase):
     def test_default_config_is_valid(self):
         result = validate_config(copy.deepcopy(self.default_config))
         self.assertEqual(result["errors"], [])
+
+    def test_curated_defaults_migrate_legacy_names_order_and_modify_tool(self):
+        config = {
+            "tools": [
+                {"id": "krea-2", "name": "Krea 2 Turbo"},
+                {"id": "klein-edit", "name": "Modify Image"},
+                {"id": "z-image", "name": "Generate Image"},
+            ]
+        }
+        normalized = _normalize_curated_tool_defaults(config)
+
+        self.assertEqual([tool["id"] for tool in normalized["tools"]], ["z-image", "krea-2", "klein-edit"])
+        self.assertEqual(normalized["tools"][0]["name"], "Realistic Generation")
+        self.assertEqual(normalized["tools"][1]["name"], "Detailed Generation")
+        self.assertEqual(normalized["modifyTool"], "klein-edit")
+
+    def test_curated_defaults_preserve_custom_names_and_modify_choice(self):
+        config = {
+            "tools": [
+                {"id": "z-image", "name": "My Generator"},
+                {"id": "klein-edit", "name": "My Editor"},
+                {"id": "custom-edit", "name": "Other Editor"},
+            ],
+            "modifyTool": "custom-edit",
+        }
+        normalized = _normalize_curated_tool_defaults(config)
+
+        self.assertEqual(normalized["tools"][0]["name"], "My Generator")
+        self.assertEqual(normalized["modifyTool"], "custom-edit")
 
     def test_duplicate_tool_ids_are_rejected(self):
         config = self.config_with_tool()
