@@ -28,6 +28,43 @@ def invalidate_config_cache():
         _config_mtime_ns = None
 
 
+def _normalize_curated_tool_defaults(config: dict) -> dict:
+    """Apply safe curated-tool defaults without overwriting deliberate custom names."""
+    tools = config.get("tools")
+    if not isinstance(tools, list):
+        return config
+
+    legacy_names = {
+        "z-image": ("Generate Image", "Realistic Generation"),
+        "krea-2": ("Krea 2 Turbo", "Detailed Generation"),
+    }
+    normalized_tools = []
+    for tool in tools:
+        if not isinstance(tool, dict):
+            normalized_tools.append(tool)
+            continue
+        item = dict(tool)
+        old_new = legacy_names.get(str(item.get("id") or ""))
+        if old_new and item.get("name") == old_new[0]:
+            item["name"] = old_new[1]
+        normalized_tools.append(item)
+
+    # Z-Image is the default curated generation choice, so keep it at the top of
+    # the tool list while preserving every other tool's relative order.
+    z_image = [tool for tool in normalized_tools if isinstance(tool, dict) and tool.get("id") == "z-image"]
+    others = [tool for tool in normalized_tools if not (isinstance(tool, dict) and tool.get("id") == "z-image")]
+    config["tools"] = z_image + others
+
+    tool_ids = {
+        str(tool.get("id"))
+        for tool in normalized_tools
+        if isinstance(tool, dict) and tool.get("id")
+    }
+    if "klein-edit" in tool_ids and not config.get("modifyTool"):
+        config["modifyTool"] = "klein-edit"
+    return config
+
+
 def load_config():
     global _config_cache, _config_mtime_ns
 
@@ -53,6 +90,7 @@ def load_config():
         except (OSError, json.JSONDecodeError):
             pass
 
+        config = _normalize_curated_tool_defaults(config)
         _config_cache = config
         _config_mtime_ns = _get_config_mtime_ns()
         return _config_cache
