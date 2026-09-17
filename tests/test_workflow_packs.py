@@ -10,13 +10,25 @@ from app.core import workflow_packs
 
 class WorkflowPackTests(unittest.TestCase):
     def test_curated_pack_catalog_contains_recommended_and_optional_tools(self):
-        packs = {pack["id"]: pack for pack in workflow_packs.list_workflow_packs()}
+        catalog = workflow_packs.list_workflow_packs()
+        packs = {pack["id"]: pack for pack in catalog}
         self.assertEqual(
             set(packs),
             {"z-image-turbo", "krea-2-turbo", "klein-9b-edit", "seedvr2-7b-upscale"},
         )
+        self.assertEqual(catalog[0]["id"], "z-image-turbo")
         self.assertTrue(packs["z-image-turbo"]["recommended"])
         self.assertFalse(packs["krea-2-turbo"]["recommended"])
+
+    def test_curated_generation_tools_use_friendly_display_names(self):
+        self.assertEqual(
+            workflow_packs.tool_config_for_pack("z-image-turbo")["name"],
+            "Realistic Generation",
+        )
+        self.assertEqual(
+            workflow_packs.tool_config_for_pack("krea-2-turbo")["name"],
+            "Detailed Generation",
+        )
 
     def test_default_z_image_workflow_uses_no_lora(self):
         root = Path(__file__).resolve().parents[1]
@@ -166,6 +178,28 @@ class WorkflowPackTests(unittest.TestCase):
         updated = workflow_packs.add_pack_tool_to_config(config, "krea-2-turbo")
         updated = workflow_packs.add_pack_tool_to_config(updated, "krea-2-turbo")
         self.assertEqual([tool["id"] for tool in updated["tools"]].count("krea-2"), 1)
+
+    def test_adding_z_image_moves_it_to_top_of_tool_list(self):
+        config = {
+            "tools": [
+                {"id": "custom", "name": "Custom"},
+                {"id": "krea-2", "name": "Detailed Generation"},
+            ]
+        }
+        updated = workflow_packs.add_pack_tool_to_config(config, "z-image-turbo")
+        self.assertEqual([tool["id"] for tool in updated["tools"]], ["z-image", "custom", "krea-2"])
+
+    def test_klein_becomes_modify_tool_when_unset(self):
+        updated = workflow_packs.add_pack_tool_to_config({"tools": []}, "klein-9b-edit")
+        self.assertEqual(updated["modifyTool"], "klein-edit")
+
+    def test_klein_does_not_override_existing_modify_tool(self):
+        config = {
+            "tools": [{"id": "custom-edit", "name": "Custom Edit"}],
+            "modifyTool": "custom-edit",
+        }
+        updated = workflow_packs.add_pack_tool_to_config(config, "klein-9b-edit")
+        self.assertEqual(updated["modifyTool"], "custom-edit")
 
 
 if __name__ == "__main__":
