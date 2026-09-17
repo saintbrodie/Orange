@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import os
+import struct
 import time
 from urllib.parse import urlencode, urlparse, urlunparse
 
@@ -17,6 +18,50 @@ from app.core.database import get_backend_for_prompt, update_usage_status
 router = APIRouter()
 
 JOB_STATUS_TIMEOUT_SECONDS = max(60, int(os.environ.get("ORANGE_JOB_STATUS_TIMEOUT_SECONDS", "7200")))
+
+
+BINARY_PREVIEW_IMAGE = 1
+BINARY_PREVIEW_IMAGE_WITH_METADATA = 4
+
+
+def _detect_image_mime(image_data: bytes) -> str | None:
+    if image_data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if image_data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if image_data.startswith((b"GIF87a", b"GIF89a")):
+        return "image/gif"
+    if len(image_data) >= 12 and image_data[:4] == b"RIFF" and image_data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def _parse_binary_preview(message: bytes) -> tuple[bytes, str] | None:
+    """Parse ComfyUI binary preview frames without mistaking metadata/text frames for images."""
+    if len(message) < 8:
+        return None
+
+    event_type = struct.unpack(">I", message[:4])[0]
+    if event_type == BINARY_PREVIEW_IMAGE:
+        image_type = struct.unpack(">I", message[4:8])[0]
+        image_data = message[8:]
+        if not image_data:
+            return None
+        mime = {1: "image/jpeg", 2: "image/png"}.get(image_type) or _detect_image_mime(image_data)
+        return (image_data, mime) if mime else None
+
+    if event_type == BINARY_PREVIEW_IMAGE_WITH_METADATA:
+        metadata_length = struct.unpack(">I", message[4:8])[0]
+        image_start = 8 + metadata_length
+        if image_start > len(message):
+            return None
+        image_data = message[image_start:]
+        if not image_data:
+            return None
+        mime = _detect_image_mime(image_data)
+        return (image_data, mime) if mime else None
+
+    return None
 
 
 def get_comfy_url():
@@ -232,8 +277,16 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
                         return
                     msg = await websocket.recv()
                     if isinstance(msg, bytes):
-                        image_data = msg[8:]
-                        await queue.put({"status": "preview", "image": base64.b64encode(image_data).decode("utf-8")})
+                        preview = _parse_binary_preview(msg)
+                        if preview:
+                            image_data, mime = preview
+                            await queue.put(
+                                {
+                                    "status": "preview",
+                                    "image": base64.b64encode(image_data).decode("utf-8"),
+                                    "mime": mime,
+                                }
+                            )
                         continue
 
                     data = json.loads(msg)

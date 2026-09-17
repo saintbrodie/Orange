@@ -408,7 +408,10 @@ document.addEventListener("DOMContentLoaded", () => {
             previewContainer.classList.add('hidden');
             previewContainer.classList.remove('opacity-100');
         }
-        if (previewImage) previewImage.src = '';
+        if (previewImage) {
+            previewImage.removeAttribute('src');
+            previewImage.classList.add('opacity-0');
+        }
         
         progressContainer.classList.add('hidden');
         queueStatus.classList.remove('hidden');
@@ -468,14 +471,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 const previewContainer = document.getElementById('live-preview-container');
                 const previewImage = document.getElementById('live-preview-image');
                 
-                if (spinner) spinner.classList.add('hidden');
-                if (previewContainer) {
-                    previewContainer.classList.remove('hidden');
-                    setTimeout(() => previewContainer.classList.add('opacity-100'), 10);
-                }
                 if (previewImage) {
-                    previewImage.src = 'data:image/jpeg;base64,' + data.image;
-                    previewImage.classList.remove('opacity-0');
+                    previewImage.onload = () => {
+                        if (spinner) spinner.classList.add('hidden');
+                        if (previewContainer) {
+                            previewContainer.classList.remove('hidden');
+                            requestAnimationFrame(() => previewContainer.classList.add('opacity-100'));
+                        }
+                        previewImage.classList.remove('opacity-0');
+                    };
+                    previewImage.onerror = () => {
+                        previewImage.classList.add('opacity-0');
+                        previewImage.removeAttribute('src');
+                        if (previewContainer) {
+                            previewContainer.classList.add('hidden');
+                            previewContainer.classList.remove('opacity-100');
+                        }
+                        if (spinner) spinner.classList.remove('hidden');
+                    };
+                    previewImage.src = `data:${data.mime || 'image/jpeg'};base64,${data.image}`;
                 }
             } else if (data.status === 'progress') {
                 progressContainer.classList.remove('hidden');
