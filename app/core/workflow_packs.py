@@ -13,6 +13,12 @@ ACTIVE_WORKFLOWS_DIR = os.path.join(PROJECT_ROOT, "workflows")
 DEFAULT_WORKFLOWS_DIR = os.path.join(ACTIVE_WORKFLOWS_DIR, "defaults")
 
 _VERSION_RE = re.compile(r"(\d+)\.(\d+)(?:\.(\d+))?")
+_PACK_DISPLAY_ORDER = {
+    "z-image-turbo": 0,
+    "krea-2-turbo": 10,
+    "klein-9b-edit": 20,
+    "seedvr2-7b-upscale": 30,
+}
 
 
 def list_workflow_packs() -> list[dict]:
@@ -30,7 +36,13 @@ def list_workflow_packs() -> list[dict]:
             packs.append(manifest)
         except (OSError, json.JSONDecodeError):
             continue
-    return packs
+    return sorted(
+        packs,
+        key=lambda pack: (
+            _PACK_DISPLAY_ORDER.get(str(pack.get("id") or ""), 1000),
+            str(pack.get("name") or pack.get("id") or "").lower(),
+        ),
+    )
 
 
 def get_workflow_pack(pack_id: str) -> dict:
@@ -253,13 +265,26 @@ def tool_config_for_pack(pack_id: str) -> dict:
     return deepcopy(tool)
 
 
+def _put_z_image_first(tools: list[dict]) -> list[dict]:
+    indexed = list(enumerate(tools))
+    indexed.sort(
+        key=lambda pair: (
+            0 if isinstance(pair[1], dict) and pair[1].get("id") == "z-image" else 1,
+            pair[0],
+        )
+    )
+    return [tool for _index, tool in indexed]
+
+
 def add_pack_tool_to_config(config: dict, pack_id: str) -> dict:
     updated = deepcopy(config)
     tools = list(updated.get("tools") or [])
     tool = tool_config_for_pack(pack_id)
     tools = [existing for existing in tools if isinstance(existing, dict) and existing.get("id") != tool.get("id")]
     tools.append(tool)
-    updated["tools"] = tools
+    updated["tools"] = _put_z_image_first(tools)
+    if pack_id == "klein-9b-edit" and not updated.get("modifyTool"):
+        updated["modifyTool"] = "klein-edit"
     return updated
 
 
