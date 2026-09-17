@@ -43,30 +43,9 @@
   }
 
   function injectResponsiveAdminStyles() {
-    if (document.getElementById('orange-admin-responsive-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'orange-admin-responsive-styles';
-    style.textContent = `
-      @media (max-width: 1180px) {
-        body > nav { flex-wrap: wrap; gap: .75rem; padding: 1rem 1.25rem !important; }
-        body > nav > div:first-child { width: 100%; min-width: 0; flex-wrap: wrap; padding-right: 7rem; }
-        #admin-menu { width: 100%; flex-wrap: wrap; border-left: 0 !important; padding-left: 0 !important; margin-top: .35rem; }
-        #logout-btn { position: absolute; top: 1.15rem; right: 1.25rem; margin-left: 0 !important; flex-shrink: 0; }
-      }
-      @media (max-width: 640px) {
-        body { padding: .5rem !important; }
-        body > nav { width: 100% !important; margin-top: .5rem !important; border-radius: 1rem !important; }
-        body > nav > div:first-child { padding-right: 3.25rem; }
-        body > nav h1 { font-size: 1.1rem !important; margin-right: 0 !important; }
-        body > nav img { width: 2rem !important; height: 2rem !important; }
-        #admin-menu { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
-        #admin-menu:not(.hidden) { display: grid !important; }
-        #admin-menu .admin-tab { justify-content: center; padding: .55rem .6rem !important; font-size: .75rem !important; }
-        #logout-btn { top: .9rem; right: .9rem; padding: .6rem !important; font-size: 0 !important; }
-        #logout-btn svg { width: 1rem !important; height: 1rem !important; }
-      }
-    `;
-    document.head.appendChild(style);
+    // Admin navigation breakpoints and the hamburger drawer are owned by
+    // mobile-navigation.css/js. Keeping a second responsive nav here caused the
+    // desktop tabs and hamburger to render at the same time on narrow screens.
   }
 
   function removeLegacyRestoreDefaults() {
