@@ -10,6 +10,131 @@
         return window.innerWidth <= ADMIN_BREAKPOINT;
     }
 
+    function injectAdminCompactStyles() {
+        if (document.getElementById('orange-admin-compact-nav-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'orange-admin-compact-nav-styles';
+        style.textContent = `
+            @media (min-width: 641px) and (max-width: 1180px) {
+                body:has(#admin-menu) > nav {
+                    flex-wrap: nowrap !important;
+                    gap: .75rem !important;
+                    padding: 1rem 1.25rem !important;
+                }
+                body:has(#admin-menu) > nav > div:first-child {
+                    min-width: 0 !important;
+                    flex: 1 1 auto !important;
+                    flex-wrap: nowrap !important;
+                }
+                #admin-menu,
+                #logout-btn {
+                    display: none !important;
+                }
+                #mobile-admin-menu-btn:not(.hidden) {
+                    display: flex !important;
+                    align-items: center;
+                    justify-content: center;
+                    width: 2.75rem;
+                    height: 2.75rem;
+                    flex: 0 0 2.75rem;
+                    margin-left: auto;
+                    color: var(--orange-text, rgb(212 212 216));
+                    background: color-mix(in srgb, var(--orange-panel, #18181b) 88%, white 4%);
+                    border: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 34%, transparent);
+                    border-radius: min(var(--orange-radius, 14px), 14px);
+                }
+                #mobile-nav-backdrop {
+                    display: block;
+                    position: fixed;
+                    inset: 0;
+                    z-index: 1000;
+                    border: 0;
+                    background: rgba(0, 0, 0, 0.58);
+                    backdrop-filter: blur(2px);
+                    -webkit-backdrop-filter: blur(2px);
+                    opacity: 0;
+                    pointer-events: none;
+                    transition: opacity 160ms ease;
+                }
+                body.orange-mobile-menu-open #mobile-nav-backdrop {
+                    opacity: 1;
+                    pointer-events: auto;
+                }
+                #mobile-admin-drawer {
+                    display: flex !important;
+                    position: fixed;
+                    top: 0;
+                    right: 0;
+                    bottom: 0;
+                    width: min(88vw, 21rem);
+                    z-index: 1010;
+                    padding: 1rem;
+                    flex-direction: column;
+                    gap: .45rem;
+                    background: color-mix(in srgb, var(--orange-bg, #09090b) 96%, var(--orange-panel, #18181b));
+                    border-left: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 25%, transparent);
+                    box-shadow: -20px 0 50px rgba(0, 0, 0, .45);
+                    transform: translateX(105%);
+                    transition: transform 180ms ease;
+                    pointer-events: none;
+                }
+                body.orange-mobile-menu-open #mobile-admin-drawer {
+                    transform: translateX(0);
+                    pointer-events: auto;
+                }
+                .mobile-admin-drawer-head {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 1rem;
+                    padding-bottom: .8rem;
+                    margin-bottom: .45rem;
+                    border-bottom: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 24%, transparent);
+                }
+                #mobile-admin-menu-close {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 2.75rem;
+                    height: 2.75rem;
+                    flex: 0 0 2.75rem;
+                    color: var(--orange-text, rgb(212 212 216));
+                    background: color-mix(in srgb, var(--orange-panel, #18181b) 88%, white 4%);
+                    border: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 34%, transparent);
+                    border-radius: min(var(--orange-radius, 14px), 14px);
+                }
+                .mobile-admin-drawer-item {
+                    display: flex;
+                    width: 100%;
+                    align-items: center;
+                    gap: .75rem;
+                    padding: .85rem .9rem;
+                    color: color-mix(in srgb, var(--orange-text, #f4f4f5) 68%, var(--orange-muted, #71717a));
+                    background: transparent;
+                    border: 1px solid transparent;
+                    border-radius: .8rem;
+                    text-align: left;
+                    font-size: .875rem;
+                    font-weight: 500;
+                }
+                .mobile-admin-drawer-item.active {
+                    color: var(--orange-accent, #f97316);
+                    background: color-mix(in srgb, var(--orange-accent, #f97316) 10%, var(--orange-panel, #18181b));
+                    border-color: color-mix(in srgb, var(--orange-accent, #f97316) 38%, transparent);
+                }
+                .mobile-admin-drawer-separator {
+                    height: 1px;
+                    margin: auto 0 .35rem;
+                    background: color-mix(in srgb, var(--orange-muted, #71717a) 24%, transparent);
+                }
+                .mobile-admin-logout {
+                    color: rgb(248 113 113);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
     function ensureBackdrop() {
         let backdrop = document.getElementById('mobile-nav-backdrop');
         if (backdrop) return backdrop;
@@ -293,6 +418,7 @@
         return true;
     }
 
+    injectAdminCompactStyles();
     ensureBackdrop();
     setupGeneratorMenu();
     setupAdminMenu();
