@@ -91,7 +91,7 @@ def serve_index():
         content = content.replace(
             "</body>",
             '    <script src="/static/result-actions.js?v=3"></script>\n'
-            '    <script src="/static/mobile-navigation.js?v=3"></script>\n'
+            '    <script src="/static/mobile-navigation.js?v=4"></script>\n'
             "</body>",
         )
         return HTMLResponse(content=content)
@@ -107,6 +107,10 @@ def serve_admin():
         with open(os.path.join(STATIC_DIR, "admin.html"), "r", encoding="utf-8") as f:
             content = f.read()
         content = content.replace(
+            "/static/workflow-pack-library.js?v=3",
+            "/static/workflow-pack-library.js?v=4",
+        )
+        content = content.replace(
             "</head>",
             THEME_HEAD
             + '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=3">\n</head>',
@@ -117,10 +121,10 @@ def serve_admin():
             '    <script src="/static/backend-status.js?v=3"></script>\n'
             '    <script src="/static/tool-ratios.js?v=1"></script>\n'
             '    <script src="/static/workflow-assets.js?v=2"></script>\n'
-            '    <script src="/static/workflow-pack-library.js?v=1"></script>\n'
+            '    <script src="/static/workflow-pack-library.js?v=4"></script>\n'
             '    <script src="/static/personalization.js?v=1"></script>\n'
             '    <script src="/static/personalization-tab-state.js?v=1"></script>\n'
-            '    <script src="/static/mobile-navigation.js?v=3"></script>\n'
+            '    <script src="/static/mobile-navigation.js?v=4"></script>\n'
             "</body>",
         )
         return HTMLResponse(content=content)
