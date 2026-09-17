@@ -1,8 +1,13 @@
 (() => {
     const MOBILE_BREAKPOINT = 640;
+    const ADMIN_BREAKPOINT = 1180;
 
     function isMobile() {
         return window.innerWidth <= MOBILE_BREAKPOINT;
+    }
+
+    function isAdminCompact() {
+        return window.innerWidth <= ADMIN_BREAKPOINT;
     }
 
     function ensureBackdrop() {
@@ -24,7 +29,8 @@
     }
 
     function openMenu(button) {
-        if (!isMobile()) return;
+        const isAdminButton = button?.id === 'mobile-admin-menu-btn';
+        if (isAdminButton ? !isAdminCompact() : !isMobile()) return;
         ensureBackdrop();
         document.body.classList.add('orange-mobile-menu-open');
         button?.setAttribute('aria-expanded', 'true');
@@ -291,9 +297,7 @@
     setupGeneratorMenu();
     setupAdminMenu();
 
-    window.addEventListener('resize', () => {
-        if (!isMobile()) closeMenus();
-    });
+    window.addEventListener('resize', closeMenus);
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape') closeMenus();
     });
