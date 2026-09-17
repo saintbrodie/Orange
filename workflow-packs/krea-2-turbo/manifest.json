@@ -7,7 +7,7 @@
   "workflowFile": "image_krea2_turbo_t2i_int8.json",
   "tool": {
     "id": "krea-2",
-    "name": "Krea 2 Turbo",
+    "name": "Detailed Generation",
     "workflowFile": "image_krea2_turbo_t2i_int8.json",
     "nodeMapping": {
       "prompt": {"nodeId": "52", "field": "text"},
