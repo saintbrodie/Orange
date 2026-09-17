@@ -21,6 +21,12 @@ class StatusPreviewTests(unittest.TestCase):
         frame = struct.pack(">II", 4, len(metadata)) + metadata + image
         self.assertEqual(_parse_binary_preview(frame), (image, "image/jpeg"))
 
+    def test_metadata_webp_preview_preserves_real_mime(self):
+        metadata = b'{"node_id":"756"}'
+        image = b"RIFF\x10\x00\x00\x00WEBPpayload"
+        frame = struct.pack(">II", 4, len(metadata)) + metadata + image
+        self.assertEqual(_parse_binary_preview(frame), (image, "image/webp"))
+
     def test_non_preview_binary_event_is_ignored(self):
         frame = struct.pack(">II", 3, 4) + b"text"
         self.assertIsNone(_parse_binary_preview(frame))
