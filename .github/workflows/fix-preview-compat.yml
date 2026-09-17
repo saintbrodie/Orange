@@ -1,0 +1,68 @@
+name: Fix preview compatibility
+on:
+  push:
+    paths:
+      - .github/workflows/fix-preview-compat.yml
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch preview protocol and UI
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          status = Path('app/api/status.py')
+          text = status.read_text(encoding='utf-8')
+          text = text.replace('import os\nimport time\n', 'import os\nimport struct\nimport time\n', 1)
+          marker = 'JOB_STATUS_TIMEOUT_SECONDS = max(60, int(os.environ.get("ORANGE_JOB_STATUS_TIMEOUT_SECONDS", "7200")))\n\n\n'
+          helpers = '''JOB_STATUS_TIMEOUT_SECONDS = max(60, int(os.environ.get("ORANGE_JOB_STATUS_TIMEOUT_SECONDS", "7200")))\n\n\nBINARY_PREVIEW_IMAGE = 1\nBINARY_PREVIEW_IMAGE_WITH_METADATA = 4\n\n\ndef _detect_image_mime(image_data: bytes) -> str | None:\n    if image_data.startswith(b"\\xff\\xd8\\xff"):\n        return "image/jpeg"\n    if image_data.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):\n        return "image/png"\n    if image_data.startswith((b"GIF87a", b"GIF89a")):\n        return "image/gif"\n    if len(image_data) >= 12 and image_data[:4] == b"RIFF" and image_data[8:12] == b"WEBP":\n        return "image/webp"\n    return None\n\n\ndef _parse_binary_preview(message: bytes) -> tuple[bytes, str] | None:\n    """Parse ComfyUI binary preview frames without mistaking metadata/text frames for images."""\n    if len(message) < 8:\n        return None\n\n    event_type = struct.unpack(">I", message[:4])[0]\n    if event_type == BINARY_PREVIEW_IMAGE:\n        image_type = struct.unpack(">I", message[4:8])[0]\n        image_data = message[8:]\n        if not image_data:\n            return None\n        mime = {1: "image/jpeg", 2: "image/png"}.get(image_type) or _detect_image_mime(image_data)\n        return (image_data, mime) if mime else None\n\n    if event_type == BINARY_PREVIEW_IMAGE_WITH_METADATA:\n        metadata_length = struct.unpack(">I", message[4:8])[0]\n        image_start = 8 + metadata_length\n        if image_start > len(message):\n            return None\n        image_data = message[image_start:]\n        if not image_data:\n            return None\n        mime = _detect_image_mime(image_data)\n        return (image_data, mime) if mime else None\n\n    return None\n\n\n'''
+          if marker not in text:
+              raise SystemExit('status helper marker not found')
+          text = text.replace(marker, helpers, 1)
+          old = '''                    if isinstance(msg, bytes):\n                        image_data = msg[8:]\n                        await queue.put({"status": "preview", "image": base64.b64encode(image_data).decode("utf-8")})\n                        continue\n'''
+          new = '''                    if isinstance(msg, bytes):\n                        preview = _parse_binary_preview(msg)\n                        if preview:\n                            image_data, mime = preview\n                            await queue.put(\n                                {\n                                    "status": "preview",\n                                    "image": base64.b64encode(image_data).decode("utf-8"),\n                                    "mime": mime,\n                                }\n                            )\n                        continue\n'''
+          if old not in text:
+              raise SystemExit('status binary preview block not found')
+          status.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          app = Path('static/app.js')
+          js = app.read_text(encoding='utf-8')
+          old_reset = "        if (previewImage) previewImage.src = '';\n"
+          new_reset = "        if (previewImage) {\n            previewImage.removeAttribute('src');\n            previewImage.classList.add('opacity-0');\n        }\n"
+          if old_reset not in js:
+              raise SystemExit('app preview reset block not found')
+          js = js.replace(old_reset, new_reset, 1)
+          old_preview = '''                if (spinner) spinner.classList.add('hidden');\n                if (previewContainer) {\n                    previewContainer.classList.remove('hidden');\n                    setTimeout(() => previewContainer.classList.add('opacity-100'), 10);\n                }\n                if (previewImage) {\n                    previewImage.src = 'data:image/jpeg;base64,' + data.image;\n                    previewImage.classList.remove('opacity-0');\n                }\n'''
+          new_preview = '''                if (previewImage) {\n                    previewImage.onload = () => {\n                        if (spinner) spinner.classList.add('hidden');\n                        if (previewContainer) {\n                            previewContainer.classList.remove('hidden');\n                            requestAnimationFrame(() => previewContainer.classList.add('opacity-100'));\n                        }\n                        previewImage.classList.remove('opacity-0');\n                    };\n                    previewImage.onerror = () => {\n                        previewImage.classList.add('opacity-0');\n                        previewImage.removeAttribute('src');\n                        if (previewContainer) {\n                            previewContainer.classList.add('hidden');\n                            previewContainer.classList.remove('opacity-100');\n                        }\n                        if (spinner) spinner.classList.remove('hidden');\n                    };\n                    previewImage.src = `data:${data.mime || 'image/jpeg'};base64,${data.image}`;\n                }\n'''
+          if old_preview not in js:
+              raise SystemExit('app preview render block not found')
+          app.write_text(js.replace(old_preview, new_preview, 1), encoding='utf-8')
+
+          index = Path('static/index.html')
+          html = index.read_text(encoding='utf-8')
+          if '/static/app.js?v=13' in html:
+              html = html.replace('/static/app.js?v=13', '/static/app.js?v=14', 1)
+          elif '/static/app.js?v=14' not in html:
+              raise SystemExit('app.js cache key not found')
+          index.write_text(html, encoding='utf-8')
+
+          test = Path('tests/test_status_previews.py')
+          test.write_text('''import struct\nimport unittest\n\nfrom app.api.status import _parse_binary_preview\n\n\nclass StatusPreviewTests(unittest.TestCase):\n    def test_legacy_jpeg_preview(self):\n        image = b"\\xff\\xd8\\xffjpeg"\n        frame = struct.pack(">II", 1, 1) + image\n        self.assertEqual(_parse_binary_preview(frame), (image, "image/jpeg"))\n\n    def test_legacy_png_preview(self):\n        image = b"\\x89PNG\\r\\n\\x1a\\nrest"\n        frame = struct.pack(">II", 1, 2) + image\n        self.assertEqual(_parse_binary_preview(frame), (image, "image/png"))\n\n    def test_metadata_preview_strips_metadata_before_image(self):\n        metadata = b'{"node_id":"756"}'\n        image = b"\\xff\\xd8\\xffjpeg"\n        frame = struct.pack(">II", 4, len(metadata)) + metadata + image\n        self.assertEqual(_parse_binary_preview(frame), (image, "image/jpeg"))\n\n    def test_non_preview_binary_event_is_ignored(self):\n        frame = struct.pack(">II", 3, 4) + b"text"\n        self.assertIsNone(_parse_binary_preview(frame))\n\n    def test_malformed_metadata_preview_is_ignored(self):\n        frame = struct.pack(">II", 4, 999) + b'{}'\n        self.assertIsNone(_parse_binary_preview(frame))\n\n\nif __name__ == "__main__":\n    unittest.main()\n''', encoding='utf-8')
+
+          Path('.github/workflows/fix-preview-compat.yml').unlink()
+          PY
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix ComfyUI live preview decoding"
+          git push
