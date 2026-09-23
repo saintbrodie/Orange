@@ -3,6 +3,8 @@
   "name": "Z-Image Turbo",
   "type": "text-to-image",
   "description": "Fast general-purpose text-to-image starter workflow using stock ComfyUI nodes.",
+  "tagline": "Fast everyday image generation with a simple stock-ComfyUI workflow.",
+  "highlights": ["Text to image", "Fast", "Stock nodes"],
   "recommended": true,
   "workflowFile": "image_z_image_turbo.json",
   "tool": {
