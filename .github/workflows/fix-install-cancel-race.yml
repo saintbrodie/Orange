@@ -1,0 +1,41 @@
+name: Tighten workflow install cancellation
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch cancellation checkpoints
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('app/api/workflow_pack_admin.py')
+          text = path.read_text()
+          old = '''        mark_running(job_id)\n        manifest = get_workflow_pack(pack_id)\n'''
+          new = '''        mark_running(job_id)\n        if (get_job(job_id) or {}).get("cancelRequested"):\n            raise InstallCancelled("Workflow setup canceled.")\n        manifest = get_workflow_pack(pack_id)\n'''
+          if old not in text:
+              raise SystemExit('startup cancellation anchor not found')
+          text = text.replace(old, new, 1)
+          old = '''            set_download_plan(job_id, selected_models)\n            for model in selected_models:\n                filename = str(model.get("filename") or "existing model")\n                update_file_progress(job_id, filename, state="existing")\n            materialize_workflow_pack(pack_id, selected_models)\n'''
+          new = '''            set_download_plan(job_id, selected_models)\n            for model in selected_models:\n                filename = str(model.get("filename") or "existing model")\n                update_file_progress(job_id, filename, state="existing")\n            if (get_job(job_id) or {}).get("cancelRequested"):\n                raise InstallCancelled("Workflow setup canceled.")\n            materialize_workflow_pack(pack_id, selected_models)\n'''
+          if old not in text:
+              raise SystemExit('existing-model cancellation anchor not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          python -m compileall -q app
+      - name: Commit patch
+        run: |
+          rm -f .github/workflows/fix-install-cancel-race.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Honor workflow install cancellation immediately'
+          git push
