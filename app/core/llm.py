@@ -6,7 +6,7 @@ from urllib.parse import urlsplit, urlunsplit
 import httpx
 
 
-SUPPORTED_PROVIDERS = {"openai", "ollama", "gemini", "anthropic"}
+SUPPORTED_PROVIDERS = {"managed", "openai", "ollama", "gemini", "anthropic"}
 ENV_KEYS = {
     "openai": "OPENAI_API_KEY",
     "gemini": "GEMINI_API_KEY",
@@ -128,7 +128,7 @@ def _gemini_endpoint(base_url: Optional[str], suffix: str) -> str:
 def _require_cloud_key(provider: str, base_url: Optional[str], resolved_key: Optional[str]) -> None:
     if resolved_key:
         return
-    if provider == "ollama":
+    if provider in {"ollama", "managed"}:
         return
     if base_url and _is_local_url(base_url):
         return
@@ -209,8 +209,23 @@ async def call_llm(
 ) -> str:
     """Call a configured prompt-enhancement provider without exposing provider internals."""
     provider = normalize_provider(provider)
-    base_url = validate_base_url(base_url)
-    model = validate_model(model)
+    if provider == "managed":
+        from app.core.managed_prompt_enhancer import MANAGED_BASE_URL, MANAGED_MODEL_ID, ensure_server_ready
+
+        try:
+            await ensure_server_ready()
+        except RuntimeError as exc:
+            raise LLMError(
+                "Managed Local prompt enhancement is unavailable.",
+                str(exc),
+                status_code=503,
+            )
+        base_url = MANAGED_BASE_URL
+        api_key = None
+        model = MANAGED_MODEL_ID
+    else:
+        base_url = validate_base_url(base_url)
+        model = validate_model(model)
     system_prompt = str(system_prompt or "").strip()
     prompt = str(prompt or "").strip()
     if not system_prompt:
@@ -223,7 +238,7 @@ async def call_llm(
 
     timeout = httpx.Timeout(_timeout_seconds())
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
-        if provider == "openai":
+        if provider in {"openai", "managed"}:
             url = _endpoint(base_url, "https://api.openai.com/v1", "chat/completions")
             headers = {"Authorization": f"Bearer {resolved_key}"} if resolved_key else {}
             data = await _post_json(
@@ -323,6 +338,10 @@ async def list_llm_models(
     api_key: Optional[str],
 ) -> list[str]:
     provider = normalize_provider(provider)
+    if provider == "managed":
+        from app.core.managed_prompt_enhancer import MANAGED_MODEL_ID
+
+        return [MANAGED_MODEL_ID]
     base_url = validate_base_url(base_url)
     resolved_key = resolve_api_key(provider, api_key)
     _require_cloud_key(provider, base_url, resolved_key)

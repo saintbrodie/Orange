@@ -52,6 +52,22 @@
     <section class="card">
       <div class="step">3</div>
       <div class="content">
+        <h2>Prompt enhancement <span class="optional-label">Optional</span></h2>
+        <p class="hint">Orange can expand short prompts locally without an API key. You can also configure Ollama, LM Studio, or a cloud API later.</p>
+        <label class="pack optional-pack">
+          <input type="checkbox" id="managed-enhancer">
+          <div class="pack-body">
+            <div class="pack-title">Managed Local <span>Recommended</span></div>
+            <p>Gemma 4 E2B Instruct · Q4_0 QAT · about 3.35 GB. Runs privately through Orange's own llama.cpp runtime, CPU-first so it does not reserve ComfyUI GPU memory.</p>
+            <div id="managed-enhancer-status" class="pack-status neutral">The model downloads in the background after setup and unloads from memory after 5 idle minutes.</div>
+          </div>
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="step">4</div>
+      <div class="content">
         <h2>Secure Admin</h2>
         <label for="admin-key">Create an Admin password</label>
         <input id="admin-key" type="password" minlength="8" autocomplete="new-password" placeholder="At least 8 characters">
@@ -63,6 +79,6 @@
       <p id="setup-result" class="status"></p>
     </section>
   </main>
-  <script src="/static/setup.js?v=3"></script>
+  <script src="/static/setup.js?v=4"></script>
 </body>
 </html>

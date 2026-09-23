@@ -109,6 +109,21 @@ async function loadStatus() {
   }
 
   renderPacks();
+
+  const enhancer = setupStatus.managedPromptEnhancer || {};
+  const enhancerCheckbox = $("managed-enhancer");
+  const enhancerStatus = $("managed-enhancer-status");
+  if (enhancerCheckbox && enhancerStatus) {
+    enhancerCheckbox.disabled = enhancer.supported === false;
+    enhancerCheckbox.checked = !!enhancer.installed;
+    if (enhancer.installed) {
+      enhancerStatus.textContent = "✓ Gemma 4 is already installed and ready.";
+      enhancerStatus.className = "pack-status ready";
+    } else if (enhancer.supported === false) {
+      enhancerStatus.textContent = `Managed Local is not packaged for ${enhancer.platform || "this platform"}. Configure Ollama or an API later.`;
+      enhancerStatus.className = "pack-status warning";
+    }
+  }
 }
 
 function hardwareLabel(hardware) {
@@ -200,6 +215,7 @@ async function finishSetup() {
         modelsRoot: $("models-root").value.trim(),
         adminKey,
         selectedPacks: packs,
+        managedPromptEnhancer: !!$("managed-enhancer")?.checked,
       }),
     });
     const data = await response.json();
@@ -207,6 +223,8 @@ async function finishSetup() {
       throw new Error(typeof data.detail === "string" ? data.detail : (data.detail?.message || "Setup failed"));
     }
 
+    localStorage.setItem("orange_admin_key", adminKey);
+    const managedEnhancerSelected = !!$("managed-enhancer")?.checked;
     const failures = (data.packs || []).filter((pack) => !pack.installed);
     if (failures.length) {
       setStatus(
@@ -214,11 +232,14 @@ async function finishSetup() {
         `✓ Orange setup is complete. ${failures.map((pack) => `${pack.name || pack.pack}: ${pack.error || "not added"}`).join(" · ")}`,
         "ok",
       );
-      setTimeout(() => window.location.replace(data.installedPackCount ? "/" : "/admin"), 2800);
+      setTimeout(() => window.location.replace(managedEnhancerSelected ? "/admin" : (data.installedPackCount ? "/" : "/admin")), 2800);
       return;
     }
 
-    if (!packs.length) {
+    if (managedEnhancerSelected) {
+      setStatus($("setup-result"), "✓ Orange is ready. Gemma 4 is downloading in the background; opening Admin to show progress…", "ok");
+      setTimeout(() => window.location.replace("/admin"), 900);
+    } else if (!packs.length) {
       setStatus($("setup-result"), "✓ Orange is ready with no curated tools installed. Opening Admin…", "ok");
       setTimeout(() => window.location.replace("/admin"), 900);
     } else {

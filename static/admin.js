@@ -431,6 +431,7 @@ lucide.createIcons();
 
         // LLM Provider Base URL Defaults & Fetching Logic
         const llmDefaults = {
+            managed: "",
             openai: "https://api.openai.com/v1",
             ollama: "http://127.0.0.1:11434",
             gemini: "https://generativelanguage.googleapis.com",
@@ -457,6 +458,7 @@ lucide.createIcons();
                     document.getElementById('setting-llm-model').value,
                     activeFetchedModels
                 );
+                if (window.syncManagedEnhancerProviderUI) window.syncManagedEnhancerProviderUI();
             });
         }
 
@@ -1090,6 +1092,7 @@ lucide.createIcons();
                     );
 
                     toggleGlobalLlm();
+                    if (window.syncManagedEnhancerProviderUI) window.syncManagedEnhancerProviderUI();
 
                     if (appConfig.aspectRatios) {
                         const keys = Object.keys(appConfig.aspectRatios);
@@ -1696,18 +1699,20 @@ lucide.createIcons();
             appConfig.targetMegapixels = document.getElementById('setting-target-mp').value;
 
             // Save global LLM settings
+            const providerVal = document.getElementById('setting-llm-provider').value;
             const modelSelectVal = document.getElementById('setting-llm-model').value;
-            const modelVal = modelSelectVal === '__custom__'
+            const selectedModelVal = modelSelectVal === '__custom__'
                 ? document.getElementById('setting-llm-model-custom').value.trim()
                 : modelSelectVal;
+            const modelVal = providerVal === 'managed' ? 'gemma-4-e2b' : selectedModelVal;
 
             const globalSystemPromptVal = document.getElementById('setting-llm-systemprompt').value.trim();
             appConfig.llm = {
                 enabled: document.getElementById('setting-llm-enabled').checked,
-                provider: document.getElementById('setting-llm-provider').value,
+                provider: providerVal,
                 model: modelVal,
-                baseUrl: document.getElementById('setting-llm-baseurl').value.trim(),
-                apiKey: document.getElementById('setting-llm-apikey').value.trim()
+                baseUrl: providerVal === 'managed' ? '' : document.getElementById('setting-llm-baseurl').value.trim(),
+                apiKey: providerVal === 'managed' ? '' : document.getElementById('setting-llm-apikey').value.trim()
             };
 
             appConfig.aspectRatios = {};

@@ -37,7 +37,7 @@ See [Architecture Overview](docs/ARCHITECTURE.md) for the engineering boundary a
 - **Workflow Assets** — fixed reference images can be managed by Orange and staged automatically on whichever backend receives a job.
 - **Real-Time Status** — queue/progress information is surfaced from ComfyUI while the generator stays backend-agnostic.
 - **Normalized Outputs** — image, video, audio, and text output handling with backend ownership recorded per prompt.
-- **Prompt Enhancement** — optional OpenAI/OpenAI-compatible, Ollama, Gemini, or Anthropic LLM expansion with local prompt overrides.
+- **Prompt Enhancement** — optional Managed Local Gemma 4, OpenAI/OpenAI-compatible, Ollama, Gemini, or Anthropic LLM expansion with local prompt overrides.
 - **Personalization** — Classic, Cyber, Princess, Arcade, Adventure, Midnight, and Custom themes plus white-label app name/logo/icon/colors.
 - **Responsive Admin** — tool editor, workflow preflight, backend health, curated packs, workflow assets, analytics, database backup/restore, and personalization.
 - **Git-Safe Local State** — active config, prompt overrides, branding, and related deployment state are separated from tracked defaults.
@@ -250,6 +250,7 @@ Admin capabilities include:
 
 Prompt enhancement is optional. In **General Settings**, enable it and choose a provider:
 
+- **Managed Local** — installs Google's Gemma 4 E2B Instruct Q4_0 QAT plus a private pinned llama.cpp runtime. It requires no API key, binds only to localhost, runs CPU-first so ComfyUI keeps the GPU, and unloads the model after 5 idle minutes.
 - **OpenAI** — also supports compatible Base URLs such as LM Studio, llama.cpp, or OpenRouter.
 - **Ollama** — local Ollama endpoint.
 - **Gemini** — Google Gemini API.

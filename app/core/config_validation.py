@@ -13,7 +13,7 @@ DEFAULT_WORKFLOWS_DIR = os.path.join(WORKFLOWS_DIR, "defaults")
 TOOL_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 ALLOWED_MAPPING_KEYS = {"prompt", "image", "image2", "width", "height", "seed", "outputText"}
 ALLOWED_OUTPUT_TYPES = {"image", "video", "audio", "text"}
-ALLOWED_LLM_PROVIDERS = {"openai", "ollama", "gemini", "anthropic"}
+ALLOWED_LLM_PROVIDERS = {"managed", "openai", "ollama", "gemini", "anthropic"}
 
 
 def _issue(path: str, code: str, message: str) -> dict:

@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from app.core.backends import backend_manager, workflow_compatibility_key
 from app.core.config import get_base_workflow, load_config, save_config
 from app.core.onboarding import detect_install_mode, managed_comfy_dir, managed_models_root, mark_setup_complete, setup_required
+from app.core.managed_prompt_enhancer import MANAGED_MODEL_ID, get_status as get_managed_prompt_status, schedule_install as schedule_managed_prompt_install
 from app.core.preflight import run_preflight
 from app.core.workflow_pack_probe import (
     inspect_workflow_pack,
@@ -175,6 +176,7 @@ def get_setup_status(request: Request):
         "defaultComfyUrl": "http://127.0.0.1:8188",
         "detectedModelsRoot": model_root,
         "packs": list_workflow_packs(),
+        "managedPromptEnhancer": get_managed_prompt_status(),
     }
 
 
@@ -218,6 +220,13 @@ async def complete_setup(payload: dict, request: Request):
     requested_root = str(payload.get("modelsRoot") or "").strip() or None
     known_packs = {str(pack["id"]) for pack in list_workflow_packs()}
     selected_packs = _selected_pack_ids(payload, known_packs)
+    use_managed_prompt = bool(payload.get("managedPromptEnhancer", False))
+    managed_prompt_status = get_managed_prompt_status()
+    if use_managed_prompt and not managed_prompt_status.get("supported"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Managed Local prompt enhancement is not packaged for {managed_prompt_status.get('platform', 'this platform')}.",
+        )
 
     object_info, _queue, system_stats = await _read_backend_metadata(comfy_url)
     hardware = summarize_system_stats(system_stats)
@@ -231,6 +240,14 @@ async def complete_setup(payload: dict, request: Request):
     # users can connect their own ComfyUI and build/import tools later.
     config = dict(load_config())
     config["tools"] = []
+    if use_managed_prompt:
+        config["llm"] = {
+            "enabled": True,
+            "provider": "managed",
+            "baseUrl": "",
+            "apiKey": "",
+            "model": MANAGED_MODEL_ID,
+        }
     pack_results = []
 
     for pack_id in selected_packs:
@@ -298,6 +315,13 @@ async def complete_setup(payload: dict, request: Request):
     mark_setup_complete()
     await backend_manager.refresh_all()
 
+    enhancer_result = None
+    if use_managed_prompt:
+        try:
+            enhancer_result = schedule_managed_prompt_install()
+        except Exception as exc:
+            enhancer_result = {"state": "failed", "error": str(exc)}
+
     return {
         "status": "success",
         "comfyUrl": comfy_url,
@@ -305,4 +329,5 @@ async def complete_setup(payload: dict, request: Request):
         "selectedPackCount": len(selected_packs),
         "installedPackCount": sum(1 for item in pack_results if item.get("installed")),
         "packs": pack_results,
+        "managedPromptEnhancer": enhancer_result,
     }
