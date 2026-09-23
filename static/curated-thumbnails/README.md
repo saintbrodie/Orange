@@ -1,13 +1,20 @@
 # Curated workflow thumbnails
 
-The PNG files in this directory are copied from the Comfy-Org `workflow_templates` repository and are used as representative artwork for Orange's Curated Library.
+This directory contains representative artwork for Orange's Curated Library.
 
-Sources:
+Orange-provided examples:
+
+- `z-image-turbo.webp` — user-provided Z-Image example, optimized for the library card
+- `seedvr2-7b-upscale.webp` — user-provided SeedVR2 before/after example, optimized for the library card
+
+Comfy-Org sources:
 
 - `krea-2-turbo.png` — `thumbnail/image_krea2_turbo_int8_image_style_reference.png`
 - `klein-9b-edit.png` — `thumbnail/image_flux2_klein_image_edit_9b_base.png`
 
 Upstream: https://github.com/Comfy-Org/workflow_templates
+
+The Comfy-Org assets above are distributed under the following MIT license:
 
 MIT License
 
