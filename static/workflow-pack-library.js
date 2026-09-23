@@ -449,8 +449,15 @@
       const buttonClass = action.primary
         ? 'bg-orange-600 hover:bg-orange-500 text-white border border-orange-500/60'
         : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700';
+      const thumbnail = pack.thumbnail
+        ? `<div class="relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 aspect-[16/9]">
+            <img src="${escapeHtml(pack.thumbnail)}" alt="${escapeHtml(pack.thumbnailAlt || `${pack.name} example`)}" loading="lazy" class="w-full h-full object-cover" draggable="false">
+            <div class="absolute left-2 bottom-2 text-[9px] uppercase tracking-wider font-bold text-zinc-200 bg-black/65 border border-white/10 rounded-md px-1.5 py-1 backdrop-blur-sm">Example</div>
+          </div>`
+        : '';
       return `
         <article class="bg-zinc-950/65 border ${pack.installed ? 'border-emerald-900/60' : 'border-zinc-800'} rounded-2xl p-5 flex flex-col gap-4 shadow-sm hover:border-zinc-700 transition-colors">
+          ${thumbnail}
           <div class="flex items-start gap-3">
             <div class="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0"><i data-lucide="${presentation.icon}" class="w-4.5 h-4.5 text-orange-400"></i></div>
             <div class="min-w-0 flex-1">
