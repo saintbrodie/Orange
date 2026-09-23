@@ -1,3 +1,4 @@
+import asyncio
 import os
 import secrets
 from contextlib import asynccontextmanager
@@ -10,6 +11,7 @@ from app.api import admin, backend_status, db_admin, generate, generation_debug,
 from app.core.backends import backend_manager
 from app.core.config import USER_CONFIG_PATH, load_config, restore_defaults, save_config
 from app.core.database import init_db
+from app.core.managed_runtime import validate_pending_managed_runtime
 from app.core.onboarding import initialize_setup_state, setup_required
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -27,9 +29,13 @@ async def lifespan(_app: FastAPI):
         save_config(bootstrap_config)
     initialize_setup_state(was_fresh_install)
     await backend_manager.start()
+    runtime_validation_task = asyncio.create_task(validate_pending_managed_runtime())
     try:
         yield
     finally:
+        if not runtime_validation_task.done():
+            runtime_validation_task.cancel()
+        await asyncio.gather(runtime_validation_task, return_exceptions=True)
         await backend_manager.stop()
 
 
