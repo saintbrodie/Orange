@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 from copy import deepcopy
@@ -31,10 +32,12 @@ async def enrich_download_plan(plan: list[dict]) -> list[dict]:
     if not enriched:
         return enriched
     async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
-        for item in enriched:
-            size = await _remote_size(client, str(item.get("url") or ""))
-            if size is not None:
-                item["bytesTotal"] = size
+        sizes = await asyncio.gather(
+            *(_remote_size(client, str(item.get("url") or "")) for item in enriched)
+        )
+    for item, size in zip(enriched, sizes):
+        if size is not None:
+            item["bytesTotal"] = size
     return enriched
 
 
