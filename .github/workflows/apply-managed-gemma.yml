@@ -1,0 +1,39 @@
+name: Apply managed Gemma integration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply_managed_gemma_patch.py'
+      - '.github/workflows/apply-managed-gemma.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply integration patch
+        run: python scripts/apply_managed_gemma_patch.py
+      - name: Validate syntax
+        run: |
+          python -m compileall -q app scripts
+          node --check static/admin.js
+          node --check static/setup.js
+          node --check static/managed-prompt-enhancer.js
+      - name: Commit patch and remove one-time files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm scripts/apply_managed_gemma_patch.py .github/workflows/apply-managed-gemma.yml
+          git add -A
+          git commit -m 'Integrate managed Gemma 4 prompt enhancement'
+          git push
