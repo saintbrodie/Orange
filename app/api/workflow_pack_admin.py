@@ -8,6 +8,19 @@ from app.api.preflight import _routing_cache_results, _routing_compatible
 from app.core.backends import backend_manager, workflow_compatibility_key
 from app.core.config import get_base_workflow, load_config, save_config
 from app.core.preflight import run_preflight
+from app.core.workflow_install_jobs import (
+    complete_job,
+    create_job,
+    fail_job,
+    get_job,
+    list_jobs,
+    mark_running,
+    retry_job,
+    set_download_plan,
+    update_file_progress,
+    update_job,
+)
+from app.core.workflow_install_runner import install_workflow_pack_job
 from app.core.workflow_pack_probe import (
     inspect_workflow_pack,
     plan_selected_models,
@@ -24,6 +37,7 @@ from app.core.workflow_packs import (
 )
 
 router = APIRouter()
+_background_install_tasks: set[asyncio.Task] = set()
 
 
 def _server_for_url(config: dict, url: str) -> tuple[int, dict]:
@@ -99,6 +113,142 @@ async def _preflight_and_enable(
     return tool, preflight
 
 
+def _job_error_message(exc: Exception) -> str:
+    if isinstance(exc, HTTPException):
+        detail = exc.detail
+        if isinstance(detail, str):
+            return detail
+        if isinstance(detail, dict):
+            message = str(detail.get("message") or "Workflow setup failed.")
+            backend = (detail.get("preflight") or {}).get("backends", [{}])[0]
+            findings = []
+            if isinstance(backend, dict):
+                findings = list(backend.get("errors") or []) + list(backend.get("warnings") or [])
+            extra = " ".join(str(item.get("message")) for item in findings if isinstance(item, dict) and item.get("message"))
+            return f"{message} {extra}".strip()
+    return str(exc) or exc.__class__.__name__
+
+
+async def _run_install_job(job_id: str) -> None:
+    job = get_job(job_id)
+    if not job:
+        return
+    pack_id = str(job.get("packId") or "")
+    server_url = str(job.get("serverUrl") or "").rstrip("/")
+    requested_root = str(job.get("modelsRoot") or "").strip() or None
+
+    try:
+        mark_running(job_id)
+        manifest = get_workflow_pack(pack_id)
+        config = dict(load_config())
+        server_index, server = _server_for_url(config, server_url)
+
+        update_job(job_id, stage="inspecting", message="Scanning ComfyUI nodes and model inventory…")
+        object_info, system_stats = await _backend_metadata(server_url)
+        inspection = inspect_workflow_pack(pack_id, object_info, system_stats)
+        hardware = summarize_system_stats(system_stats)
+        update_job(job_id, hardware=hardware)
+
+        if inspection.get("missingNodes") or inspection.get("unknownModels"):
+            missing = inspection.get("missingNodes") or []
+            if missing:
+                raise HTTPException(status_code=409, detail=f"Missing required ComfyUI nodes: {', '.join(missing)}")
+            raise HTTPException(
+                status_code=409,
+                detail="ComfyUI did not expose enough model inventory to install this pack safely.",
+            )
+
+        models_root = resolve_models_root(requested_root or server.get("modelsRoot"))
+        if inspection.get("ready"):
+            selected_models = inspection.get("selectedModels") or []
+            update_job(
+                job_id,
+                mode="existing",
+                stage="materializing",
+                message="Binding existing models into the curated workflow…",
+                selectedModels=selected_models,
+                modelsRoot=models_root,
+            )
+            set_download_plan(job_id, selected_models)
+            for model in selected_models:
+                filename = str(model.get("filename") or "existing model")
+                update_file_progress(job_id, filename, state="existing")
+            materialize_workflow_pack(pack_id, selected_models)
+            install_result = {
+                "selectedModels": selected_models,
+                "installed": [],
+                "skipped": [str(model.get("filename") or "") for model in selected_models],
+                "failures": [],
+            }
+        else:
+            if not models_root:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Orange cannot access this backend's model storage. Enter a local/shared ComfyUI models path "
+                        "for this server before downloading curated tool models."
+                    ),
+                )
+            selected_models = selection_for_install(inspection)
+            download_plan = plan_selected_models(inspection.get("recommendedDownloads") or [], models_root)
+            update_job(
+                job_id,
+                mode="download",
+                modelsRoot=models_root,
+                selectedModels=selected_models,
+                stage="downloading",
+                message="Downloading missing model files…",
+            )
+            set_download_plan(job_id, download_plan)
+            install_result = await asyncio.to_thread(
+                install_workflow_pack_job,
+                job_id,
+                pack_id,
+                models_root,
+                system_stats,
+                selected_models,
+            )
+            if install_result.get("failures"):
+                failure = install_result["failures"][0]
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Download failed for {failure.get('filename', 'model')}: {failure.get('error', 'unknown error')}",
+                )
+
+        update_job(job_id, stage="preflight", message="Running Workflow Preflight…")
+        tool, preflight = await _preflight_and_enable(
+            config,
+            server_index,
+            server,
+            pack_id,
+            manifest,
+            models_root,
+        )
+
+        result = {
+            "status": "success",
+            "mode": "existing" if inspection.get("ready") else "downloaded",
+            "pack": pack_id,
+            "tool": tool,
+            "modelsRoot": models_root,
+            "hardware": hardware,
+            "selectedModels": install_result.get("selectedModels", []),
+            "installedFiles": install_result.get("installed", []),
+            "skippedFiles": install_result.get("skipped", []),
+            "preflight": preflight.get("summary", {}),
+        }
+        complete_job(job_id, result, message=f"{tool.get('name') or pack_id} is ready.")
+    except Exception as exc:
+        current = get_job(job_id) or {}
+        fail_job(job_id, _job_error_message(exc), stage=current.get("stage") or "failed")
+
+
+def _schedule_install_job(job_id: str) -> None:
+    task = asyncio.create_task(_run_install_job(job_id))
+    _background_install_tasks.add(task)
+    task.add_done_callback(_background_install_tasks.discard)
+
+
 @router.get("/api/admin/workflow-packs")
 def get_workflow_pack_catalog(_=Depends(verify_admin)):
     config = load_config()
@@ -164,6 +314,50 @@ async def inspect_admin_workflow_packs(payload: dict, _=Depends(verify_admin)):
         "hardware": summarize_system_stats(system_stats),
         "packs": packs,
     }
+
+
+@router.get("/api/admin/workflow-packs/install-jobs")
+def get_install_jobs(serverUrl: str | None = None, limit: int = 50, _=Depends(verify_admin)):
+    return {"jobs": list_jobs(serverUrl, limit)}
+
+
+@router.get("/api/admin/workflow-packs/install-jobs/{job_id}")
+def get_install_job(job_id: str, _=Depends(verify_admin)):
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Workflow install job not found")
+    return job
+
+
+@router.post("/api/admin/workflow-packs/install-jobs")
+async def start_install_job(payload: dict, _=Depends(verify_admin)):
+    pack_id = str(payload.get("packId") or "").strip()
+    server_url = str(payload.get("serverUrl") or "").strip().rstrip("/")
+    models_root = str(payload.get("modelsRoot") or "").strip() or None
+    if not pack_id or not server_url:
+        raise HTTPException(status_code=400, detail="packId and serverUrl are required")
+
+    try:
+        get_workflow_pack(pack_id)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _server_for_url(load_config(), server_url)
+
+    job, created = create_job(pack_id, server_url, models_root)
+    if created:
+        _schedule_install_job(job["id"])
+    return {"job": job, "created": created}
+
+
+@router.post("/api/admin/workflow-packs/install-jobs/{job_id}/retry")
+async def retry_install_job(job_id: str, _=Depends(verify_admin)):
+    try:
+        job, created = retry_job(job_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Workflow install job not found")
+    if created:
+        _schedule_install_job(job["id"])
+    return {"job": job, "created": created}
 
 
 @router.post("/api/admin/workflow-packs/activate")
