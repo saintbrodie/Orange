@@ -11,6 +11,7 @@ JOBS_DIR = os.path.join(PROJECT_ROOT, "workflows", ".runtime")
 JOBS_PATH = os.path.join(JOBS_DIR, "workflow-install-jobs.json")
 MAX_JOBS = 50
 _ACTIVE_STATES = {"queued", "running"}
+_TERMINAL_STATES = {"completed", "failed", "interrupted", "canceled"}
 _lock = threading.RLock()
 _jobs: dict[str, dict] = {}
 _loaded = False
@@ -61,6 +62,7 @@ def _ensure_loaded() -> None:
             if job.get("state") in _ACTIVE_STATES:
                 job["state"] = "interrupted"
                 job["stage"] = "interrupted"
+                job["cancelRequested"] = False
                 job["error"] = "Orange restarted while this install was running. Retry the install to continue."
                 job["finishedAt"] = _now()
                 job["updatedAt"] = job["finishedAt"]
@@ -95,8 +97,14 @@ def create_job(pack_id: str, server_url: str, models_root: str | None = None) ->
             "message": "Waiting to start…",
             "error": None,
             "downloadPlan": [],
+            "downloadFileCount": 0,
+            "downloadBytesTotal": 0,
+            "downloadBytesKnown": 0,
+            "downloadSizeComplete": False,
+            "diskSpace": None,
             "files": [],
             "result": None,
+            "cancelRequested": False,
             "createdAt": created,
             "startedAt": None,
             "updatedAt": created,
@@ -134,6 +142,24 @@ def list_jobs(server_url: str | None = None, limit: int = 50) -> list[dict]:
         return deepcopy(jobs[: max(1, min(int(limit or 50), MAX_JOBS))])
 
 
+def clear_jobs(server_url: str | None = None) -> int:
+    """Remove terminal job history while preserving anything still active."""
+    _ensure_loaded()
+    normalized = _normalize_server(server_url) if server_url else None
+    with _lock:
+        removable = [
+            job_id
+            for job_id, job in _jobs.items()
+            if job.get("state") in _TERMINAL_STATES
+            and (not normalized or _normalize_server(job.get("serverUrl")) == normalized)
+        ]
+        for job_id in removable:
+            _jobs.pop(job_id, None)
+        if removable:
+            _persist_locked()
+        return len(removable)
+
+
 def update_job(job_id: str, **changes) -> dict:
     _ensure_loaded()
     with _lock:
@@ -151,16 +177,49 @@ def mark_running(job_id: str, stage: str = "inspecting", message: str = "Inspect
     return update_job(job_id, state="running", stage=stage, message=message, startedAt=_now(), error=None)
 
 
+def request_cancel(job_id: str) -> dict:
+    job = get_job(job_id)
+    if not job:
+        raise KeyError(job_id)
+    if job.get("state") not in _ACTIVE_STATES:
+        return job
+    return update_job(
+        job_id,
+        cancelRequested=True,
+        stage="canceling",
+        message="Canceling workflow setup…",
+    )
+
+
+def is_cancel_requested(job_id: str) -> bool:
+    job = get_job(job_id)
+    return bool(job and job.get("cancelRequested"))
+
+
+def cancel_job(job_id: str, message: str = "Workflow setup canceled.") -> dict:
+    finished = _now()
+    return update_job(
+        job_id,
+        state="canceled",
+        stage="canceled",
+        message=message,
+        error=None,
+        cancelRequested=False,
+        finishedAt=finished,
+    )
+
+
 def set_download_plan(job_id: str, plan: list[dict]) -> dict:
     files = []
     for index, item in enumerate(plan or []):
         file = dict(item) if isinstance(item, dict) else {}
+        known_total = file.get("bytesTotal")
         file.update(
             {
                 "index": index,
                 "state": "pending",
                 "bytesDownloaded": 0,
-                "bytesTotal": None,
+                "bytesTotal": int(known_total) if isinstance(known_total, (int, float)) and known_total >= 0 else None,
                 "speedBps": 0,
             }
         )
@@ -214,6 +273,7 @@ def complete_job(job_id: str, result: dict, message: str = "Workflow is ready.")
         stage="completed",
         message=message,
         error=None,
+        cancelRequested=False,
         result=result,
         finishedAt=finished,
     )
@@ -225,6 +285,7 @@ def fail_job(job_id: str, error: str, stage: str | None = None) -> dict:
         "state": "failed",
         "message": "Workflow install failed.",
         "error": str(error),
+        "cancelRequested": False,
         "finishedAt": finished,
     }
     if stage:
