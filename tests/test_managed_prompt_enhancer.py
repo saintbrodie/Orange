@@ -30,6 +30,27 @@ class _FakeAsyncClient:
         )
 
 
+class _FakeModelsClient:
+    model_id = "gemma-4-e2b"
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    async def get(self, url, **kwargs):
+        request = httpx.Request("GET", url)
+        return httpx.Response(
+            200,
+            json={"object": "list", "data": [{"id": self.model_id}]},
+            request=request,
+        )
+
+
 class ManagedPromptEnhancerTests(unittest.TestCase):
     def test_packaged_runtime_assets_cover_primary_platforms(self):
         cases = [
@@ -74,6 +95,12 @@ class ManagedPromptEnhancerTests(unittest.TestCase):
 
 
 class ManagedPromptEnhancerCallTests(unittest.IsolatedAsyncioTestCase):
+    async def test_readiness_checks_managed_model_alias(self):
+        with mock.patch.object(managed.httpx, "AsyncClient", _FakeModelsClient), mock.patch.object(
+            managed, "_server_process", None
+        ):
+            self.assertTrue(await managed._health_ready(0.2))
+
     async def test_managed_provider_ignores_stale_external_model_settings(self):
         with mock.patch(
             "app.core.managed_prompt_enhancer.ensure_server_ready",
