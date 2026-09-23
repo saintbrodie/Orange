@@ -5,6 +5,9 @@
   "description": "Advanced 8-step text-to-image generation with Krea 2 Turbo.",
   "tagline": "Detailed 8-step image generation for prompts that need a little more control.",
   "highlights": ["Text to image", "8 steps", "Detail-focused"],
+  "thumbnail": "/static/curated-thumbnails/krea-2-turbo.png",
+  "thumbnailAlt": "Krea 2 Turbo example image",
+  "thumbnailSource": "Comfy-Org/workflow_templates: thumbnail/image_krea2_turbo_int8_image_style_reference.png",
   "recommended": false,
   "workflowFile": "image_krea2_turbo_t2i_int8.json",
   "tool": {
