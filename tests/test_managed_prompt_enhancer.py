@@ -1,8 +1,10 @@
+import inspect
 import unittest
 from unittest import mock
 
 import httpx
 
+from app.api import managed_prompt_enhancer as managed_api
 from app.core import managed_prompt_enhancer as managed
 from app.core.config_validation import validate_config
 from app.core.llm import call_llm
@@ -52,6 +54,9 @@ class _FakeModelsClient:
 
 
 class ManagedPromptEnhancerTests(unittest.TestCase):
+    def test_admin_install_route_runs_on_async_event_loop(self):
+        self.assertTrue(inspect.iscoroutinefunction(managed_api.install_managed_prompt_enhancer))
+
     def test_packaged_runtime_assets_cover_primary_platforms(self):
         cases = [
             ("Windows", "AMD64", "win-cpu-x64.zip"),
