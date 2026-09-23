@@ -9,18 +9,22 @@ from app.core.backends import backend_manager, workflow_compatibility_key
 from app.core.config import get_base_workflow, load_config, save_config
 from app.core.preflight import run_preflight
 from app.core.workflow_install_jobs import (
+    cancel_job,
+    clear_jobs,
     complete_job,
     create_job,
     fail_job,
     get_job,
     list_jobs,
     mark_running,
+    request_cancel,
     retry_job,
     set_download_plan,
     update_file_progress,
     update_job,
 )
-from app.core.workflow_install_runner import install_workflow_pack_job
+from app.core.workflow_install_runner import InstallCancelled, install_workflow_pack_job
+from app.core.workflow_install_support import disk_space, enrich_download_plan, space_requirement
 from app.core.workflow_pack_probe import (
     inspect_workflow_pack,
     plan_selected_models,
@@ -190,7 +194,21 @@ async def _run_install_job(job_id: str) -> None:
                     ),
                 )
             selected_models = selection_for_install(inspection)
-            download_plan = plan_selected_models(inspection.get("recommendedDownloads") or [], models_root)
+            download_plan = await enrich_download_plan(
+                plan_selected_models(inspection.get("recommendedDownloads") or [], models_root)
+            )
+            space = space_requirement(download_plan, models_root)
+            if space.get("insufficientDiskSpace"):
+                need = int(space.get("requiredBytesWithBuffer") or 0)
+                free = int((space.get("diskSpace") or {}).get("freeBytes") or 0)
+                raise HTTPException(
+                    status_code=507,
+                    detail={
+                        "message": f"Not enough free space for this install. Orange needs {need} bytes including its safety buffer, but only {free} bytes are free.",
+                        "diskSpace": space.get("diskSpace"),
+                        "requiredBytes": need,
+                    },
+                )
             update_job(
                 job_id,
                 mode="download",
@@ -198,6 +216,11 @@ async def _run_install_job(job_id: str) -> None:
                 selectedModels=selected_models,
                 stage="downloading",
                 message="Downloading missing model files…",
+                downloadFileCount=space.get("downloadFileCount", 0),
+                downloadBytesTotal=space.get("downloadBytesTotal", 0),
+                downloadBytesKnown=space.get("downloadBytesKnown", 0),
+                downloadSizeComplete=space.get("downloadSizeComplete", False),
+                diskSpace=space.get("diskSpace"),
             )
             set_download_plan(job_id, download_plan)
             install_result = await asyncio.to_thread(
@@ -215,6 +238,8 @@ async def _run_install_job(job_id: str) -> None:
                     detail=f"Download failed for {failure.get('filename', 'model')}: {failure.get('error', 'unknown error')}",
                 )
 
+        if (get_job(job_id) or {}).get("cancelRequested"):
+            raise InstallCancelled("Workflow setup canceled.")
         update_job(job_id, stage="preflight", message="Running Workflow Preflight…")
         tool, preflight = await _preflight_and_enable(
             config,
@@ -238,6 +263,8 @@ async def _run_install_job(job_id: str) -> None:
             "preflight": preflight.get("summary", {}),
         }
         complete_job(job_id, result, message=f"{tool.get('name') or pack_id} is ready.")
+    except InstallCancelled:
+        cancel_job(job_id)
     except Exception as exc:
         current = get_job(job_id) or {}
         fail_job(job_id, _job_error_message(exc), stage=current.get("stage") or "failed")
@@ -305,13 +332,17 @@ async def inspect_admin_workflow_packs(payload: dict, _=Depends(verify_admin)):
         pack_id = str(manifest.get("id"))
         inspection = inspect_workflow_pack(pack_id, object_info, system_stats)
         inspection["installed"] = bool((manifest.get("tool") or {}).get("id") in installed_tool_ids)
-        inspection["downloadPlan"] = plan_selected_models(inspection.get("recommendedDownloads") or [], models_root)
+        inspection["downloadPlan"] = await enrich_download_plan(
+            plan_selected_models(inspection.get("recommendedDownloads") or [], models_root)
+        )
+        inspection.update(space_requirement(inspection["downloadPlan"], models_root))
         packs.append(inspection)
 
     return {
         "serverUrl": server_url,
         "modelsRoot": models_root,
         "hardware": summarize_system_stats(system_stats),
+        "diskSpace": disk_space(models_root),
         "packs": packs,
     }
 
@@ -358,6 +389,19 @@ async def retry_install_job(job_id: str, _=Depends(verify_admin)):
     if created:
         _schedule_install_job(job["id"])
     return {"job": job, "created": created}
+
+
+@router.post("/api/admin/workflow-packs/install-jobs/{job_id}/cancel")
+def cancel_install_job(job_id: str, _=Depends(verify_admin)):
+    try:
+        return {"job": request_cancel(job_id)}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Workflow install job not found")
+
+
+@router.delete("/api/admin/workflow-packs/install-jobs")
+def clear_install_job_history(serverUrl: str | None = None, _=Depends(verify_admin)):
+    return {"deleted": clear_jobs(serverUrl)}
 
 
 @router.post("/api/admin/workflow-packs/activate")

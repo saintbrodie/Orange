@@ -118,7 +118,7 @@ def serve_admin():
             content = f.read()
         content = content.replace(
             "/static/workflow-pack-library.js?v=3",
-            "/static/workflow-pack-library.js?v=6",
+            "/static/workflow-pack-library.js?v=7",
         )
         content = content.replace(
             "</head>",
@@ -133,7 +133,7 @@ def serve_admin():
             '    <script src="/static/workflow-assets.js?v=2"></script>\n'
             '    <script src="/static/personalization.js?v=1"></script>\n'
             '    <script src="/static/personalization-tab-state.js?v=1"></script>\n'
-            '    <script src="/static/managed-comfyui.js?v=1"></script>\n'
+            '    <script src="/static/managed-comfyui.js?v=2"></script>\n'
             '    <script src="/static/managed-prompt-enhancer.js?v=1"></script>\n'
             '    <script src="/static/mobile-navigation.js?v=4"></script>\n'
             "</body>",

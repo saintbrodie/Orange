@@ -2,6 +2,7 @@
   let catalog = null;
   let inspectionByPack = new Map();
   let inspectionHardware = null;
+  let inspectionDiskSpace = null;
   let jobByKey = new Map();
   let pollTimer = null;
 
@@ -58,6 +59,37 @@
   function formatSpeed(value) {
     const formatted = formatBytes(value);
     return formatted ? `${formatted}/s` : '';
+  }
+
+  function formatDuration(seconds) {
+    const value = Number(seconds);
+    if (!Number.isFinite(value) || value <= 0) return '';
+    if (value < 60) return `${Math.ceil(value)}s`;
+    if (value < 3600) return `${Math.ceil(value / 60)}m`;
+    const hours = Math.floor(value / 3600);
+    const minutes = Math.ceil((value % 3600) / 60);
+    return `${hours}h${minutes ? ` ${minutes}m` : ''}`;
+  }
+
+  function downloadSizeLabel(source) {
+    const count = Number(source?.downloadFileCount ?? source?.downloadPlan?.length ?? 0);
+    const bytes = Number(source?.downloadBytesTotal || 0);
+    if (!count) return 'No download needed';
+    if (!bytes) return `${count} file${count === 1 ? '' : 's'} · size unknown`;
+    return `${count} file${count === 1 ? '' : 's'} · ${source?.downloadSizeComplete === false ? 'at least ' : ''}${formatBytes(bytes)}`;
+  }
+
+  function jobProgressSummary(job) {
+    const files = job?.files || [];
+    const downloaded = files.reduce((sum, file) => sum + Number(file.bytesDownloaded || 0), 0);
+    const total = Number(job?.downloadBytesTotal || 0) || files.reduce((sum, file) => sum + Number(file.bytesTotal || 0), 0);
+    const speed = files.reduce((sum, file) => sum + (file.state === 'downloading' ? Number(file.speedBps || 0) : 0), 0);
+    const pieces = [];
+    if (total > 0) pieces.push(`${formatBytes(downloaded)} / ${formatBytes(total)}`);
+    else if (downloaded > 0) pieces.push(formatBytes(downloaded));
+    if (speed > 0) pieces.push(formatSpeed(speed));
+    if (total > downloaded && speed > 0) pieces.push(`~${formatDuration((total - downloaded) / speed)} left`);
+    return pieces.join(' · ');
   }
 
   function hardwareLabel(hardware) {
@@ -217,7 +249,10 @@
             </div>
             <p class="text-sm text-zinc-500 leading-relaxed">Orange-tested workflows with guided setup. Choose a backend and Orange will tell you what is already ready, what it would download, and what needs attention before anything changes.</p>
           </div>
-          <button id="curated-refresh-btn" class="self-start bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-2 border border-zinc-700"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Scan again</button>
+          <div class="self-start flex items-center gap-2">
+            <button id="curated-clear-history-btn" class="bg-zinc-900 hover:bg-zinc-800 text-zinc-500 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-2 border border-zinc-800"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Clear history</button>
+            <button id="curated-refresh-btn" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-2 border border-zinc-700"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Scan again</button>
+          </div>
         </div>
 
         <div class="bg-zinc-950/55 border border-zinc-800 rounded-2xl p-4 mb-4">
@@ -252,11 +287,13 @@
     document.getElementById('tools-subtab-editor').addEventListener('click', () => setToolsSubtab('editor'));
     document.getElementById('tools-subtab-curated').addEventListener('click', () => setToolsSubtab('curated'));
     document.getElementById('curated-refresh-btn').addEventListener('click', refreshCatalog);
+    document.getElementById('curated-clear-history-btn').addEventListener('click', clearJobHistory);
     document.getElementById('curated-server').addEventListener('change', async () => {
       const serverUrl = document.getElementById('curated-server').value;
       localStorage.setItem('orange_curated_server', serverUrl);
       inspectionByPack = new Map();
       inspectionHardware = null;
+      inspectionDiskSpace = null;
       syncModelsRoot();
       renderCatalog();
       await refreshJobs();
@@ -291,12 +328,16 @@
       preflight: 'Final compatibility check',
       completed: 'Ready',
       interrupted: 'Interrupted',
+      canceling: 'Canceling',
+      canceled: 'Canceled',
     };
     return labels[job?.stage] || job?.message || 'Working';
   }
 
   function cardState(pack, inspection, job) {
+    if ((job?.state === 'queued' || job?.state === 'running') && job?.cancelRequested) return 'canceling';
     if (job?.state === 'queued' || job?.state === 'running') return 'working';
+    if (job?.state === 'canceled') return 'canceled';
     if (job?.state === 'failed' || job?.state === 'interrupted') return 'failed';
     if (inspection?.missingNodes?.length || inspection?.unknownModels?.length) return 'blocked';
     if (inspection?.ready) return 'ready';
@@ -308,6 +349,8 @@
     const state = cardState(pack, inspection, job);
     const configs = {
       working: ['Working', 'text-orange-300 bg-orange-500/10 border-orange-500/20', 'loader-2', true],
+      canceling: ['Canceling', 'text-amber-300 bg-amber-500/10 border-amber-500/20', 'loader-2', true],
+      canceled: ['Canceled', 'text-zinc-400 bg-zinc-800 border-zinc-700', 'circle-stop', false],
       failed: ['Needs attention', 'text-red-300 bg-red-500/10 border-red-500/20', 'circle-alert', false],
       blocked: ['Blocked', 'text-amber-300 bg-amber-500/10 border-amber-500/20', 'triangle-alert', false],
       ready: [pack.installed ? 'Ready' : 'Ready to add', 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20', 'circle-check', false],
@@ -324,9 +367,19 @@
       return `
         <div class="bg-orange-500/5 border border-orange-500/20 rounded-xl p-3">
           <div class="flex items-center gap-2 text-xs font-semibold text-orange-200"><i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>${escapeHtml(jobStageLabel(job))}</div>
+          ${jobProgressSummary(job) ? `<div class="text-[10px] text-orange-300/70 mt-1">${escapeHtml(jobProgressSummary(job))}</div>` : ''}
           ${job.message && job.message !== jobStageLabel(job) ? `<div class="text-[10px] text-orange-300/70 mt-1">${escapeHtml(job.message)}</div>` : ''}
           ${filePlanHtml(files, job.mode === 'existing' ? 'Using existing models' : 'Install progress', true)}
         </div>
+      `;
+    }
+    if (job?.state === 'canceled') {
+      return `
+        <div class="bg-zinc-800/40 border border-zinc-700 rounded-xl p-3 text-xs text-zinc-400">
+          <div class="font-semibold flex items-center gap-2"><i data-lucide="circle-stop" class="w-3.5 h-3.5"></i>Setup canceled</div>
+          <div class="mt-1 text-[11px] text-zinc-500">Completed model files were kept. The incomplete .part file was removed.</div>
+        </div>
+        ${detailsHtml(job.files, 'Last install details', true, false)}
       `;
     }
     if (job?.state === 'failed' || job?.state === 'interrupted') {
@@ -361,8 +414,11 @@
       return '<div class="text-xs text-amber-300 flex items-start gap-2"><i data-lucide="help-circle" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Orange cannot safely verify this workflow’s model inventory on this ComfyUI build.</span></div>';
     }
     const count = inspection.downloadPlan?.length || 0;
+    if (inspection.insufficientDiskSpace) {
+      return `<div class="text-xs text-red-300 flex items-start gap-2"><i data-lucide="hard-drive" class="w-3.5 h-3.5 mt-0.5"></i><span>Not enough free space. ${downloadSizeLabel(inspection)} is required, plus Orange keeps a 512 MB safety buffer.</span></div>${detailsHtml(inspection.downloadPlan, 'See exactly what Orange would download')}`;
+    }
     return `
-      <div class="text-xs text-zinc-300 flex items-center gap-2"><i data-lucide="download" class="w-3.5 h-3.5 text-orange-400"></i>${count} missing model file${count === 1 ? '' : 's'} will be downloaded. Existing compatible files are reused.</div>
+      <div class="text-xs text-zinc-300 flex items-center gap-2"><i data-lucide="download" class="w-3.5 h-3.5 text-orange-400"></i>${downloadSizeLabel(inspection)} will be downloaded. Existing compatible files are reused.</div>
       ${detailsHtml(inspection.downloadPlan, 'See exactly what Orange will download')}
     `;
   }
@@ -374,7 +430,7 @@
     const packs = catalog?.packs || [];
     if (!packs.length || !inspectionByPack.size) {
       summary.innerHTML = '';
-      if (hardware) hardware.textContent = hardwareLabel(inspectionHardware);
+      if (hardware) hardware.textContent = [hardwareLabel(inspectionHardware), inspectionDiskSpace?.freeBytes != null ? `${formatBytes(inspectionDiskSpace.freeBytes)} free` : ''].filter(Boolean).join(' · ');
       return;
     }
     let ready = 0;
@@ -394,22 +450,23 @@
       downloads ? `<span class="text-[10px] px-2 py-1 rounded-full border border-orange-500/20 bg-orange-500/10 text-orange-300">${downloads} need downloads</span>` : '',
       blocked ? `<span class="text-[10px] px-2 py-1 rounded-full border border-amber-500/20 bg-amber-500/10 text-amber-300">${blocked} blocked</span>` : '',
     ].filter(Boolean).join('');
-    if (hardware) hardware.textContent = hardwareLabel(inspectionHardware);
+    if (hardware) hardware.textContent = [hardwareLabel(inspectionHardware), inspectionDiskSpace?.freeBytes != null ? `${formatBytes(inspectionDiskSpace.freeBytes)} free` : ''].filter(Boolean).join(' · ');
   }
 
   function actionForPack(pack, inspection, job) {
     const busy = job?.state === 'queued' || job?.state === 'running';
-    const retryable = job?.state === 'failed' || job?.state === 'interrupted';
-    if (busy) return {label: jobStageLabel(job), disabled: true, primary: false, icon: 'loader-2', spin: true};
+    const retryable = job?.state === 'failed' || job?.state === 'interrupted' || job?.state === 'canceled';
+    if (busy) return {label: job?.cancelRequested ? 'Canceling…' : 'Cancel setup', disabled: Boolean(job?.cancelRequested), primary: false, danger: !job?.cancelRequested, icon: job?.cancelRequested ? 'loader-2' : 'circle-stop', spin: Boolean(job?.cancelRequested)};
     if (retryable) return {label: 'Retry setup', disabled: false, primary: true, icon: 'rotate-ccw'};
     if (inspection?.missingNodes?.length) return {label: 'Required nodes missing', disabled: true, primary: false, icon: 'blocks'};
     if (inspection?.unknownModels?.length) return {label: 'Can’t verify models', disabled: true, primary: false, icon: 'help-circle'};
+    if (inspection?.insufficientDiskSpace) return {label: 'Not enough disk space', disabled: true, primary: false, icon: 'hard-drive'};
     if (inspection?.ready && pack.installed) return {label: 'Verify setup', disabled: false, primary: false, icon: 'shield-check'};
     if (inspection?.ready) return {label: 'Add to Orange', disabled: false, primary: true, icon: 'plus'};
     if (inspection) {
       const count = inspection.downloadPlan?.length || 0;
       return {
-        label: pack.installed ? 'Set up this backend' : `Install ${count} file${count === 1 ? '' : 's'}`,
+        label: pack.installed ? `Set up this backend · ${downloadSizeLabel(inspection)}` : `Install ${downloadSizeLabel(inspection)}`,
         disabled: false,
         primary: true,
         icon: 'download',
@@ -446,9 +503,11 @@
       const action = actionForPack(pack, inspection, job);
       const presentation = typePresentation(pack);
       const highlights = Array.isArray(pack.highlights) ? pack.highlights : [];
-      const buttonClass = action.primary
-        ? 'bg-orange-600 hover:bg-orange-500 text-white border border-orange-500/60'
-        : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700';
+      const buttonClass = action.danger
+        ? 'bg-red-500/10 hover:bg-red-500/15 text-red-300 border border-red-500/30'
+        : action.primary
+          ? 'bg-orange-600 hover:bg-orange-500 text-white border border-orange-500/60'
+          : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700';
       const thumbnail = pack.thumbnail
         ? `<div class="relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 aspect-[16/9]">
             <img src="${escapeHtml(pack.thumbnail)}" alt="${escapeHtml(pack.thumbnailAlt || `${pack.name} example`)}" loading="lazy" class="w-full h-full object-cover" draggable="false">
@@ -591,6 +650,7 @@
       if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : (data.detail?.message || 'Could not inspect backend.'));
       inspectionByPack = new Map((data.packs || []).map((pack) => [pack.pack, pack]));
       inspectionHardware = data.hardware || null;
+      inspectionDiskSpace = data.diskSpace || null;
       if (data.modelsRoot && !document.getElementById('curated-models-root').value.trim()) {
         document.getElementById('curated-models-root').value = data.modelsRoot;
       }
@@ -609,6 +669,7 @@
     } catch (error) {
       inspectionByPack = new Map();
       inspectionHardware = null;
+      inspectionDiskSpace = null;
       setLibraryStatus(error.message, 'error');
       renderCatalog();
     }
@@ -637,6 +698,35 @@
     }
   }
 
+  async function cancelJob(jobId) {
+    try {
+      const response = await authFetch(`/api/admin/workflow-packs/install-jobs/${encodeURIComponent(jobId)}/cancel`, {method: 'POST'});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Could not cancel workflow setup.');
+      const job = data.job;
+      if (job) jobByKey.set(installKey(job.serverUrl, job.packId), job);
+      setLibraryStatus('Cancel requested. Orange will stop after the current network read finishes.', 'warning');
+      renderCatalog();
+      scheduleJobPoll();
+    } catch (error) {
+      setLibraryStatus(error.message, 'error');
+    }
+  }
+
+  async function clearJobHistory() {
+    const serverUrl = document.getElementById('curated-server')?.value;
+    if (!serverUrl) return;
+    try {
+      const response = await authFetch(`/api/admin/workflow-packs/install-jobs?serverUrl=${encodeURIComponent(serverUrl)}`, {method: 'DELETE'});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Could not clear install history.');
+      setLibraryStatus(data.deleted ? `Cleared ${data.deleted} completed install record${data.deleted === 1 ? '' : 's'}.` : 'No completed install history to clear.', 'neutral');
+      await refreshJobs();
+    } catch (error) {
+      setLibraryStatus(error.message, 'error');
+    }
+  }
+
   async function runPackAction(packId) {
     const serverUrl = document.getElementById('curated-server').value;
     const modelsRoot = document.getElementById('curated-models-root').value.trim();
@@ -648,6 +738,10 @@
       setLibraryStatus('Configure a ComfyUI backend first.', 'warning');
       return;
     }
+    if ((existingJob?.state === 'queued' || existingJob?.state === 'running') && !existingJob?.cancelRequested) {
+      await cancelJob(existingJob.id);
+      return;
+    }
     if (!inspection?.ready && !modelsRoot) {
       const storageDetails = document.getElementById('curated-storage-details');
       if (storageDetails) storageDetails.open = true;
@@ -657,7 +751,7 @@
     }
 
     setLibraryStatus(
-      existingJob?.state === 'failed' || existingJob?.state === 'interrupted'
+      existingJob?.state === 'failed' || existingJob?.state === 'interrupted' || existingJob?.state === 'canceled'
         ? 'Retrying workflow setup…'
         : inspection?.ready
           ? 'Adding workflow and running the final check…'
@@ -666,7 +760,7 @@
     );
 
     try {
-      const retry = existingJob?.state === 'failed' || existingJob?.state === 'interrupted';
+      const retry = existingJob?.state === 'failed' || existingJob?.state === 'interrupted' || existingJob?.state === 'canceled';
       const url = retry
         ? `/api/admin/workflow-packs/install-jobs/${encodeURIComponent(existingJob.id)}/retry`
         : '/api/admin/workflow-packs/install-jobs';
