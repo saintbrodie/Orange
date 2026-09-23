@@ -3,6 +3,8 @@
   "name": "Klein 9B Turbo",
   "type": "image-to-image",
   "description": "Fast instruction-based image editing with FLUX.2 Klein 9B.",
+  "tagline": "Prompt-driven image editing for targeted changes without rebuilding the whole workflow.",
+  "highlights": ["Image editing", "Instruction-based", "FLUX.2"],
   "recommended": false,
   "workflowFile": "Klein Edit.json",
   "tool": {
