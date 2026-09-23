@@ -143,6 +143,8 @@ async def _run_install_job(job_id: str) -> None:
 
     try:
         mark_running(job_id)
+        if (get_job(job_id) or {}).get("cancelRequested"):
+            raise InstallCancelled("Workflow setup canceled.")
         manifest = get_workflow_pack(pack_id)
         config = dict(load_config())
         server_index, server = _server_for_url(config, server_url)
@@ -177,6 +179,8 @@ async def _run_install_job(job_id: str) -> None:
             for model in selected_models:
                 filename = str(model.get("filename") or "existing model")
                 update_file_progress(job_id, filename, state="existing")
+            if (get_job(job_id) or {}).get("cancelRequested"):
+                raise InstallCancelled("Workflow setup canceled.")
             materialize_workflow_pack(pack_id, selected_models)
             install_result = {
                 "selectedModels": selected_models,
