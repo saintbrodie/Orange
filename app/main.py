@@ -118,7 +118,7 @@ def serve_admin():
             content = f.read()
         content = content.replace(
             "/static/workflow-pack-library.js?v=3",
-            "/static/workflow-pack-library.js?v=5",
+            "/static/workflow-pack-library.js?v=6",
         )
         content = content.replace(
             "</head>",
