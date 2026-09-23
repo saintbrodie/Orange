@@ -1,7 +1,8 @@
 (() => {
   let catalog = null;
   let inspectionByPack = new Map();
-  const activeInstalls = new Map();
+  let jobByKey = new Map();
+  let pollTimer = null;
 
   function authFetch(url, options = {}) {
     const key = localStorage.getItem('orange_admin_key');
@@ -26,18 +27,62 @@
     }
   }
 
-  function filePlanHtml(files, heading = 'Downloads') {
+  function formatBytes(value) {
+    const bytes = Number(value);
+    if (!Number.isFinite(bytes) || bytes < 0) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    const units = ['KB', 'MB', 'GB', 'TB'];
+    let size = bytes / 1024;
+    let index = 0;
+    while (size >= 1024 && index < units.length - 1) {
+      size /= 1024;
+      index += 1;
+    }
+    return `${size >= 100 ? size.toFixed(0) : size >= 10 ? size.toFixed(1) : size.toFixed(2)} ${units[index]}`;
+  }
+
+  function formatSpeed(value) {
+    const formatted = formatBytes(value);
+    return formatted ? `${formatted}/s` : '';
+  }
+
+  function filePlanHtml(files, heading = 'Downloads', dynamic = false) {
     if (!files?.length) return '';
     return `
       <div class="mt-2 border border-zinc-800 rounded-xl overflow-hidden bg-zinc-950">
         <div class="px-3 py-2 border-b border-zinc-800 text-[10px] font-bold uppercase tracking-wider text-zinc-500">${heading}</div>
-        ${files.map((file) => `
-          <div class="px-3 py-2 border-b last:border-b-0 border-zinc-900 flex flex-col gap-1">
-            <code class="text-[11px] text-orange-300 break-all">${file.filename || 'unknown'}</code>
-            <span class="text-[10px] text-zinc-500 break-all">${file.folder || 'model'}${file.precision ? ` · ${String(file.precision).toUpperCase()}` : ''}${file.url ? ` · ${sourceLabel(file.url)}` : ''}</span>
-            ${file.destination ? `<span class="text-[10px] text-zinc-600 break-all">→ ${file.destination}</span>` : ''}
-          </div>
-        `).join('')}
+        ${files.map((file) => {
+          const downloaded = Number(file.bytesDownloaded || 0);
+          const total = Number(file.bytesTotal || 0);
+          const pct = total > 0 ? Math.max(0, Math.min(100, (downloaded / total) * 100)) : null;
+          const state = file.state || 'pending';
+          const detail = dynamic
+            ? [
+                total > 0 ? `${formatBytes(downloaded)} / ${formatBytes(total)}` : (downloaded > 0 ? formatBytes(downloaded) : ''),
+                state === 'downloading' ? formatSpeed(file.speedBps) : '',
+                state === 'existing' ? 'Already present' : '',
+                state === 'completed' ? 'Complete' : '',
+                state === 'failed' ? 'Failed' : '',
+              ].filter(Boolean).join(' · ')
+            : '';
+          return `
+            <div class="px-3 py-2 border-b last:border-b-0 border-zinc-900 flex flex-col gap-1.5">
+              <div class="flex items-center justify-between gap-3">
+                <code class="text-[11px] text-orange-300 break-all">${file.filename || 'unknown'}</code>
+                ${dynamic && state === 'downloading' ? '<i data-lucide="loader-2" class="w-3 h-3 text-orange-400 animate-spin shrink-0"></i>' : ''}
+              </div>
+              <span class="text-[10px] text-zinc-500 break-all">${file.folder || 'model'}${file.precision ? ` · ${String(file.precision).toUpperCase()}` : ''}${file.url ? ` · ${sourceLabel(file.url)}` : ''}</span>
+              ${file.destination ? `<span class="text-[10px] text-zinc-600 break-all">→ ${file.destination}</span>` : ''}
+              ${dynamic && detail ? `<span class="text-[10px] ${state === 'failed' ? 'text-red-400' : 'text-zinc-400'}">${detail}</span>` : ''}
+              ${dynamic && pct !== null ? `
+                <div class="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-orange-500 transition-all duration-300" style="width:${pct.toFixed(1)}%"></div>
+                </div>
+              ` : ''}
+              ${file.error ? `<span class="text-[10px] text-red-400 break-words">${file.error}</span>` : ''}
+            </div>
+          `;
+        }).join('')}
       </div>
     `;
   }
@@ -138,6 +183,7 @@
     document.getElementById('curated-refresh-btn').addEventListener('click', refreshCatalog);
     document.getElementById('curated-server').addEventListener('change', async () => {
       syncModelsRoot();
+      await refreshJobs();
       await inspectServer();
     });
     document.getElementById('curated-models-root').addEventListener('change', inspectServer);
@@ -155,17 +201,43 @@
     modelsRoot.value = server?.modelsRoot || catalog.detectedModelsRoot || '';
   }
 
-  function inspectionStatus(pack, inspection, active) {
-    if (active?.state === 'installing') {
+  function jobStageLabel(job) {
+    const labels = {
+      queued: 'Queued…',
+      inspecting: 'Scanning ComfyUI…',
+      downloading: 'Downloading models…',
+      materializing: 'Binding workflow…',
+      preflight: 'Running Preflight…',
+      completed: 'Ready',
+      interrupted: 'Interrupted',
+    };
+    return labels[job?.stage] || job?.message || 'Working…';
+  }
+
+  function inspectionStatus(pack, inspection, job) {
+    if (job?.state === 'queued' || job?.state === 'running') {
       return `
         <div class="bg-orange-950/30 border border-orange-900/60 rounded-xl p-3 text-xs text-orange-200">
-          <div class="font-semibold flex items-center gap-2"><i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> ${active.mode === 'existing' ? 'Adding workflow and running Preflight…' : 'Downloading models, binding workflow, and running Preflight…'}</div>
-          ${filePlanHtml(active.files, active.mode === 'existing' ? 'Using existing models' : 'Downloading')}
+          <div class="font-semibold flex items-center gap-2"><i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> ${jobStageLabel(job)}</div>
+          ${job.message && job.message !== jobStageLabel(job) ? `<div class="text-[10px] text-orange-300/70 mt-1">${job.message}</div>` : ''}
+          ${filePlanHtml(job.files?.length ? job.files : job.downloadPlan, job.mode === 'existing' ? 'Using existing models' : 'Install progress', true)}
         </div>
       `;
     }
-    if (active?.state === 'error') {
-      return `<div class="bg-red-950/30 border border-red-900/60 rounded-xl p-3 text-xs text-red-300">${active.error}</div>`;
+    if (job?.state === 'failed' || job?.state === 'interrupted') {
+      return `
+        <div class="bg-red-950/30 border border-red-900/60 rounded-xl p-3 text-xs text-red-300">
+          <div class="font-semibold">${job.state === 'interrupted' ? 'Install interrupted' : 'Install failed'}</div>
+          <div class="mt-1">${job.error || 'The workflow install did not complete.'}</div>
+          ${filePlanHtml(job.files, 'Last recorded progress', true)}
+        </div>
+      `;
+    }
+    if (job?.state === 'completed') {
+      return `
+        <div class="bg-emerald-950/30 border border-emerald-900/60 rounded-xl p-3 text-xs text-emerald-300">✓ ${job.message || 'Workflow installed successfully.'}</div>
+        ${filePlanHtml(job.files, job.mode === 'existing' ? 'Existing models used' : 'Completed install', true)}
+      `;
     }
     if (!inspection) return '<div class="text-xs text-zinc-600">Scanning backend compatibility…</div>';
     if (inspection.ready) {
@@ -194,16 +266,13 @@
     const serverUrl = serverSelect.value;
     list.innerHTML = (catalog.packs || []).map((pack) => {
       const inspection = inspectionByPack.get(pack.id);
-      const active = activeInstalls.get(installKey(serverUrl, pack.id));
-      const busy = active?.state === 'installing';
+      const job = jobByKey.get(installKey(serverUrl, pack.id));
+      const busy = job?.state === 'queued' || job?.state === 'running';
+      const retryable = job?.state === 'failed' || job?.state === 'interrupted';
       let label = pack.installed ? 'Repair / Recheck' : 'Install missing models';
-      let action = 'install';
-      if (inspection?.ready) {
-        action = 'activate';
-        label = pack.installed ? 'Recheck' : 'Add to Orange';
-      }
-      if (busy) label = active.mode === 'existing' ? 'Adding…' : 'Installing…';
-      if (active?.state === 'error') label = 'Retry';
+      if (inspection?.ready) label = pack.installed ? 'Recheck' : 'Add to Orange';
+      if (busy) label = jobStageLabel(job);
+      if (retryable) label = 'Retry';
       const buttonClass = pack.installed || inspection?.ready
         ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700'
         : 'bg-orange-600 hover:bg-orange-500 text-white';
@@ -217,14 +286,14 @@
             </div>
             <p class="text-xs text-zinc-500 mt-1 leading-relaxed">${pack.description || ''}</p>
           </div>
-          ${inspectionStatus(pack, inspection, active)}
-          <button data-pack-action="${action}" data-pack-id="${pack.id}" ${disabled ? 'disabled' : ''} class="self-start ${buttonClass} px-3 py-2 rounded-lg text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed">${label}</button>
+          ${inspectionStatus(pack, inspection, job)}
+          <button data-pack-id="${pack.id}" ${disabled ? 'disabled' : ''} class="self-start ${buttonClass} px-3 py-2 rounded-lg text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed">${label}</button>
         </div>
       `;
     }).join('');
 
-    list.querySelectorAll('[data-pack-action]').forEach((button) => {
-      button.addEventListener('click', () => runPackAction(button.dataset.packId, button.dataset.packAction));
+    list.querySelectorAll('[data-pack-id]').forEach((button) => {
+      button.addEventListener('click', () => runPackAction(button.dataset.packId));
     });
     if (window.lucide) lucide.createIcons();
   }
@@ -241,6 +310,56 @@
     });
     if (previousUrl && (catalog.servers || []).some((server) => server.url === previousUrl)) serverSelect.value = previousUrl;
     syncModelsRoot();
+  }
+
+  function setLatestJobs(jobs) {
+    const next = new Map();
+    (jobs || []).forEach((job) => {
+      const key = installKey(job.serverUrl, job.packId);
+      if (!next.has(key)) next.set(key, job);
+    });
+    jobByKey = next;
+  }
+
+  function scheduleJobPoll() {
+    if (pollTimer) clearTimeout(pollTimer);
+    pollTimer = null;
+    const hasActive = Array.from(jobByKey.values()).some((job) => job.state === 'queued' || job.state === 'running');
+    if (!hasActive) return;
+    pollTimer = setTimeout(pollJobs, 1000);
+  }
+
+  async function refreshJobs() {
+    const serverUrl = document.getElementById('curated-server')?.value;
+    if (!serverUrl || !localStorage.getItem('orange_admin_key')) {
+      jobByKey = new Map();
+      renderCatalog();
+      return [];
+    }
+    const response = await authFetch(`/api/admin/workflow-packs/install-jobs?serverUrl=${encodeURIComponent(serverUrl)}&limit=50`);
+    if (!response.ok) throw new Error('Could not load workflow install activity.');
+    const data = await response.json();
+    setLatestJobs(data.jobs || []);
+    renderCatalog();
+    scheduleJobPoll();
+    return data.jobs || [];
+  }
+
+  async function pollJobs() {
+    pollTimer = null;
+    const before = new Map(Array.from(jobByKey.values()).map((job) => [job.id, job.state]));
+    try {
+      const jobs = await refreshJobs();
+      const finished = jobs.some((job) => {
+        const previous = before.get(job.id);
+        return (previous === 'queued' || previous === 'running') && !['queued', 'running'].includes(job.state);
+      });
+      if (finished) {
+        await refreshCatalog({skipJobs: true});
+      }
+    } catch (_) {
+      pollTimer = setTimeout(pollJobs, 2000);
+    }
   }
 
   async function inspectServer() {
@@ -272,7 +391,7 @@
     }
   }
 
-  async function refreshCatalog() {
+  async function refreshCatalog(options = {}) {
     setupToolsWorkspace();
     const status = document.getElementById('curated-tools-status');
     const serverSelect = document.getElementById('curated-server');
@@ -285,57 +404,51 @@
       catalog = await response.json();
       renderServerOptions(previousUrl);
       renderCatalog();
+      if (!options.skipJobs) await refreshJobs();
       await inspectServer();
     } catch (error) {
       status.textContent = error.message;
     }
   }
 
-  async function runPackAction(packId, requestedAction) {
+  async function runPackAction(packId) {
     const serverUrl = document.getElementById('curated-server').value;
     const modelsRoot = document.getElementById('curated-models-root').value.trim();
     const status = document.getElementById('curated-tools-status');
     const inspection = inspectionByPack.get(packId);
-    const action = inspection?.ready ? 'activate' : requestedAction;
+    const key = installKey(serverUrl, packId);
+    const existingJob = jobByKey.get(key);
+
     if (!serverUrl) {
       status.textContent = 'Configure a ComfyUI server first.';
       return;
     }
-    if (action === 'install' && !modelsRoot) {
+    if (!inspection?.ready && !modelsRoot) {
       status.textContent = 'This workflow is missing models. Enter a local/shared models path Orange can write to, or install the models on the ComfyUI server yourself and Refresh.';
       return;
     }
 
-    const key = installKey(serverUrl, packId);
-    const files = action === 'activate' ? (inspection?.selectedModels || []) : (inspection?.downloadPlan || []);
-    activeInstalls.set(key, {state: 'installing', mode: action === 'activate' ? 'existing' : 'download', files});
-    renderCatalog();
-    status.textContent = action === 'activate'
-      ? 'Binding existing model files into the curated workflow and running Preflight…'
-      : 'Downloading the files shown on the workflow card, then running Preflight…';
+    status.textContent = existingJob?.state === 'failed' || existingJob?.state === 'interrupted'
+      ? 'Retrying workflow install…'
+      : 'Starting workflow install job…';
 
     try {
-      const response = await authFetch(`/api/admin/workflow-packs/${action}`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({packId, serverUrl, modelsRoot}),
-      });
+      const retry = existingJob?.state === 'failed' || existingJob?.state === 'interrupted';
+      const url = retry
+        ? `/api/admin/workflow-packs/install-jobs/${encodeURIComponent(existingJob.id)}/retry`
+        : '/api/admin/workflow-packs/install-jobs';
+      const options = {method: 'POST', headers: {'Content-Type': 'application/json'}};
+      if (!retry) options.body = JSON.stringify({packId, serverUrl, modelsRoot});
+      const response = await authFetch(url, options);
       const data = await response.json();
-      if (!response.ok) {
-        let message = typeof data.detail === 'string' ? data.detail : (data.detail?.message || 'Workflow setup failed.');
-        const backend = data.detail?.preflight?.backends?.[0];
-        const findings = backend ? [...(backend.errors || []), ...(backend.warnings || [])] : [];
-        if (findings.length) message += ` ${findings.map((item) => item.message).join(' ')}`;
-        throw new Error(message);
-      }
-      activeInstalls.delete(key);
-      const selected = (data.selectedModels || []).map((model) => `${model.filename}${model.precision ? ` (${model.precision})` : ''}`).join(', ');
-      status.textContent = `✓ ${data.tool?.name || packId} is ready${selected ? ` · ${selected}` : ''}`;
-      await refreshCatalog();
-    } catch (error) {
-      activeInstalls.set(key, {state: 'error', mode: action === 'activate' ? 'existing' : 'download', files, error: error.message});
-      status.textContent = error.message;
+      if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : (data.detail?.message || 'Could not start workflow install.'));
+      const job = data.job;
+      jobByKey.set(installKey(job.serverUrl, job.packId), job);
+      status.textContent = data.created ? 'Install is running in the background. You can leave this screen or refresh safely.' : 'This workflow already has an active install job.';
       renderCatalog();
+      scheduleJobPoll();
+    } catch (error) {
+      status.textContent = error.message;
     }
   }
 
