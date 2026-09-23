@@ -18,7 +18,7 @@ def managed_prompt_enhancer_status(_=Depends(verify_admin)):
 
 
 @router.post("/api/admin/prompt-enhancer/managed/install")
-def install_managed_prompt_enhancer(_=Depends(verify_admin)):
+async def install_managed_prompt_enhancer(_=Depends(verify_admin)):
     try:
         return schedule_install()
     except RuntimeError as exc:
