@@ -52,8 +52,8 @@ class WorkflowInstallRunnerTests(unittest.TestCase):
             self.assertEqual(os.path.getsize(destination), len(payload))
             self.assertEqual(result["installed"], [destination])
             self.assertEqual(progress[-1][1]["state"], "completed")
-            self.assertEqual(progress[-1][1]["bytesDownloaded"], len(payload))
-            self.assertEqual(progress[-1][1]["bytesTotal"], len(payload))
+            self.assertEqual(progress[-1][1]["bytes_downloaded"], len(payload))
+            self.assertEqual(progress[-1][1]["bytes_total"], len(payload))
 
 
 if __name__ == "__main__":
