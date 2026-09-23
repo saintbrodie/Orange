@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from app.api import workflow_pack_admin as pack_admin
 from app.core import managed_runtime
 from app.core import workflow_install_jobs as jobs
 from app.core import workflow_install_runner as runner
@@ -89,6 +90,22 @@ class ReleasePolishTests(unittest.TestCase):
         self.assertEqual(status["currentCommitDate"], dates["current-sha"])
         self.assertTrue(status["canRollback"])
         self.assertTrue(status["returnToTestedAvailable"])
+
+
+class ReleasePolishAsyncTests(unittest.IsolatedAsyncioTestCase):
+    async def test_queued_cancel_stops_before_backend_inspection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(jobs, "JOBS_DIR", tmp), mock.patch.object(jobs, "JOBS_PATH", os.path.join(tmp, "jobs.json")):
+                jobs._jobs = {}
+                jobs._loaded = True
+                job, _ = jobs.create_job("z-image-turbo", "http://127.0.0.1:8188")
+                jobs.request_cancel(job["id"])
+                with mock.patch.object(pack_admin, "_backend_metadata") as backend_metadata:
+                    await pack_admin._run_install_job(job["id"])
+                backend_metadata.assert_not_called()
+                self.assertEqual(jobs.get_job(job["id"])["state"], "canceled")
+            jobs._jobs = {}
+            jobs._loaded = False
 
 
 if __name__ == "__main__":
