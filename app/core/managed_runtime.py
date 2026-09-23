@@ -80,6 +80,21 @@ def _git_head(repo_dir: str | None) -> str | None:
         return None
 
 
+def _git_commit_date(repo_dir: str | None, ref: str | None) -> str | None:
+    if not repo_dir or not ref:
+        return None
+    try:
+        value = subprocess.check_output(
+            ["git", "show", "-s", "--format=%cI", str(ref)],
+            cwd=repo_dir,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+        return value or None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
 def managed_runtime_status() -> dict:
     manifest = load_managed_runtime_manifest()
     comfy_manifest = manifest.get("comfyui") if isinstance(manifest.get("comfyui"), dict) else {}
@@ -88,6 +103,7 @@ def managed_runtime_status() -> dict:
     state = _read_state() if managed else {}
     current = _git_head(comfy_dir) if managed else None
     tested = comfy_manifest.get("testedCommit")
+    previous = state.get("previousCommit")
 
     if current and tested and current == tested:
         channel = "tested"
@@ -101,12 +117,17 @@ def managed_runtime_status() -> dict:
     return {
         "managed": managed,
         "currentCommit": current,
+        "currentCommitDate": _git_commit_date(comfy_dir, current) if managed else None,
         "testedCommit": tested,
+        "testedCommitDate": _git_commit_date(comfy_dir, tested) if managed else None,
         "testedDate": comfy_manifest.get("testedDate"),
         "repository": comfy_manifest.get("repository"),
         "matchesTested": bool(current and tested and current == tested),
         "channel": channel,
-        "previousCommit": state.get("previousCommit"),
+        "previousCommit": previous,
+        "previousCommitDate": _git_commit_date(comfy_dir, previous) if managed else None,
+        "canRollback": bool(previous and current and previous != current),
+        "returnToTestedAvailable": bool(managed and current and tested and current != tested),
         "validation": state.get("validation"),
         "validatedAt": state.get("validatedAt"),
         "validationError": state.get("validationError"),
