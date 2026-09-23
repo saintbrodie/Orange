@@ -2,12 +2,21 @@ import os
 import time
 import urllib.request
 
-from app.core.workflow_install_jobs import update_file_progress
+from app.core.workflow_install_jobs import is_cancel_requested, update_file_progress
 from app.core.workflow_packs import (
     get_workflow_pack,
     materialize_workflow_pack,
     summarize_system_stats,
 )
+
+
+class InstallCancelled(Exception):
+    pass
+
+
+def _raise_if_canceled(job_id: str) -> None:
+    if is_cancel_requested(job_id):
+        raise InstallCancelled("Workflow setup canceled.")
 
 
 def _download_with_progress(url: str, destination: str, job_id: str, filename: str) -> None:
@@ -18,6 +27,7 @@ def _download_with_progress(url: str, destination: str, job_id: str, filename: s
         except OSError:
             pass
 
+    _raise_if_canceled(job_id)
     request = urllib.request.Request(url, headers={"User-Agent": "Orange/1.0"})
     downloaded = 0
     started = time.monotonic()
@@ -41,6 +51,7 @@ def _download_with_progress(url: str, destination: str, job_id: str, filename: s
             )
 
             while True:
+                _raise_if_canceled(job_id)
                 chunk = response.read(1024 * 1024)
                 if not chunk:
                     break
@@ -63,6 +74,7 @@ def _download_with_progress(url: str, destination: str, job_id: str, filename: s
             output.flush()
             os.fsync(output.fileno())
 
+        _raise_if_canceled(job_id)
         os.replace(part_path, destination)
         elapsed = max(time.monotonic() - started, 0.001)
         update_file_progress(
@@ -74,6 +86,15 @@ def _download_with_progress(url: str, destination: str, job_id: str, filename: s
             speed_bps=downloaded / elapsed,
             destination=destination,
         )
+    except InstallCancelled:
+        update_file_progress(
+            job_id,
+            filename,
+            state="canceled",
+            bytes_downloaded=downloaded,
+            destination=destination,
+        )
+        raise
     except Exception as exc:
         update_file_progress(job_id, filename, state="failed", error=str(exc), destination=destination)
         raise
@@ -101,6 +122,7 @@ def install_workflow_pack_job(
     skipped = []
     failures = []
     for model in selected_models:
+        _raise_if_canceled(job_id)
         filename = os.path.basename(str(model.get("filename", "")).strip())
         if model.get("reuseExisting"):
             skipped.append(str(model.get("filename") or "existing model"))
@@ -139,12 +161,15 @@ def install_workflow_pack_job(
         try:
             _download_with_progress(url, destination, job_id, filename)
             installed.append(destination)
+        except InstallCancelled:
+            raise
         except Exception as exc:
             failures.append({"filename": filename, "error": str(exc)})
             break
 
     workflow_path = None
     if not failures:
+        _raise_if_canceled(job_id)
         workflow_path = materialize_workflow_pack(pack_id, selected_models)
 
     return {
