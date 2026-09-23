@@ -3,6 +3,8 @@
   "name": "SeedVR2 7B Upscale",
   "type": "image-to-image",
   "description": "4× image upscaling with ComfyUI's native SeedVR2 nodes.",
+  "tagline": "Straightforward 4× image upscaling with ComfyUI's native SeedVR2 workflow.",
+  "highlights": ["4× upscale", "Image to image", "Native nodes"],
   "recommended": false,
   "workflowFile": "utility_seedvr2_7b_int8_upscale_image.json",
   "tool": {
