@@ -287,9 +287,12 @@ def _extract_runtime(archive_path: str, archive_type: str) -> None:
         else:
             with tarfile.open(archive_path, "r:gz") as archive:
                 for member in archive.getmembers():
-                    _safe_target(staging, member.name)
-                    if member.issym() or member.islnk():
-                        raise RuntimeError("Runtime archive contains unsupported links")
+                    member_target = _safe_target(staging, member.name)
+                    if member.issym():
+                        link_target = os.path.abspath(os.path.join(os.path.dirname(member_target), member.linkname))
+                        _safe_target(staging, os.path.relpath(link_target, staging))
+                    elif member.islnk():
+                        _safe_target(staging, member.linkname)
                 archive.extractall(staging)
         if os.path.isdir(RUNTIME_DIR):
             shutil.rmtree(RUNTIME_DIR)
@@ -396,14 +399,27 @@ def _thread_count() -> int:
 
 
 async def _health_ready(timeout_seconds: float = 90.0) -> bool:
+    """Confirm port 7071 belongs to Orange's managed Gemma server, not merely any HTTP service."""
     deadline = time.monotonic() + timeout_seconds
+    models_url = f"{MANAGED_BASE_URL}/models"
     async with httpx.AsyncClient(timeout=2.0) as client:
         while time.monotonic() < deadline:
+            with _process_lock:
+                process = _server_process
+            if process is not None and process.poll() is not None:
+                return False
             try:
-                response = await client.get(MANAGED_HEALTH_URL)
-                if response.status_code < 500:
-                    return True
-            except httpx.HTTPError:
+                response = await client.get(models_url)
+                if response.status_code == 200:
+                    data = response.json()
+                    model_ids = {
+                        str(item.get("id") or "")
+                        for item in (data.get("data") or [])
+                        if isinstance(item, dict)
+                    }
+                    if MANAGED_MODEL_ID in model_ids:
+                        return True
+            except (httpx.HTTPError, ValueError, TypeError):
                 pass
             await asyncio.sleep(0.4)
     return False

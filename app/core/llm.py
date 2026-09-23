@@ -236,7 +236,11 @@ async def call_llm(
     resolved_key = resolve_api_key(provider, api_key)
     _require_cloud_key(provider, base_url, resolved_key)
 
-    timeout = httpx.Timeout(_timeout_seconds())
+    # A sleeping managed model may need to reload several GB from disk before
+    # producing its first token, so give the private local runtime more headroom
+    # than normal network providers.
+    timeout_seconds = max(120.0, _timeout_seconds()) if provider == "managed" else _timeout_seconds()
+    timeout = httpx.Timeout(timeout_seconds)
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
         if provider in {"openai", "managed"}:
             url = _endpoint(base_url, "https://api.openai.com/v1", "chat/completions")
