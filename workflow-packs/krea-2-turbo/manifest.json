@@ -3,6 +3,8 @@
   "name": "Krea 2 Turbo",
   "type": "text-to-image",
   "description": "Advanced 8-step text-to-image generation with Krea 2 Turbo.",
+  "tagline": "Detailed 8-step image generation for prompts that need a little more control.",
+  "highlights": ["Text to image", "8 steps", "Detail-focused"],
   "recommended": false,
   "workflowFile": "image_krea2_turbo_t2i_int8.json",
   "tool": {
