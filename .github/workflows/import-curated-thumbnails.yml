@@ -1,0 +1,108 @@
+name: Import curated thumbnails
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/import-curated-thumbnails.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Comfy workflow thumbnails
+        run: |
+          set -euo pipefail
+          mkdir -p static/curated-thumbnails
+          curl -L --fail --retry 3 \
+            https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/thumbnail/image_krea2_turbo_int8_image_style_reference.png \
+            -o static/curated-thumbnails/krea-2-turbo.png
+          curl -L --fail --retry 3 \
+            https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/thumbnail/image_flux2_klein_image_edit_9b_base.png \
+            -o static/curated-thumbnails/klein-9b-edit.png
+
+      - name: Add thumbnail attribution
+        run: |
+          cat > static/curated-thumbnails/README.md <<'EOF'
+          # Curated workflow thumbnails
+
+          The PNG files in this directory are copied from the Comfy-Org `workflow_templates` repository and are used as representative artwork for Orange's Curated Library.
+
+          Sources:
+
+          - `krea-2-turbo.png` — `thumbnail/image_krea2_turbo_int8_image_style_reference.png`
+          - `klein-9b-edit.png` — `thumbnail/image_flux2_klein_image_edit_9b_base.png`
+
+          Upstream: https://github.com/Comfy-Org/workflow_templates
+
+          MIT License
+
+          Copyright (c) 2023-present Comfy Org
+
+          Permission is hereby granted, free of charge, to any person obtaining a copy
+          of this software and associated documentation files (the "Software"), to deal
+          in the Software without restriction, including without limitation the rights
+          to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+          copies of the Software, and to permit persons to whom the Software is
+          furnished to do so, subject to the following conditions:
+
+          The above copyright notice and this permission notice shall be included in all
+          copies or substantial portions of the Software.
+
+          THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+          IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+          FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+          AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+          LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+          OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+          SOFTWARE.
+          EOF
+
+      - name: Render thumbnails in Curated Library
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('static/workflow-pack-library.js')
+          text = path.read_text(encoding='utf-8')
+          old = '''      return `
+                  <article class="bg-zinc-950/65 border ${pack.installed ? 'border-emerald-900/60' : 'border-zinc-800'} rounded-2xl p-5 flex flex-col gap-4 shadow-sm hover:border-zinc-700 transition-colors">
+                    <div class="flex items-start gap-3">'''
+          new = '''      const thumbnail = pack.thumbnail
+                  ? `<div class="relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 aspect-[16/9]">
+                      <img src="${escapeHtml(pack.thumbnail)}" alt="${escapeHtml(pack.thumbnailAlt || `${pack.name} example`)}" loading="lazy" class="w-full h-full object-cover" draggable="false">
+                      <div class="absolute left-2 bottom-2 text-[9px] uppercase tracking-wider font-bold text-zinc-200 bg-black/65 border border-white/10 rounded-md px-1.5 py-1 backdrop-blur-sm">Example</div>
+                    </div>`
+                  : '';
+                return `
+                  <article class="bg-zinc-950/65 border ${pack.installed ? 'border-emerald-900/60' : 'border-zinc-800'} rounded-2xl p-5 flex flex-col gap-4 shadow-sm hover:border-zinc-700 transition-colors">
+                    ${thumbnail}
+                    <div class="flex items-start gap-3">'''
+          if old not in text:
+              raise SystemExit('Expected Curated Library card markup was not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Validate imported assets and JavaScript
+        run: |
+          test -s static/curated-thumbnails/krea-2-turbo.png
+          test -s static/curated-thumbnails/klein-9b-edit.png
+          file static/curated-thumbnails/*.png | grep -q 'PNG image data'
+          node --check static/workflow-pack-library.js
+
+      - name: Commit imported thumbnails and clean up importer
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/import-curated-thumbnails.yml
+          git add static/curated-thumbnails static/workflow-pack-library.js
+          git commit -m 'Add Comfy thumbnails to Curated Library'
+          git push
