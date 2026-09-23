@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "comfyui": {
+    "repository": "https://github.com/Comfy-Org/ComfyUI.git",
+    "testedCommit": "387f98aa2822f684b8597959a52a467d88cc4806",
+    "testedDate": "2026-09-17",
+    "note": "Known-good managed ComfyUI baseline used while dogfooding Orange curated workflows."
+  }
+}
