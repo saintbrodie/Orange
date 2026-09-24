@@ -31,7 +31,7 @@
 
         card = document.createElement('div');
         card.id = 'managed-comfyui-card';
-        card.className = 'hidden mt-4 rounded-2xl border border-sky-900/50 bg-sky-950/10 p-4';
+        card.className = 'hidden mt-5 border-t border-zinc-800/70 pt-5';
         section.appendChild(card);
         return card;
     }

@@ -99,6 +99,7 @@ lucide.createIcons();
 
         window.populateModelSelect = function(selectEl, customContainerId, customInputId, provider, activeValue, fetchedModels = []) {
             if (!selectEl) return;
+            if (activeValue === '__custom__') activeValue = '';
             selectEl.innerHTML = '';
             
             const isOverride = selectEl.id === 'edit-tool-llm-model';
@@ -1065,9 +1066,16 @@ lucide.createIcons();
 
                     // Populate global LLM settings
                     const llm = appConfig.llm || {};
+                    const legacyOllamaProvider = llm.provider === 'ollama';
+                    const llmUiProvider = legacyOllamaProvider ? 'openai' : (llm.provider || 'openai');
+                    let llmUiBaseUrl = llm.baseUrl || '';
+                    if (legacyOllamaProvider) {
+                        llmUiBaseUrl = (llmUiBaseUrl || 'http://127.0.0.1:11434').replace(/\/+$/, '');
+                        if (!llmUiBaseUrl.endsWith('/v1')) llmUiBaseUrl += '/v1';
+                    }
                     document.getElementById('setting-llm-enabled').checked = !!llm.enabled;
-                    document.getElementById('setting-llm-provider').value = llm.provider || 'openai';
-                    document.getElementById('setting-llm-baseurl').value = llm.baseUrl || '';
+                    document.getElementById('setting-llm-provider').value = llmUiProvider;
+                    document.getElementById('setting-llm-baseurl').value = llmUiBaseUrl;
                     document.getElementById('setting-llm-apikey').value = llm.apiKey || '';
                     
                     try {

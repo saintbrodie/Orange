@@ -337,7 +337,6 @@
   function cardState(pack, inspection, job) {
     if ((job?.state === 'queued' || job?.state === 'running') && job?.cancelRequested) return 'canceling';
     if (job?.state === 'queued' || job?.state === 'running') return 'working';
-    if (job?.state === 'canceled') return 'canceled';
     if (job?.state === 'failed' || job?.state === 'interrupted') return 'failed';
     if (inspection?.missingNodes?.length || inspection?.unknownModels?.length) return 'blocked';
     if (inspection?.ready) return 'ready';
@@ -350,7 +349,6 @@
     const configs = {
       working: ['Working', 'text-orange-300 bg-orange-500/10 border-orange-500/20', 'loader-2', true],
       canceling: ['Canceling', 'text-amber-300 bg-amber-500/10 border-amber-500/20', 'loader-2', true],
-      canceled: ['Canceled', 'text-zinc-400 bg-zinc-800 border-zinc-700', 'circle-stop', false],
       failed: ['Needs attention', 'text-red-300 bg-red-500/10 border-red-500/20', 'circle-alert', false],
       blocked: ['Blocked', 'text-amber-300 bg-amber-500/10 border-amber-500/20', 'triangle-alert', false],
       ready: [pack.installed ? 'Ready' : 'Ready to add', 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20', 'circle-check', false],
@@ -455,7 +453,7 @@
 
   function actionForPack(pack, inspection, job) {
     const busy = job?.state === 'queued' || job?.state === 'running';
-    const retryable = job?.state === 'failed' || job?.state === 'interrupted' || job?.state === 'canceled';
+    const retryable = job?.state === 'failed' || job?.state === 'interrupted';
     if (busy) return {label: job?.cancelRequested ? 'Canceling…' : 'Cancel setup', disabled: Boolean(job?.cancelRequested), primary: false, danger: !job?.cancelRequested, icon: job?.cancelRequested ? 'loader-2' : 'circle-stop', spin: Boolean(job?.cancelRequested)};
     if (retryable) return {label: 'Retry setup', disabled: false, primary: true, icon: 'rotate-ccw'};
     if (inspection?.missingNodes?.length) return {label: 'Required nodes missing', disabled: true, primary: false, icon: 'blocks'};
@@ -585,6 +583,7 @@
   function setLatestJobs(jobs) {
     const next = new Map();
     (jobs || []).forEach((job) => {
+      if (job?.state === 'canceled') return;
       const key = installKey(job.serverUrl, job.packId);
       if (!next.has(key)) next.set(key, job);
     });
@@ -704,6 +703,12 @@
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Could not cancel workflow setup.');
       const job = data.job;
+      if (job?.state === 'canceled') {
+        jobByKey.delete(installKey(job.serverUrl, job.packId));
+        setLibraryStatus('Setup canceled. The incomplete download was removed.', 'neutral');
+        await refreshCatalog({skipJobs: true});
+        return;
+      }
       if (job) jobByKey.set(installKey(job.serverUrl, job.packId), job);
       setLibraryStatus('Cancel requested. Orange will stop after the current network read finishes.', 'warning');
       renderCatalog();
@@ -751,7 +756,7 @@
     }
 
     setLibraryStatus(
-      existingJob?.state === 'failed' || existingJob?.state === 'interrupted' || existingJob?.state === 'canceled'
+      existingJob?.state === 'failed' || existingJob?.state === 'interrupted'
         ? 'Retrying workflow setup…'
         : inspection?.ready
           ? 'Adding workflow and running the final check…'
@@ -760,7 +765,7 @@
     );
 
     try {
-      const retry = existingJob?.state === 'failed' || existingJob?.state === 'interrupted' || existingJob?.state === 'canceled';
+      const retry = existingJob?.state === 'failed' || existingJob?.state === 'interrupted';
       const url = retry
         ? `/api/admin/workflow-packs/install-jobs/${encodeURIComponent(existingJob.id)}/retry`
         : '/api/admin/workflow-packs/install-jobs';
