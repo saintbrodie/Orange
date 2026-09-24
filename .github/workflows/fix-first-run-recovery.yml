@@ -1,0 +1,301 @@
+name: Fix first-run setup recovery
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch first-run setup
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # Export the existing persistent workflow-pack scheduler for setup.py.
+          path = Path('app/api/workflow_pack_admin.py')
+          text = path.read_text()
+          text = text.replace('def _schedule_install_job(job_id: str) -> None:', 'def schedule_install_job(job_id: str) -> None:')
+          text = text.replace('_schedule_install_job(job["id"])', 'schedule_install_job(job["id"])')
+          path.write_text(text)
+
+          # Convert first-run selected packs from synchronous downloads to persistent jobs.
+          path = Path('app/api/setup.py')
+          text = path.read_text()
+          text = text.replace('import os\n', 'import os\nimport secrets\n', 1)
+          text = text.replace(
+              'from app.core.workflow_pack_probe import (\n',
+              'from app.api.workflow_pack_admin import schedule_install_job\nfrom app.core.workflow_install_jobs import create_job\nfrom app.core.workflow_pack_probe import (\n',
+              1,
+          )
+          marker = '@router.post("/api/setup/complete")\n'
+          head = text.split(marker, 1)[0]
+          new_func = r'''@router.post("/api/setup/complete")
+          async def complete_setup(payload: dict, request: Request):
+              _require_setup_client(request)
+
+              admin_key = str(payload.get("adminKey") or "").strip()
+              if not setup_required():
+                  # A browser can disappear while a previous first-run request is still
+                  # finishing. Treat an identical local retry as recovery instead of
+                  # trapping the user on a stale wizard with a 409.
+                  configured_key = str(load_config().get("adminKey") or "")
+                  if admin_key and configured_key and secrets.compare_digest(admin_key, configured_key):
+                      return {
+                          "status": "already_complete",
+                          "alreadyComplete": True,
+                          "redirect": "/admin",
+                          "managedPromptEnhancer": get_managed_prompt_status(),
+                      }
+                  raise HTTPException(
+                      status_code=409,
+                      detail="Initial setup is already complete. Open Admin and sign in with the password created during setup.",
+                  )
+
+              if len(admin_key) < 8:
+                  raise HTTPException(status_code=400, detail="Admin password must be at least 8 characters")
+
+              comfy_url = _normalize_url(payload.get("comfyUrl") or "http://127.0.0.1:8188")
+              requested_root = str(payload.get("modelsRoot") or "").strip() or None
+              known_packs = {str(pack["id"]) for pack in list_workflow_packs()}
+              selected_packs = _selected_pack_ids(payload, known_packs)
+              use_managed_prompt = bool(payload.get("managedPromptEnhancer", False))
+              managed_prompt_status = get_managed_prompt_status()
+              if use_managed_prompt and not managed_prompt_status.get("supported"):
+                  raise HTTPException(
+                      status_code=400,
+                      detail=f"Managed Local prompt enhancement is not packaged for {managed_prompt_status.get('platform', 'this platform')}.",
+                  )
+
+              object_info, _queue, system_stats = await _read_backend_metadata(comfy_url)
+              hardware = summarize_system_stats(system_stats)
+              models_root = resolve_models_root(requested_root)
+
+              server = {"url": comfy_url, "priority": 1}
+              if models_root:
+                  server["modelsRoot"] = models_root
+
+              config = dict(load_config())
+              config["tools"] = []
+              if use_managed_prompt:
+                  config["llm"] = {
+                      "enabled": True,
+                      "provider": "managed",
+                      "baseUrl": "",
+                      "apiKey": "",
+                      "model": MANAGED_MODEL_ID,
+                  }
+              config["adminKey"] = admin_key
+              config["comfyServers"] = [server]
+              save_config(config)
+              mark_setup_complete()
+              await backend_manager.refresh_all()
+
+              pack_results = []
+              for pack_id in selected_packs:
+                  manifest = get_workflow_pack(pack_id)
+                  inspection = inspect_workflow_pack(pack_id, object_info, system_stats)
+                  result = {
+                      "pack": pack_id,
+                      "name": manifest.get("name"),
+                      "queued": False,
+                      "jobId": None,
+                      "error": None,
+                      "inspection": _inspection_payload(manifest, inspection, models_root),
+                  }
+                  if inspection.get("missingNodes"):
+                      result["error"] = "This ComfyUI build is missing required workflow nodes."
+                  elif inspection.get("unknownModels"):
+                      result["error"] = "ComfyUI did not expose enough model inventory to install this workflow safely."
+                  elif not inspection.get("ready") and not models_root:
+                      result["error"] = "Required models are missing and Orange does not have a writable models folder for this backend."
+                  else:
+                      try:
+                          job, created = create_job(pack_id, comfy_url, models_root)
+                          if created:
+                              schedule_install_job(job["id"])
+                          result["queued"] = True
+                          result["jobId"] = job["id"]
+                          result["jobState"] = job.get("state")
+                      except Exception as exc:
+                          result["error"] = str(exc)
+                  pack_results.append(result)
+
+              enhancer_result = None
+              if use_managed_prompt:
+                  try:
+                      enhancer_result = schedule_managed_prompt_install()
+                  except Exception as exc:
+                      enhancer_result = {"state": "failed", "error": str(exc)}
+
+              return {
+                  "status": "success",
+                  "comfyUrl": comfy_url,
+                  "hardware": hardware,
+                  "selectedPackCount": len(selected_packs),
+                  "queuedPackCount": sum(1 for item in pack_results if item.get("queued")),
+                  "packs": pack_results,
+                  "managedPromptEnhancer": enhancer_result,
+              }
+          '''
+          # Dedent the embedded function from workflow YAML/Python indentation.
+          import textwrap
+          path.write_text(head + marker + textwrap.dedent(new_func).split(marker, 1)[1])
+
+          # Make the browser recover from a lost first-run response and redirect
+          # immediately once background work has been queued.
+          path = Path('static/setup.js')
+          text = path.read_text()
+          text = text.replace(
+              '''  if (!setupStatus.required) {\n    window.location.replace("/");\n    return;\n  }''',
+              '''  if (!setupStatus.required) {\n    const recoveryKey = localStorage.getItem("orange_setup_recovery_key");\n    if (recoveryKey && recoveryKey.length >= 8) {\n      localStorage.setItem("orange_admin_key", recoveryKey);\n      localStorage.removeItem("orange_setup_recovery_key");\n    }\n    window.location.replace("/admin");\n    return;\n  }''',
+              1,
+          )
+          start = text.index('async function finishSetup() {')
+          end = text.index('$("test-backend").addEventListener', start)
+          new_finish = r'''async function finishSetup() {
+            const button = $("finish-setup");
+            const adminKey = $("admin-key").value;
+            if (adminKey.length < 8) {
+              setStatus($("setup-result"), "Create an Admin password with at least 8 characters.", "error");
+              return;
+            }
+            if (!backendOk) {
+              await testBackend();
+              if (!backendOk) {
+                // The first request may have completed while this stale setup page
+                // was hidden. Recheck setup status before reporting a backend error.
+                try {
+                  const statusResponse = await fetch("/api/setup/status");
+                  const status = await statusResponse.json();
+                  if (statusResponse.ok && status.required === false) {
+                    localStorage.setItem("orange_admin_key", adminKey);
+                    localStorage.removeItem("orange_setup_recovery_key");
+                    window.location.replace("/admin");
+                    return;
+                  }
+                } catch (_) { /* fall through to normal error */ }
+                setStatus($("setup-result"), "Connect to ComfyUI successfully before finishing setup.", "error");
+                return;
+              }
+            }
+
+            const packs = selectedPacks();
+            const managedEnhancerSelected = !!$("managed-enhancer")?.checked;
+            localStorage.setItem("orange_setup_recovery_key", adminKey);
+            if (packs.length) localStorage.setItem("orange_tools_subtab", "curated");
+            button.disabled = true;
+            setStatus(
+              $("setup-result"),
+              packs.length || managedEnhancerSelected
+                ? "Saving Orange and starting selected downloads in the background…"
+                : "Saving Orange…",
+            );
+
+            try {
+              const response = await fetch("/api/setup/complete", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                  comfyUrl: $("comfy-url").value.trim(),
+                  modelsRoot: $("models-root").value.trim(),
+                  adminKey,
+                  selectedPacks: packs,
+                  managedPromptEnhancer: managedEnhancerSelected,
+                }),
+              });
+              const data = await response.json();
+              if (!response.ok) {
+                throw new Error(typeof data.detail === "string" ? data.detail : (data.detail?.message || "Setup failed"));
+              }
+
+              localStorage.setItem("orange_admin_key", adminKey);
+              localStorage.removeItem("orange_setup_recovery_key");
+
+              if (data.alreadyComplete) {
+                setStatus($("setup-result"), "✓ Setup already finished. Opening Admin…", "ok");
+                setTimeout(() => window.location.replace(data.redirect || "/admin"), 250);
+                return;
+              }
+
+              const problems = (data.packs || []).filter((pack) => pack.error);
+              const queued = Number(data.queuedPackCount || 0);
+              const parts = [];
+              if (queued) parts.push(`${queued} curated tool setup${queued === 1 ? "" : "s"} running`);
+              if (managedEnhancerSelected) parts.push("Gemma 4 downloading");
+              if (problems.length) parts.push(`${problems.length} tool${problems.length === 1 ? "" : "s"} need attention`);
+              setStatus(
+                $("setup-result"),
+                `✓ Orange setup is complete${parts.length ? ` · ${parts.join(" · ")}` : ""}. Opening Admin…`,
+                problems.length ? "" : "ok",
+              );
+              setTimeout(() => window.location.replace("/admin"), 500);
+            } catch (error) {
+              // A lost browser response is recoverable: if the backend says setup
+              // is now complete, promote the pending admin key and leave the wizard.
+              try {
+                const statusResponse = await fetch("/api/setup/status");
+                const status = await statusResponse.json();
+                if (statusResponse.ok && status.required === false) {
+                  localStorage.setItem("orange_admin_key", adminKey);
+                  localStorage.removeItem("orange_setup_recovery_key");
+                  window.location.replace("/admin");
+                  return;
+                }
+              } catch (_) { /* preserve the original error */ }
+              setStatus($("setup-result"), error.message, "error");
+              button.disabled = false;
+            }
+          }
+
+          async function recoverCompletedSetup() {
+            if (document.hidden) return;
+            try {
+              const response = await fetch("/api/setup/status", {cache: "no-store"});
+              if (!response.ok) return;
+              const status = await response.json();
+              if (status.required === false) {
+                const key = localStorage.getItem("orange_setup_recovery_key");
+                if (key && key.length >= 8) localStorage.setItem("orange_admin_key", key);
+                localStorage.removeItem("orange_setup_recovery_key");
+                window.location.replace("/admin");
+              }
+            } catch (_) { /* normal setup interactions will surface real errors */ }
+          }
+
+          '''
+          text = text[:start] + textwrap.dedent(new_finish) + text[end:]
+          text += '\nwindow.addEventListener("focus", recoverCompletedSetup);\ndocument.addEventListener("visibilitychange", recoverCompletedSetup);\n'
+          path.write_text(text)
+
+          # Add focused regression coverage.
+          path = Path('tests/test_setup_api.py')
+          text = path.read_text()
+          insertion = '''\n    def test_setup_frontend_has_lost_response_recovery(self):\n        source = (os.path.join(os.path.dirname(__file__), "..", "static", "setup.js"))\n        with open(source, "r", encoding="utf-8") as handle:\n            javascript = handle.read()\n        self.assertIn("orange_setup_recovery_key", javascript)\n        self.assertIn("recoverCompletedSetup", javascript)\n        self.assertIn('window.location.replace("/admin")', javascript)\n\n    def test_setup_uses_persistent_workflow_jobs(self):\n        source = (os.path.join(os.path.dirname(__file__), "..", "app", "api", "setup.py"))\n        with open(source, "r", encoding="utf-8") as handle:\n            setup_source = handle.read()\n        self.assertIn("create_job(pack_id, comfy_url, models_root)", setup_source)\n        self.assertIn("schedule_install_job(job[\\"id\\"])", setup_source)\n        complete_body = setup_source.split('@router.post("/api/setup/complete")', 1)[1]\n        self.assertNotIn("await asyncio.to_thread(\\n                    install_workflow_pack", complete_body)\n'''
+          text = text.replace('\n\nif __name__ == "__main__":', insertion + '\n\nif __name__ == "__main__":')
+          path.write_text(text)
+          PY
+
+          python -m compileall -q app tests
+          node --check static/setup.js
+          python -m unittest tests.test_setup_api -v
+          python -m unittest discover -s tests -v
+      - name: Commit patch
+        shell: bash
+        run: |
+          rm .github/workflows/fix-first-run-recovery.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/api/setup.py app/api/workflow_pack_admin.py static/setup.js tests/test_setup_api.py .github/workflows/fix-first-run-recovery.yml
+          git commit -m 'Make first-run downloads recoverable'
+          git push
