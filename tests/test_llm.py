@@ -7,6 +7,7 @@ import httpx
 from app.core.llm import (
     LLMConfigError,
     LLMError,
+    _ollama_native_base,
     _request_timeout,
     call_llm,
     validate_base_url,
@@ -80,6 +81,12 @@ class LLMValidationTests(unittest.TestCase):
         with patch.dict(os.environ, {"ORANGE_LLM_TIMEOUT_SECONDS": "240"}, clear=False):
             timeout = _request_timeout("openai", "http://127.0.0.1:11434/v1")
         self.assertEqual(timeout.read, 240.0)
+
+    def test_ollama_native_base_strips_openai_v1_suffix(self):
+        self.assertEqual(
+            _ollama_native_base("http://192.168.1.50:11434/v1"),
+            "http://192.168.1.50:11434",
+        )
 
 
 class LLMCallTests(unittest.IsolatedAsyncioTestCase):
