@@ -45,17 +45,18 @@ def _resolve_tool_llm(tool_id: str):
     if tool_enhance.get("enabled", True) is False:
         raise HTTPException(status_code=400, detail="Prompt enhancement is disabled for this tool.")
 
-    def resolved(name: str, default=None):
-        value = tool_enhance.get(name)
-        if value not in (None, ""):
-            return value
-        return global_llm.get(name, default)
+    # Provider connection settings are global. A tool may override the model,
+    # but must not silently retain an old provider, base URL, or API key after
+    # the global prompt-enhancement provider changes.
+    model = tool_enhance.get("model")
+    if model in (None, ""):
+        model = global_llm.get("model")
 
     return {
-        "provider": resolved("provider", "openai"),
-        "base_url": resolved("baseUrl"),
-        "api_key": resolved("apiKey"),
-        "model": resolved("model"),
+        "provider": global_llm.get("provider", "openai"),
+        "base_url": global_llm.get("baseUrl"),
+        "api_key": global_llm.get("apiKey"),
+        "model": model,
         "system_prompt": get_system_prompt(tool_id),
     }
 
@@ -81,6 +82,10 @@ async def enhance_prompt(
         )
 
     settings = _resolve_tool_llm(tool_id)
+    print(
+        f"Prompt enhancement request tool={tool_id} provider={settings['provider']} "
+        f"model={settings['model']} base_url={settings['base_url']}"
+    )
     try:
         enhanced = await call_llm(
             provider=settings["provider"],
