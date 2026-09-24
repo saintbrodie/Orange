@@ -87,10 +87,15 @@ function renderPacks() {
 }
 
 async function loadStatus() {
-  const response = await fetch("/api/setup/status");
+  const response = await fetch("/api/setup/status", {cache: "no-store"});
   setupStatus = await response.json();
   if (!setupStatus.required) {
-    window.location.replace("/");
+    const recoveryKey = localStorage.getItem("orange_setup_recovery_key");
+    if (recoveryKey && recoveryKey.length >= 8) {
+      localStorage.setItem("orange_admin_key", recoveryKey);
+      localStorage.removeItem("orange_setup_recovery_key");
+    }
+    window.location.replace("/admin");
     return;
   }
 
@@ -174,13 +179,6 @@ function selectedPacks() {
   return Array.from(document.querySelectorAll("[data-pack-id]:checked")).map((input) => input.dataset.packId);
 }
 
-function selectedNeedsDownloads(packIds) {
-  return packIds.some((packId) => {
-    const inspection = compatibilityByPack.get(packId);
-    return inspection && !inspection.ready && (inspection.downloadPlan?.length || inspection.missingModels?.length);
-  });
-}
-
 async function finishSetup() {
   const button = $("finish-setup");
   const adminKey = $("admin-key").value;
@@ -191,20 +189,32 @@ async function finishSetup() {
   if (!backendOk) {
     await testBackend();
     if (!backendOk) {
+      try {
+        const statusResponse = await fetch("/api/setup/status", {cache: "no-store"});
+        const status = await statusResponse.json();
+        if (statusResponse.ok && status.required === false) {
+          localStorage.setItem("orange_admin_key", adminKey);
+          localStorage.removeItem("orange_setup_recovery_key");
+          window.location.replace("/admin");
+          return;
+        }
+      } catch (_) { /* fall through */ }
       setStatus($("setup-result"), "Connect to ComfyUI successfully before finishing setup.", "error");
       return;
     }
   }
 
   const packs = selectedPacks();
+  const managedEnhancerSelected = !!$("managed-enhancer")?.checked;
+  localStorage.setItem("orange_setup_recovery_key", adminKey);
+  if (packs.length) localStorage.setItem("orange_tools_subtab", "curated");
   button.disabled = true;
-  if (!packs.length) {
-    setStatus($("setup-result"), "Saving Orange with no curated tools selected…");
-  } else if (selectedNeedsDownloads(packs)) {
-    setStatus($("setup-result"), "Installing only the missing model files, binding the workflows, and running Preflight…");
-  } else {
-    setStatus($("setup-result"), "Adding the selected workflows using models already on this ComfyUI…");
-  }
+  setStatus(
+    $("setup-result"),
+    packs.length || managedEnhancerSelected
+      ? "Saving Orange and starting selected downloads in the background…"
+      : "Saving Orange…",
+  );
 
   try {
     const response = await fetch("/api/setup/complete", {
@@ -215,7 +225,7 @@ async function finishSetup() {
         modelsRoot: $("models-root").value.trim(),
         adminKey,
         selectedPacks: packs,
-        managedPromptEnhancer: !!$("managed-enhancer")?.checked,
+        managedPromptEnhancer: managedEnhancerSelected,
       }),
     });
     const data = await response.json();
@@ -224,36 +234,55 @@ async function finishSetup() {
     }
 
     localStorage.setItem("orange_admin_key", adminKey);
-    const managedEnhancerSelected = !!$("managed-enhancer")?.checked;
-    const failures = (data.packs || []).filter((pack) => !pack.installed);
-    if (failures.length) {
-      setStatus(
-        $("setup-result"),
-        `✓ Orange setup is complete. ${failures.map((pack) => `${pack.name || pack.pack}: ${pack.error || "not added"}`).join(" · ")}`,
-        "ok",
-      );
-      setTimeout(() => window.location.replace(managedEnhancerSelected ? "/admin" : (data.installedPackCount ? "/" : "/admin")), 2800);
+    localStorage.removeItem("orange_setup_recovery_key");
+
+    if (data.alreadyComplete) {
+      setStatus($("setup-result"), "✓ Setup already finished. Opening Admin…", "ok");
+      setTimeout(() => window.location.replace(data.redirect || "/admin"), 250);
       return;
     }
 
-    if (managedEnhancerSelected) {
-      setStatus($("setup-result"), "✓ Orange is ready. Gemma 4 is downloading in the background; opening Admin to show progress…", "ok");
-      setTimeout(() => window.location.replace("/admin"), 900);
-    } else if (!packs.length) {
-      setStatus($("setup-result"), "✓ Orange is ready with no curated tools installed. Opening Admin…", "ok");
-      setTimeout(() => window.location.replace("/admin"), 900);
-    } else {
-      setStatus(
-        $("setup-result"),
-        `✓ Orange is ready with ${data.installedPackCount} curated tool${data.installedPackCount === 1 ? "" : "s"}. Opening Generate…`,
-        "ok",
-      );
-      setTimeout(() => window.location.replace("/"), 900);
-    }
+    const problems = (data.packs || []).filter((pack) => pack.error);
+    const queued = Number(data.queuedPackCount || 0);
+    const parts = [];
+    if (queued) parts.push(`${queued} curated tool setup${queued === 1 ? "" : "s"} running`);
+    if (managedEnhancerSelected) parts.push("Gemma 4 downloading");
+    if (problems.length) parts.push(`${problems.length} tool${problems.length === 1 ? "" : "s"} need attention`);
+    setStatus(
+      $("setup-result"),
+      `✓ Orange setup is complete${parts.length ? ` · ${parts.join(" · ")}` : ""}. Opening Admin…`,
+      problems.length ? "" : "ok",
+    );
+    setTimeout(() => window.location.replace("/admin"), 500);
   } catch (error) {
+    try {
+      const statusResponse = await fetch("/api/setup/status", {cache: "no-store"});
+      const status = await statusResponse.json();
+      if (statusResponse.ok && status.required === false) {
+        localStorage.setItem("orange_admin_key", adminKey);
+        localStorage.removeItem("orange_setup_recovery_key");
+        window.location.replace("/admin");
+        return;
+      }
+    } catch (_) { /* preserve original error */ }
     setStatus($("setup-result"), error.message, "error");
     button.disabled = false;
   }
+}
+
+async function recoverCompletedSetup() {
+  if (document.hidden) return;
+  try {
+    const response = await fetch("/api/setup/status", {cache: "no-store"});
+    if (!response.ok) return;
+    const status = await response.json();
+    if (status.required === false) {
+      const key = localStorage.getItem("orange_setup_recovery_key");
+      if (key && key.length >= 8) localStorage.setItem("orange_admin_key", key);
+      localStorage.removeItem("orange_setup_recovery_key");
+      window.location.replace("/admin");
+    }
+  } catch (_) { /* normal setup interactions surface real errors */ }
 }
 
 $("test-backend").addEventListener("click", testBackend);
@@ -268,5 +297,8 @@ $("models-root").addEventListener("change", () => {
   backendOk = false;
   setStatus($("backend-result"), "Models path changed — scan again to refresh the download plan.");
 });
+
+window.addEventListener("focus", recoverCompletedSetup);
+document.addEventListener("visibilitychange", recoverCompletedSetup);
 
 loadStatus().catch((error) => setStatus($("setup-result"), `Could not load setup: ${error.message}`, "error"));
