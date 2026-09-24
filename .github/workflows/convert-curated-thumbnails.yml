@@ -13,15 +13,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Convert thumbnails with ffmpeg
+      - name: Install WebP decoder
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq webp
+      - name: Recover thumbnails
         run: |
           set -euxo pipefail
           file static/curated-thumbnails/z-image-turbo.webp
           file static/curated-thumbnails/seedvr2-7b-upscale.webp
-          ffmpeg -y -err_detect ignore_err -i static/curated-thumbnails/z-image-turbo.webp static/curated-thumbnails/z-image-turbo.png
-          ffmpeg -y -err_detect ignore_err -i static/curated-thumbnails/seedvr2-7b-upscale.webp static/curated-thumbnails/seedvr2-7b-upscale.png
+          dwebp static/curated-thumbnails/z-image-turbo.webp -o static/curated-thumbnails/z-image-turbo.png
+          dwebp static/curated-thumbnails/seedvr2-7b-upscale.webp -o static/curated-thumbnails/seedvr2-7b-upscale.png
           test -s static/curated-thumbnails/z-image-turbo.png
           test -s static/curated-thumbnails/seedvr2-7b-upscale.png
+          file static/curated-thumbnails/z-image-turbo.png | grep -q 'PNG image data'
+          file static/curated-thumbnails/seedvr2-7b-upscale.png | grep -q 'PNG image data'
       - name: Update manifests and tests
         run: |
           python - <<'PY'
@@ -40,7 +46,7 @@ jobs:
           test.write_text(text)
           PY
           rm static/curated-thumbnails/z-image-turbo.webp static/curated-thumbnails/seedvr2-7b-upscale.webp
-      - name: Commit converted thumbnails
+      - name: Commit recovered thumbnails
         run: |
           rm .github/workflows/convert-curated-thumbnails.yml
           git config user.name 'github-actions[bot]'
