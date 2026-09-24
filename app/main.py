@@ -133,8 +133,9 @@ def serve_admin():
             '    <script src="/static/workflow-assets.js?v=2"></script>\n'
             '    <script src="/static/personalization.js?v=1"></script>\n'
             '    <script src="/static/personalization-tab-state.js?v=1"></script>\n'
-            '    <script src="/static/managed-comfyui.js?v=2"></script>\n'
-            '    <script src="/static/managed-prompt-enhancer.js?v=1"></script>\n'
+            '    <script src="/static/admin-layout.js?v=1"></script>\n'
+            '    <script src="/static/managed-comfyui.js?v=3"></script>\n'
+            '    <script src="/static/managed-prompt-enhancer.js?v=2"></script>\n'
             '    <script src="/static/mobile-navigation.js?v=4"></script>\n'
             "</body>",
         )
