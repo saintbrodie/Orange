@@ -1,0 +1,55 @@
+name: Fix Ollama prompt adapter
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch Ollama prompt routing
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('app/core/llm.py')
+          t = p.read_text()
+
+          old = '''def _endpoint(base_url: Optional[str], default_base: str, suffix: str) -> str:\n    base = (base_url or default_base).rstrip("/")\n    return f"{base}/{suffix.lstrip('/')}"\n\n\n'''
+          new = '''def _endpoint(base_url: Optional[str], default_base: str, suffix: str) -> str:\n    base = (base_url or default_base).rstrip("/")\n    return f"{base}/{suffix.lstrip('/')}"\n\n\ndef _ollama_native_base(base_url: Optional[str]) -> str:\n    base = validate_base_url(base_url) or "http://127.0.0.1:11434"\n    parsed = urlsplit(base)\n    path = parsed.path.rstrip("/")\n    if path.endswith("/v1"):\n        path = path[:-3].rstrip("/")\n    return urlunsplit((parsed.scheme, parsed.netloc, path, "", "")).rstrip("/")\n\n\ndef _is_ollama_endpoint(provider: str, base_url: Optional[str]) -> bool:\n    if provider == "ollama":\n        return True\n    if provider != "openai" or not base_url:\n        return False\n    parsed = urlsplit(base_url)\n    hostname = (parsed.hostname or "").lower()\n    try:\n        port = parsed.port\n    except ValueError:\n        port = None\n    return port == 11434 or hostname == "ollama" or hostname.startswith("ollama.")\n\n\n'''
+          if old not in t:
+              raise SystemExit('endpoint insertion anchor not found')
+          t = t.replace(old, new, 1)
+
+          old = '''    timeout = _request_timeout(provider, base_url)\n    async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:\n        if provider in {"openai", "managed"}:\n            url = _endpoint(base_url, "https://api.openai.com/v1", "chat/completions")\n            headers = {"Authorization": f"Bearer {resolved_key}"} if resolved_key else {}\n            data = await _post_json(\n                client,\n                url,\n                payload={\n                    "model": model,\n                    "messages": [\n                        {"role": "system", "content": system_prompt},\n                        {"role": "user", "content": prompt},\n                    ],\n                    "stream": False,\n                },\n                headers=headers,\n                resolved_key=resolved_key,\n            )\n            try:\n                return _clean_output(data["choices"][0]["message"]["content"])\n            except (KeyError, IndexError, TypeError):\n                raise LLMError(\n                    "Prompt enhancement service returned an invalid response.",\n                    "OpenAI-compatible response was missing choices[0].message.content.",\n                )\n\n        if provider == "ollama":\n            url = _endpoint(base_url, "http://127.0.0.1:11434", "api/chat")\n            data = await _post_json(\n                client,\n                url,\n                payload={\n                    "model": model,\n                    "messages": [\n                        {"role": "system", "content": system_prompt},\n                        {"role": "user", "content": prompt},\n                    ],\n                    "stream": False,\n                },\n            )\n            try:\n                return _clean_output(data["message"]["content"])\n            except (KeyError, TypeError):\n                raise LLMError(\n                    "Prompt enhancement service returned an invalid response.",\n                    "Ollama response was missing message.content.",\n                )\n\n'''
+          new = '''    timeout = _request_timeout(provider, base_url)\n    async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:\n        # Keep the UI provider list simple, but use Ollama's native chat API when\n        # the configured OpenAI-compatible URL is clearly an Ollama server. The\n        # native API lets Orange disable reasoning/thinking for this short task.\n        if _is_ollama_endpoint(provider, base_url):\n            url = _endpoint(_ollama_native_base(base_url), "http://127.0.0.1:11434", "api/chat")\n            headers = {"Authorization": f"Bearer {resolved_key}"} if resolved_key else {}\n            data = await _post_json(\n                client,\n                url,\n                payload={\n                    "model": model,\n                    "messages": [\n                        {"role": "system", "content": system_prompt},\n                        {"role": "user", "content": prompt},\n                    ],\n                    "stream": False,\n                    "think": False,\n                    "options": {"num_predict": _max_tokens()},\n                },\n                headers=headers,\n                resolved_key=resolved_key,\n            )\n            try:\n                return _clean_output(data["message"]["content"])\n            except (KeyError, TypeError):\n                raise LLMError(\n                    "Prompt enhancement service returned an invalid response.",\n                    "Ollama response was missing message.content.",\n                )\n\n        if provider in {"openai", "managed"}:\n            url = _endpoint(base_url, "https://api.openai.com/v1", "chat/completions")\n            headers = {"Authorization": f"Bearer {resolved_key}"} if resolved_key else {}\n            data = await _post_json(\n                client,\n                url,\n                payload={\n                    "model": model,\n                    "messages": [\n                        {"role": "system", "content": system_prompt},\n                        {"role": "user", "content": prompt},\n                    ],\n                    "stream": False,\n                    "max_tokens": _max_tokens(),\n                },\n                headers=headers,\n                resolved_key=resolved_key,\n            )\n            try:\n                return _clean_output(data["choices"][0]["message"]["content"])\n            except (KeyError, IndexError, TypeError):\n                raise LLMError(\n                    "Prompt enhancement service returned an invalid response.",\n                    "OpenAI-compatible response was missing choices[0].message.content.",\n                )\n\n'''
+          if old not in t:
+              raise SystemExit('call_llm replacement anchor not found')
+          p.write_text(t.replace(old, new, 1))
+
+          p = Path('tests/test_llm.py')
+          t = p.read_text()
+          t = t.replace('''        self.assertFalse(kwargs["json"]["stream"])\n''', '''        self.assertFalse(kwargs["json"]["stream"])\n        self.assertEqual(kwargs["json"]["max_tokens"], 512)\n''', 1)
+          anchor = '''    async def test_provider_error_body_redacts_api_key(self):\n'''
+          test = '''    async def test_ollama_openai_url_uses_native_chat_without_thinking(self):\n        _FakeAsyncClient.response = _response(\n            json_data={"message": {"content": "enhanced"}}\n        )\n        with patch("app.core.llm.httpx.AsyncClient", _FakeAsyncClient):\n            result = await call_llm(\n                "openai",\n                "http://192.168.1.50:11434/v1",\n                None,\n                "qwen3:8b",\n                "system",\n                "prompt",\n            )\n        self.assertEqual(result, "enhanced")\n        method, url, kwargs = _FakeAsyncClient.calls[0]\n        self.assertEqual(method, "POST")\n        self.assertEqual(url, "http://192.168.1.50:11434/api/chat")\n        self.assertFalse(kwargs["json"]["stream"])\n        self.assertFalse(kwargs["json"]["think"])\n        self.assertEqual(kwargs["json"]["options"]["num_predict"], 512)\n\n'''
+          if anchor not in t:
+              raise SystemExit('test insertion anchor not found')
+          p.write_text(t.replace(anchor, test + anchor, 1))
+          PY
+          python -m pip install -r requirements.txt
+          python -m unittest tests.test_llm -v
+          python -m compileall -q app tests
+      - name: Commit fix and remove workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/core/llm.py tests/test_llm.py
+          git rm .github/workflows/fix-ollama-adapter.yml
+          git commit -m 'Route Ollama prompt enhancement through native chat API'
+          git push
