@@ -1,0 +1,64 @@
+name: Convert custom curated thumbnails
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Convert and validate thumbnails
+        run: |
+          python -m pip install --quiet pillow
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path('static/curated-thumbnails')
+          for stem in ('z-image-turbo', 'seedvr2-7b-upscale'):
+              source = root / f'{stem}.webp'
+              target = root / f'{stem}.png'
+              image = Image.open(source).convert('RGB')
+              extrema = image.getextrema()
+              if not image.getbbox() or all(low == high for low, high in extrema):
+                  raise SystemExit(f'{source} appears blank or uniform')
+              image.save(target, 'PNG', optimize=True)
+              if target.stat().st_size < 1000:
+                  raise SystemExit(f'{target} is unexpectedly small')
+          PY
+      - name: Update manifests and tests
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for manifest in (
+              Path('workflow-packs/z-image-turbo/manifest.json'),
+              Path('workflow-packs/seedvr2-7b-upscale/manifest.json'),
+          ):
+              text = manifest.read_text()
+              text = text.replace('.webp"', '.png"')
+              manifest.write_text(text)
+          test = Path('tests/test_release_polish.py')
+          text = test.read_text()
+          text = text.replace('z-image-turbo.webp', 'z-image-turbo.png')
+          text = text.replace('seedvr2-7b-upscale.webp', 'seedvr2-7b-upscale.png')
+          text = text.replace("self.assertEqual(data[:4], b\"RIFF\")\n            self.assertEqual(data[8:12], b\"WEBP\")", "self.assertEqual(data[:8], b\"\\x89PNG\\r\\n\\x1a\\n\")")
+          test.write_text(text)
+          PY
+          rm static/curated-thumbnails/z-image-turbo.webp static/curated-thumbnails/seedvr2-7b-upscale.webp
+      - name: Commit converted thumbnails
+        run: |
+          rm .github/workflows/convert-curated-thumbnails.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add static/curated-thumbnails workflow-packs tests/test_release_polish.py .github/workflows/convert-curated-thumbnails.yml
+          git commit -m 'Fix custom curated thumbnails'
+          git push
