@@ -16,16 +16,15 @@ class ReleasePolishTests(unittest.TestCase):
     def test_curated_manifests_point_to_real_local_thumbnails(self):
         root = Path(__file__).resolve().parents[1]
         expected = {
-            "z-image-turbo": "z-image-turbo.webp",
-            "seedvr2-7b-upscale": "seedvr2-7b-upscale.webp",
+            "z-image-turbo": "z-image-turbo.jpg",
+            "seedvr2-7b-upscale": "seedvr2-7b-upscale.jpg",
         }
         for pack_id, filename in expected.items():
             manifest = json.loads((root / "workflow-packs" / pack_id / "manifest.json").read_text())
             self.assertEqual(manifest["thumbnail"], f"/static/curated-thumbnails/{filename}")
             data = (root / "static" / "curated-thumbnails" / filename).read_bytes()
             self.assertGreater(len(data), 1000)
-            self.assertEqual(data[:4], b"RIFF")
-            self.assertEqual(data[8:12], b"WEBP")
+            self.assertEqual(data[:3], b"\xff\xd8\xff")
 
     def test_download_summary_and_disk_guard(self):
         plan = [
