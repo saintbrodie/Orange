@@ -52,6 +52,23 @@ class SetupApiTests(unittest.TestCase):
             ["z-image-turbo", "krea-2-turbo"],
         )
 
+    def test_setup_frontend_has_lost_response_recovery(self):
+        source = os.path.join(os.path.dirname(__file__), "..", "static", "setup.js")
+        with open(source, "r", encoding="utf-8") as handle:
+            javascript = handle.read()
+        self.assertIn("orange_setup_recovery_key", javascript)
+        self.assertIn("recoverCompletedSetup", javascript)
+        self.assertIn('window.location.replace("/admin")', javascript)
+
+    def test_setup_uses_persistent_workflow_jobs(self):
+        source = os.path.join(os.path.dirname(__file__), "..", "app", "api", "setup.py")
+        with open(source, "r", encoding="utf-8") as handle:
+            setup_source = handle.read()
+        self.assertIn("create_job(pack_id, comfy_url, models_root)", setup_source)
+        self.assertIn('schedule_install_job(job["id"])', setup_source)
+        complete_body = setup_source.split('@router.post("/api/setup/complete")', 1)[1]
+        self.assertNotIn("await asyncio.to_thread", complete_body)
+
 
 if __name__ == "__main__":
     unittest.main()
