@@ -34,12 +34,12 @@ class CuratedThumbnailTests(unittest.TestCase):
             with (root / "static" / "curated-thumbnails" / filename).open("rb") as handle:
                 self.assertEqual(handle.read(8), png_signature)
 
-    def test_orange_provided_thumbnails_are_webp(self):
+    def test_orange_provided_thumbnails_are_jpegs(self):
         root = Path(__file__).resolve().parents[1]
-        for filename in ("z-image-turbo.webp", "seedvr2-7b-upscale.webp"):
+        for filename in ("z-image-turbo.jpg", "seedvr2-7b-upscale.jpg"):
             data = (root / "static" / "curated-thumbnails" / filename).read_bytes()
-            self.assertEqual(data[:4], b"RIFF")
-            self.assertEqual(data[8:12], b"WEBP")
+            self.assertGreater(len(data), 1000)
+            self.assertEqual(data[:3], b"\xff\xd8\xff")
 
 
 if __name__ == "__main__":
