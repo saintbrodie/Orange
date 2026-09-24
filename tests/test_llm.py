@@ -116,9 +116,9 @@ class LLMCallTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(kwargs["json"]["stream"])
         self.assertEqual(kwargs["json"]["max_tokens"], 512)
 
-    async def test_ollama_openai_url_uses_native_chat_without_thinking(self):
+    async def test_ollama_openai_url_uses_native_generate_without_thinking(self):
         _FakeAsyncClient.response = _response(
-            json_data={"message": {"content": "enhanced"}}
+            json_data={"response": "enhanced"}
         )
         with patch("app.core.llm.httpx.AsyncClient", _FakeAsyncClient):
             result = await call_llm(
@@ -132,7 +132,9 @@ class LLMCallTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, "enhanced")
         method, url, kwargs = _FakeAsyncClient.calls[0]
         self.assertEqual(method, "POST")
-        self.assertEqual(url, "http://192.168.1.50:11434/api/chat")
+        self.assertEqual(url, "http://192.168.1.50:11434/api/generate")
+        self.assertEqual(kwargs["json"]["system"], "system")
+        self.assertEqual(kwargs["json"]["prompt"], "prompt")
         self.assertFalse(kwargs["json"]["stream"])
         self.assertFalse(kwargs["json"]["think"])
         self.assertEqual(kwargs["json"]["options"]["num_predict"], 512)

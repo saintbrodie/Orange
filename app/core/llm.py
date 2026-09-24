@@ -278,21 +278,21 @@ async def call_llm(
 
     timeout = _request_timeout(provider, base_url)
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
-        # Keep the UI provider list simple, but use Ollama's native chat API when
-        # the configured OpenAI-compatible URL is clearly an Ollama server. The
-        # native API lets Orange disable reasoning/thinking for this short task.
+        # Keep the UI provider list simple, but use Ollama's native one-shot
+        # generation API when the configured OpenAI-compatible URL is clearly
+        # an Ollama server. Prompt enhancement is a transform, not a chat, and
+        # /api/generate gives us direct system/prompt fields plus thinking control.
         if _is_ollama_endpoint(provider, base_url):
-            url = _endpoint(_ollama_native_base(base_url), "http://127.0.0.1:11434", "api/chat")
+            url = _endpoint(_ollama_native_base(base_url), "http://127.0.0.1:11434", "api/generate")
             headers = {"Authorization": f"Bearer {resolved_key}"} if resolved_key else {}
+            print(f"Prompt enhancement LLM route=ollama-generate model={model} url={url}")
             data = await _post_json(
                 client,
                 url,
                 payload={
                     "model": model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt},
-                    ],
+                    "system": system_prompt,
+                    "prompt": prompt,
                     "stream": False,
                     "think": False,
                     "options": {"num_predict": _max_tokens()},
@@ -301,11 +301,11 @@ async def call_llm(
                 resolved_key=resolved_key,
             )
             try:
-                return _clean_output(data["message"]["content"])
+                return _clean_output(data["response"])
             except (KeyError, TypeError):
                 raise LLMError(
                     "Prompt enhancement service returned an invalid response.",
-                    "Ollama response was missing message.content.",
+                    "Ollama response was missing response text.",
                 )
 
         if provider in {"openai", "managed"}:
