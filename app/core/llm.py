@@ -88,7 +88,24 @@ def _timeout_seconds() -> float:
         value = float(os.environ.get("ORANGE_LLM_TIMEOUT_SECONDS", "30"))
     except (TypeError, ValueError):
         value = 30.0
-    return min(120.0, max(3.0, value))
+    return min(600.0, max(3.0, value))
+
+
+def _request_timeout(provider: str, base_url: Optional[str]) -> httpx.Timeout:
+    """Keep connection failures fast while allowing local models time to cold-start."""
+    configured = _timeout_seconds()
+    is_local_runtime = (
+        provider == "managed"
+        or provider == "ollama"
+        or (provider == "openai" and _is_local_url(base_url))
+    )
+    read_timeout = max(180.0, configured) if is_local_runtime else configured
+    return httpx.Timeout(
+        connect=min(10.0, configured),
+        read=read_timeout,
+        write=min(30.0, read_timeout),
+        pool=min(30.0, read_timeout),
+    )
 
 
 def _max_tokens() -> int:
@@ -236,11 +253,7 @@ async def call_llm(
     resolved_key = resolve_api_key(provider, api_key)
     _require_cloud_key(provider, base_url, resolved_key)
 
-    # A sleeping managed model may need to reload several GB from disk before
-    # producing its first token, so give the private local runtime more headroom
-    # than normal network providers.
-    timeout_seconds = max(120.0, _timeout_seconds()) if provider == "managed" else _timeout_seconds()
-    timeout = httpx.Timeout(timeout_seconds)
+    timeout = _request_timeout(provider, base_url)
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
         if provider in {"openai", "managed"}:
             url = _endpoint(base_url, "https://api.openai.com/v1", "chat/completions")
@@ -254,6 +267,7 @@ async def call_llm(
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": prompt},
                     ],
+                    "stream": False,
                 },
                 headers=headers,
                 resolved_key=resolved_key,
