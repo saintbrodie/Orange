@@ -1,15 +1,18 @@
 import asyncio
 import ipaddress
 import os
+import secrets
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
 
+from app.api.workflow_pack_admin import _schedule_install_job as schedule_install_job
 from app.core.backends import backend_manager, workflow_compatibility_key
 from app.core.config import get_base_workflow, load_config, save_config
 from app.core.onboarding import detect_install_mode, managed_comfy_dir, managed_models_root, mark_setup_complete, setup_required
 from app.core.managed_prompt_enhancer import MANAGED_MODEL_ID, get_status as get_managed_prompt_status, schedule_install as schedule_managed_prompt_install
 from app.core.preflight import run_preflight
+from app.core.workflow_install_jobs import create_job
 from app.core.workflow_pack_probe import (
     inspect_workflow_pack,
     plan_selected_models,
@@ -129,8 +132,6 @@ async def _preflight_pack(pack_id: str, server: dict) -> tuple[dict, bool]:
 def _selected_pack_ids(payload: dict, known_packs: set[str]) -> list[str]:
     requested = payload.get("selectedPacks")
     if requested is None:
-        # Backward compatibility with the first onboarding UI shipped before all
-        # curated packs became optional.
         requested = []
         if payload.get("installStarter"):
             requested.append("z-image-turbo")
@@ -210,9 +211,22 @@ async def test_setup_backend(payload: dict, request: Request):
 @router.post("/api/setup/complete")
 async def complete_setup(payload: dict, request: Request):
     _require_setup_client(request)
-    _require_setup_pending()
 
     admin_key = str(payload.get("adminKey") or "").strip()
+    if not setup_required():
+        configured_key = str(load_config().get("adminKey") or "")
+        if admin_key and configured_key and secrets.compare_digest(admin_key, configured_key):
+            return {
+                "status": "already_complete",
+                "alreadyComplete": True,
+                "redirect": "/admin",
+                "managedPromptEnhancer": get_managed_prompt_status(),
+            }
+        raise HTTPException(
+            status_code=409,
+            detail="Initial setup is already complete. Open Admin and sign in with the password created during setup.",
+        )
+
     if len(admin_key) < 8:
         raise HTTPException(status_code=400, detail="Admin password must be at least 8 characters")
 
@@ -236,8 +250,6 @@ async def complete_setup(payload: dict, request: Request):
     if models_root:
         server["modelsRoot"] = models_root
 
-    # A fresh Orange install is valid with no curated tools at all. Advanced
-    # users can connect their own ComfyUI and build/import tools later.
     config = dict(load_config())
     config["tools"] = []
     if use_managed_prompt:
@@ -248,72 +260,41 @@ async def complete_setup(payload: dict, request: Request):
             "apiKey": "",
             "model": MANAGED_MODEL_ID,
         }
-    pack_results = []
-
-    for pack_id in selected_packs:
-        manifest = get_workflow_pack(pack_id)
-        inspection = inspect_workflow_pack(pack_id, object_info, system_stats)
-        pack_result = {
-            "pack": pack_id,
-            "name": manifest.get("name"),
-            "installed": False,
-            "mode": None,
-            "error": None,
-            "inspection": _inspection_payload(manifest, inspection, models_root),
-        }
-        try:
-            if inspection.get("ready"):
-                materialize_workflow_pack(pack_id, inspection.get("selectedModels") or [])
-                pack_result["mode"] = "existing"
-            else:
-                if inspection.get("missingNodes"):
-                    pack_result["error"] = "This ComfyUI build is missing required workflow nodes."
-                    pack_results.append(pack_result)
-                    continue
-                if inspection.get("unknownModels"):
-                    pack_result["error"] = "ComfyUI did not expose enough model inventory to install this workflow safely."
-                    pack_results.append(pack_result)
-                    continue
-                if not models_root:
-                    pack_result["error"] = "Required models are missing and Orange does not have a writable models folder for this backend."
-                    pack_results.append(pack_result)
-                    continue
-
-                selected_models = selection_for_install(inspection)
-                install_result = await asyncio.to_thread(
-                    install_workflow_pack,
-                    pack_id,
-                    models_root,
-                    system_stats,
-                    True,
-                    selected_models,
-                )
-                pack_result["mode"] = "downloaded"
-                pack_result["downloadPlan"] = plan_selected_models(inspection.get("recommendedDownloads") or [], models_root)
-                pack_result["installedFiles"] = install_result.get("installed", [])
-                pack_result["skippedFiles"] = install_result.get("skipped", [])
-                if install_result.get("failures"):
-                    pack_result["error"] = "One or more model downloads failed."
-                    pack_result["downloadFailures"] = install_result["failures"]
-                    pack_results.append(pack_result)
-                    continue
-
-            preflight, routable = await _preflight_pack(pack_id, server)
-            pack_result["preflight"] = preflight.get("summary", {})
-            if routable:
-                config = add_pack_tool_to_config(config, pack_id)
-                pack_result["installed"] = True
-            else:
-                pack_result["error"] = "The workflow was prepared, but this backend is not routable for it."
-        except Exception as exc:
-            pack_result["error"] = str(exc)
-        pack_results.append(pack_result)
-
     config["adminKey"] = admin_key
     config["comfyServers"] = [server]
     save_config(config)
     mark_setup_complete()
     await backend_manager.refresh_all()
+
+    pack_results = []
+    for pack_id in selected_packs:
+        manifest = get_workflow_pack(pack_id)
+        inspection = inspect_workflow_pack(pack_id, object_info, system_stats)
+        result = {
+            "pack": pack_id,
+            "name": manifest.get("name"),
+            "queued": False,
+            "jobId": None,
+            "error": None,
+            "inspection": _inspection_payload(manifest, inspection, models_root),
+        }
+        if inspection.get("missingNodes"):
+            result["error"] = "This ComfyUI build is missing required workflow nodes."
+        elif inspection.get("unknownModels"):
+            result["error"] = "ComfyUI did not expose enough model inventory to install this workflow safely."
+        elif not inspection.get("ready") and not models_root:
+            result["error"] = "Required models are missing and Orange does not have a writable models folder for this backend."
+        else:
+            try:
+                job, created = create_job(pack_id, comfy_url, models_root)
+                if created:
+                    schedule_install_job(job["id"])
+                result["queued"] = True
+                result["jobId"] = job["id"]
+                result["jobState"] = job.get("state")
+            except Exception as exc:
+                result["error"] = str(exc)
+        pack_results.append(result)
 
     enhancer_result = None
     if use_managed_prompt:
@@ -327,7 +308,7 @@ async def complete_setup(payload: dict, request: Request):
         "comfyUrl": comfy_url,
         "hardware": hardware,
         "selectedPackCount": len(selected_packs),
-        "installedPackCount": sum(1 for item in pack_results if item.get("installed")),
+        "queuedPackCount": sum(1 for item in pack_results if item.get("queued")),
         "packs": pack_results,
         "managedPromptEnhancer": enhancer_result,
     }
