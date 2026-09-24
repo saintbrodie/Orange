@@ -31,7 +31,7 @@
 
         card = document.createElement('div');
         card.id = 'managed-comfyui-card';
-        card.className = 'hidden mt-4 rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4';
+        card.className = 'hidden mt-4 rounded-2xl border border-sky-900/50 bg-sky-950/10 p-4';
         section.appendChild(card);
         return card;
     }
@@ -120,13 +120,13 @@
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <div class="flex flex-wrap items-center gap-2">
-                        <i data-lucide="cpu" class="h-4 w-4 text-orange-500"></i>
-                        <h4 class="text-sm font-semibold text-zinc-200">Managed ComfyUI</h4>
+                        <i data-lucide="server-cog" class="h-4 w-4 text-sky-400"></i>
+                        <h4 class="text-sm font-semibold text-zinc-200">Managed ComfyUI Runtime</h4>
                         ${channelBadge(data)}
                     </div>
-                    <p class="mt-1 text-xs text-zinc-500">Orange reports and validates this runtime. Pinokio remains responsible for changing ComfyUI versions.</p>
+                    <p class="mt-1 text-xs text-zinc-500">The image-generation runtime managed by Pinokio. Orange reports its version and validates installed tools against it.</p>
                 </div>
-                <button id="managed-comfy-refresh" class="rounded-lg border border-zinc-800 bg-zinc-900 p-2 text-zinc-500 hover:text-zinc-300" title="Refresh runtime status"><i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i></button>
+                <button id="managed-comfy-refresh" class="rounded-lg border border-sky-900/40 bg-sky-950/20 p-2 text-sky-500/70 hover:text-sky-300" title="Refresh runtime status"><i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i></button>
             </div>
 
             <div class="mt-4 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
@@ -138,13 +138,13 @@
 
             ${failedToolsMarkup(data)}
 
-            <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-zinc-800/80 pt-3">
-                ${data.returnToTestedAvailable ? '<button id="managed-comfy-return-tested" class="rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-[11px] font-semibold text-orange-300 hover:bg-orange-500/15">Return to Orange-tested</button>' : ''}
+            <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-sky-900/30 pt-3">
+                ${data.returnToTestedAvailable ? '<button id="managed-comfy-return-tested" class="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/15">Return to Orange-tested</button>' : ''}
                 ${data.canRollback ? '<span class="text-[10px] text-zinc-600">A one-click rollback is available in Pinokio.</span>' : ''}
                 ${data.matchesTested ? '<span class="text-[10px] text-emerald-500/80">This is the ComfyUI revision Orange currently ships as known-good.</span>' : ''}
             </div>
-            <div id="managed-comfy-pinokio-help" class="hidden mt-3 rounded-lg border border-orange-500/20 bg-orange-500/5 p-3 text-[11px] leading-relaxed text-zinc-400">
-                Stop Orange in Pinokio, then choose <span class="font-semibold text-orange-300">Update ComfyUI (Orange-tested)</span>. Start Orange again and it will automatically rerun Workflow Preflight against the installed tools.
+            <div id="managed-comfy-pinokio-help" class="hidden mt-3 rounded-lg border border-sky-500/20 bg-sky-500/5 p-3 text-[11px] leading-relaxed text-zinc-400">
+                Stop Orange in Pinokio, then choose <span class="font-semibold text-sky-300">Update ComfyUI (Orange-tested)</span>. Start Orange again and it will automatically rerun Workflow Preflight against the installed tools.
             </div>
         `;
         card.classList.remove('hidden');
