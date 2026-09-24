@@ -107,6 +107,28 @@ class LLMCallTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(url, "http://127.0.0.1:1234/v1/chat/completions")
         self.assertNotIn("Authorization", kwargs.get("headers", {}))
         self.assertFalse(kwargs["json"]["stream"])
+        self.assertEqual(kwargs["json"]["max_tokens"], 512)
+
+    async def test_ollama_openai_url_uses_native_chat_without_thinking(self):
+        _FakeAsyncClient.response = _response(
+            json_data={"message": {"content": "enhanced"}}
+        )
+        with patch("app.core.llm.httpx.AsyncClient", _FakeAsyncClient):
+            result = await call_llm(
+                "openai",
+                "http://192.168.1.50:11434/v1",
+                None,
+                "qwen3:8b",
+                "system",
+                "prompt",
+            )
+        self.assertEqual(result, "enhanced")
+        method, url, kwargs = _FakeAsyncClient.calls[0]
+        self.assertEqual(method, "POST")
+        self.assertEqual(url, "http://192.168.1.50:11434/api/chat")
+        self.assertFalse(kwargs["json"]["stream"])
+        self.assertFalse(kwargs["json"]["think"])
+        self.assertEqual(kwargs["json"]["options"]["num_predict"], 512)
 
     async def test_provider_error_body_redacts_api_key(self):
         secret = "sk-super-secret-test-key"

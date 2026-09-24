@@ -128,6 +128,29 @@ def _endpoint(base_url: Optional[str], default_base: str, suffix: str) -> str:
     return f"{base}/{suffix.lstrip('/')}"
 
 
+def _ollama_native_base(base_url: Optional[str]) -> str:
+    base = validate_base_url(base_url) or "http://127.0.0.1:11434"
+    parsed = urlsplit(base)
+    path = parsed.path.rstrip("/")
+    if path.endswith("/v1"):
+        path = path[:-3].rstrip("/")
+    return urlunsplit((parsed.scheme, parsed.netloc, path, "", "")).rstrip("/")
+
+
+def _is_ollama_endpoint(provider: str, base_url: Optional[str]) -> bool:
+    if provider == "ollama":
+        return True
+    if provider != "openai" or not base_url:
+        return False
+    parsed = urlsplit(base_url)
+    hostname = (parsed.hostname or "").lower()
+    try:
+        port = parsed.port
+    except ValueError:
+        port = None
+    return port == 11434 or hostname == "ollama" or hostname.startswith("ollama.")
+
+
 def _anthropic_endpoint(base_url: Optional[str], endpoint: str) -> str:
     base = (base_url or "https://api.anthropic.com").rstrip("/")
     if base.endswith("/v1"):
@@ -255,6 +278,36 @@ async def call_llm(
 
     timeout = _request_timeout(provider, base_url)
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
+        # Keep the UI provider list simple, but use Ollama's native chat API when
+        # the configured OpenAI-compatible URL is clearly an Ollama server. The
+        # native API lets Orange disable reasoning/thinking for this short task.
+        if _is_ollama_endpoint(provider, base_url):
+            url = _endpoint(_ollama_native_base(base_url), "http://127.0.0.1:11434", "api/chat")
+            headers = {"Authorization": f"Bearer {resolved_key}"} if resolved_key else {}
+            data = await _post_json(
+                client,
+                url,
+                payload={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "stream": False,
+                    "think": False,
+                    "options": {"num_predict": _max_tokens()},
+                },
+                headers=headers,
+                resolved_key=resolved_key,
+            )
+            try:
+                return _clean_output(data["message"]["content"])
+            except (KeyError, TypeError):
+                raise LLMError(
+                    "Prompt enhancement service returned an invalid response.",
+                    "Ollama response was missing message.content.",
+                )
+
         if provider in {"openai", "managed"}:
             url = _endpoint(base_url, "https://api.openai.com/v1", "chat/completions")
             headers = {"Authorization": f"Bearer {resolved_key}"} if resolved_key else {}
@@ -268,6 +321,7 @@ async def call_llm(
                         {"role": "user", "content": prompt},
                     ],
                     "stream": False,
+                    "max_tokens": _max_tokens(),
                 },
                 headers=headers,
                 resolved_key=resolved_key,
@@ -278,28 +332,6 @@ async def call_llm(
                 raise LLMError(
                     "Prompt enhancement service returned an invalid response.",
                     "OpenAI-compatible response was missing choices[0].message.content.",
-                )
-
-        if provider == "ollama":
-            url = _endpoint(base_url, "http://127.0.0.1:11434", "api/chat")
-            data = await _post_json(
-                client,
-                url,
-                payload={
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt},
-                    ],
-                    "stream": False,
-                },
-            )
-            try:
-                return _clean_output(data["message"]["content"])
-            except (KeyError, TypeError):
-                raise LLMError(
-                    "Prompt enhancement service returned an invalid response.",
-                    "Ollama response was missing message.content.",
                 )
 
         if provider == "gemini":
