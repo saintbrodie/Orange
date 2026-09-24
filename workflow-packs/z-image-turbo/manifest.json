@@ -6,7 +6,7 @@
   "tagline": "Fast everyday image generation with a simple stock-ComfyUI workflow.",
   "highlights": ["Text to image", "Fast", "Stock nodes"],
   "recommended": true,
-  "thumbnail": "/static/curated-thumbnails/z-image-turbo.webp",
+  "thumbnail": "/static/curated-thumbnails/z-image-turbo.jpg",
   "thumbnailAlt": "Example image generated with Z-Image Turbo",
   "workflowFile": "image_z_image_turbo.json",
   "tool": {
