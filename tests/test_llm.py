@@ -7,6 +7,7 @@ import httpx
 from app.core.llm import (
     LLMConfigError,
     LLMError,
+    _request_timeout,
     call_llm,
     validate_base_url,
     validate_model,
@@ -63,6 +64,23 @@ class LLMValidationTests(unittest.TestCase):
         with self.assertRaises(LLMConfigError):
             validate_model("x" * 257)
 
+    def test_local_openai_compatible_timeout_allows_cold_start(self):
+        with patch.dict(os.environ, {"ORANGE_LLM_TIMEOUT_SECONDS": "30"}, clear=False):
+            timeout = _request_timeout("openai", "http://192.168.1.50:11434/v1")
+        self.assertEqual(timeout.connect, 10.0)
+        self.assertEqual(timeout.read, 180.0)
+
+    def test_cloud_timeout_keeps_configured_read_limit(self):
+        with patch.dict(os.environ, {"ORANGE_LLM_TIMEOUT_SECONDS": "30"}, clear=False):
+            timeout = _request_timeout("openai", "https://api.openai.com/v1")
+        self.assertEqual(timeout.connect, 10.0)
+        self.assertEqual(timeout.read, 30.0)
+
+    def test_timeout_env_can_raise_local_read_limit(self):
+        with patch.dict(os.environ, {"ORANGE_LLM_TIMEOUT_SECONDS": "240"}, clear=False):
+            timeout = _request_timeout("openai", "http://127.0.0.1:11434/v1")
+        self.assertEqual(timeout.read, 240.0)
+
 
 class LLMCallTests(unittest.IsolatedAsyncioTestCase):
     async def test_openai_default_requires_key(self):
@@ -88,6 +106,7 @@ class LLMCallTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(method, "POST")
         self.assertEqual(url, "http://127.0.0.1:1234/v1/chat/completions")
         self.assertNotIn("Authorization", kwargs.get("headers", {}))
+        self.assertFalse(kwargs["json"]["stream"])
 
     async def test_provider_error_body_redacts_api_key(self):
         secret = "sk-super-secret-test-key"
