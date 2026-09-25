@@ -1,0 +1,95 @@
+name: Vendor theme fonts
+
+on:
+  push:
+    paths:
+      - '.github/workflows/vendor-theme-fonts.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download and convert Google Fonts assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet 'fonttools[woff]' brotli
+          mkdir -p static/fonts/licenses /tmp/orange-fonts
+
+          curl -fL 'https://raw.githubusercontent.com/google/fonts/main/apache/permanentmarker/PermanentMarker-Regular.ttf' -o /tmp/orange-fonts/PermanentMarker-Regular.ttf
+          curl -fL 'https://raw.githubusercontent.com/google/fonts/main/ofl/jersey25/Jersey25-Regular.ttf' -o /tmp/orange-fonts/Jersey25-Regular.ttf
+          curl -fL 'https://raw.githubusercontent.com/google/fonts/main/ofl/sacramento/Sacramento-Regular.ttf' -o /tmp/orange-fonts/Sacramento-Regular.ttf
+          curl -fL 'https://raw.githubusercontent.com/google/fonts/main/ofl/fraunces/Fraunces%5BSOFT%2CWONK%2Copsz%2Cwght%5D.ttf' -o '/tmp/orange-fonts/Fraunces-variable.ttf'
+          curl -fL 'https://raw.githubusercontent.com/google/fonts/main/ofl/facultyglyphic/FacultyGlyphic-Regular.ttf' -o /tmp/orange-fonts/FacultyGlyphic-Regular.ttf
+
+          python - <<'PY'
+          from pathlib import Path
+          from fontTools.ttLib import TTFont
+
+          pairs = [
+              ('PermanentMarker-Regular.ttf', 'permanent-marker.woff2'),
+              ('Jersey25-Regular.ttf', 'jersey-25.woff2'),
+              ('Sacramento-Regular.ttf', 'sacramento.woff2'),
+              ('Fraunces-variable.ttf', 'fraunces-variable.woff2'),
+              ('FacultyGlyphic-Regular.ttf', 'faculty-glyphic.woff2'),
+          ]
+          src_dir = Path('/tmp/orange-fonts')
+          out_dir = Path('static/fonts')
+          for src_name, out_name in pairs:
+              font = TTFont(src_dir / src_name)
+              font.flavor = 'woff2'
+              font.save(out_dir / out_name)
+              print(out_name, (out_dir / out_name).stat().st_size)
+          PY
+
+          curl -fL 'https://raw.githubusercontent.com/google/fonts/main/apache/permanentmarker/LICENSE.txt' -o static/fonts/licenses/Permanent-Marker-Apache-2.0.txt
+          curl -fL 'https://raw.githubusercontent.com/google/fonts/main/ofl/jersey25/OFL.txt' -o static/fonts/licenses/Jersey-25-OFL-1.1.txt
+          curl -fL 'https://raw.githubusercontent.com/google/fonts/main/ofl/sacramento/OFL.txt' -o static/fonts/licenses/Sacramento-OFL-1.1.txt
+          curl -fL 'https://raw.githubusercontent.com/google/fonts/main/ofl/fraunces/OFL.txt' -o static/fonts/licenses/Fraunces-OFL-1.1.txt
+          curl -fL 'https://raw.githubusercontent.com/google/fonts/main/ofl/facultyglyphic/OFL.txt' -o static/fonts/licenses/Faculty-Glyphic-OFL-1.1.txt
+
+          cat > static/fonts/README.md <<'EOF'
+          # Vendored theme title fonts
+
+          These fonts are bundled with Orange so all theme branding works completely offline.
+
+          - Arcade: Permanent Marker — Google Fonts `apache/permanentmarker` — Apache-2.0
+          - Cyber: Jersey 25 — Google Fonts `ofl/jersey25` — SIL OFL 1.1
+          - Princess: Sacramento — Google Fonts `ofl/sacramento` — SIL OFL 1.1
+          - Adventure: Fraunces — Google Fonts `ofl/fraunces` — SIL OFL 1.1
+          - Midnight: Faculty Glyphic — Google Fonts `ofl/facultyglyphic` — SIL OFL 1.1
+
+          The checked-in WOFF2 files are locally served by Orange. No Google Fonts/CDN request is made at runtime.
+          Original license texts are in `licenses/`.
+          EOF
+
+      - name: Validate vendored fonts
+        shell: bash
+        run: |
+          test -s static/fonts/permanent-marker.woff2
+          test -s static/fonts/jersey-25.woff2
+          test -s static/fonts/sacramento.woff2
+          test -s static/fonts/fraunces-variable.woff2
+          test -s static/fonts/faculty-glyphic.woff2
+          test -s static/fonts/licenses/Permanent-Marker-Apache-2.0.txt
+          test -s static/fonts/licenses/Jersey-25-OFL-1.1.txt
+          test -s static/fonts/licenses/Sacramento-OFL-1.1.txt
+          test -s static/fonts/licenses/Fraunces-OFL-1.1.txt
+          test -s static/fonts/licenses/Faculty-Glyphic-OFL-1.1.txt
+
+      - name: Commit fonts and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm .github/workflows/vendor-theme-fonts.yml
+          git add static/fonts .github/workflows/vendor-theme-fonts.yml
+          git commit -m 'Vendor offline theme title fonts'
+          git push
