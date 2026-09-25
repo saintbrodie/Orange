@@ -43,6 +43,26 @@ jobs:
             echo 'First-run setup should use the Orange cat-head brand, not a literal orange emoji.'
             exit 1
           fi
+      - name: Validate offline theme fonts
+        run: |
+          for font in \
+            static/fonts/permanent-marker.woff2 \
+            static/fonts/jersey-25.woff2 \
+            static/fonts/sacramento.woff2 \
+            static/fonts/fraunces-variable.woff2 \
+            static/fonts/faculty-glyphic.woff2; do
+            test -s "$font"
+          done
+          grep -q 'Orange Permanent Marker' static/brand-theme.css
+          grep -q 'Orange Jersey 25' static/brand-theme.css
+          grep -q 'Orange Sacramento' static/brand-theme.css
+          grep -q 'Orange Fraunces' static/brand-theme.css
+          grep -q 'Orange Faculty Glyphic' static/brand-theme.css
+          grep -q 'preview.dataset.orangeEffect = selectedTheme' static/personalization.js
+          if grep -Eq 'fonts\.(googleapis|gstatic)\.com' static/brand-theme.css; then
+            echo 'Theme fonts must remain fully local/offline.'
+            exit 1
+          fi
       - name: Validate Admin tools library
         run: |
           grep -q '/static/workflow-pack-library.js' static/admin.html
