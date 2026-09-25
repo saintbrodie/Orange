@@ -72,15 +72,13 @@ html[data-orange-effect="princess"] h1.bg-gradient-to-br,
   letter-spacing: 0 !important;
 }
 
-/* Sacramento has a deep lowercase descender. Give the Admin title a roomier
-   line box and lift it slightly so letters such as g are not clipped while the
-   script remains optically centered beside the mascot. */
+/* Sacramento has a deep lowercase descender. Keep its natural baseline and
+   provide enough line-box room that letters such as g are not clipped. */
 html[data-orange-effect="princess"] nav h1.bg-gradient-to-br {
   display: inline-block !important;
   line-height: 1.35 !important;
   padding-bottom: .16em !important;
   margin-bottom: -.16em !important;
-  transform: translateY(-2px);
   overflow: visible !important;
 }
 
