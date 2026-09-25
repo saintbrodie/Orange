@@ -1,0 +1,6 @@
+html[data-orange-effect="arcade"] nav h1 {
+  background: none !important;
+  color: #ff2d2d !important;
+  -webkit-text-fill-color: #ff2d2d !important;
+  text-shadow: 0 0 12px rgba(255, 45, 45, 0.28) !important;
+}
