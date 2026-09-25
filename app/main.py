@@ -68,7 +68,7 @@ THEME_HEAD = (
     '    <link rel="stylesheet" href="/static/theme.css?v=2">\n'
     '    <link rel="stylesheet" href="/static/theme-legacy-bridge.css?v=2">\n'
     '    <link rel="stylesheet" href="/static/theme-effects-v2.css?v=12">\n'
-    '    <link rel="stylesheet" href="/static/brand-theme.css?v=1">\n'
+    '    <link rel="stylesheet" href="/static/brand-theme.css?v=2">\n'
     '    <script src="/static/theme-runtime.js?v=4" defer></script>\n'
     '    <script src="/static/theme-effects.js?v=5" defer></script>\n'
 )
@@ -133,7 +133,7 @@ def serve_admin():
             '    <script src="/static/backend-status.js?v=3"></script>\n'
             '    <script src="/static/tool-ratios.js?v=1"></script>\n'
             '    <script src="/static/workflow-assets.js?v=2"></script>\n'
-            '    <script src="/static/personalization.js?v=1"></script>\n'
+            '    <script src="/static/personalization.js?v=2"></script>\n'
             '    <script src="/static/personalization-tab-state.js?v=1"></script>\n'
             '    <script src="/static/admin-layout.js?v=1"></script>\n'
             '    <script src="/static/managed-comfyui.js?v=4"></script>\n'

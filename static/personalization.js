@@ -157,6 +157,7 @@
     if (!state) return;
     const palette = currentPalette();
     const preview = document.getElementById('personalization-preview');
+    preview.dataset.orangeEffect = selectedTheme;
     preview.style.setProperty('--preview-accent', palette.accent || '#f97316');
     preview.style.setProperty('--preview-accent-2', palette.accentSecondary || '#ea580c');
     preview.style.setProperty('--preview-bg', palette.background || '#09090b');

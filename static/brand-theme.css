@@ -1,41 +1,102 @@
-/* Shared brand-title typography for Orange themes.
-   Uses only system/local font stacks so themes stay fully offline. */
+/* Shared title typography for Orange themes.
+   Every font below is vendored under /static/fonts so Orange remains fully offline. */
 
-html[data-orange-effect="cyber"] h1.bg-gradient-to-br {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
-  letter-spacing: .055em !important;
-  font-weight: 800 !important;
+@font-face {
+  font-family: "Orange Permanent Marker";
+  src: url("/static/fonts/permanent-marker.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
 }
 
-html[data-orange-effect="princess"] h1.bg-gradient-to-br {
-  font-family: Georgia, "Times New Roman", serif !important;
-  font-style: italic !important;
-  letter-spacing: .01em !important;
-  font-weight: 700 !important;
+@font-face {
+  font-family: "Orange Jersey 25";
+  src: url("/static/fonts/jersey-25.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
 }
 
-html[data-orange-effect="adventure"] h1.bg-gradient-to-br {
-  font-family: Rockwell, "Roboto Slab", "Trebuchet MS", Georgia, serif !important;
-  letter-spacing: .035em !important;
-  font-weight: 800 !important;
+@font-face {
+  font-family: "Orange Sacramento";
+  src: url("/static/fonts/sacramento.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
 }
 
-html[data-orange-effect="midnight"] h1.bg-gradient-to-br {
-  font-family: Georgia, "Times New Roman", serif !important;
-  letter-spacing: .045em !important;
-  font-weight: 700 !important;
+@font-face {
+  font-family: "Orange Fraunces";
+  src: url("/static/fonts/fraunces-variable.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
 }
 
-/* Arcade uses the same cabinet-style title treatment on Admin and the user UI. */
-html[data-orange-effect="arcade"] h1.bg-gradient-to-br {
+@font-face {
+  font-family: "Orange Faculty Glyphic";
+  src: url("/static/fonts/faculty-glyphic.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+/* The real Admin/user title and the Personalization live preview share the same theme treatment. */
+html[data-orange-effect="arcade"] h1.bg-gradient-to-br,
+#personalization-preview[data-orange-effect="arcade"] .preview-name {
+  font-family: "Orange Permanent Marker", "Arial Black", sans-serif !important;
+  font-style: normal !important;
+  font-weight: 400 !important;
+  letter-spacing: .025em !important;
   background: none !important;
   color: #ff2d2d !important;
   -webkit-text-fill-color: #ff2d2d !important;
-  font-family: Impact, Haettenschweiler, "Arial Black", sans-serif !important;
-  font-style: italic !important;
-  letter-spacing: .045em !important;
-  font-weight: 900 !important;
   text-shadow:
-    0 0 5px rgba(255, 45, 45, .68),
-    0 0 14px rgba(255, 45, 45, .36) !important;
+    0 0 5px rgba(255,45,45,.72),
+    0 0 14px rgba(255,45,45,.40) !important;
+}
+
+html[data-orange-effect="cyber"] h1.bg-gradient-to-br,
+#personalization-preview[data-orange-effect="cyber"] .preview-name {
+  font-family: "Orange Jersey 25", ui-monospace, monospace !important;
+  font-style: normal !important;
+  font-weight: 400 !important;
+  letter-spacing: .055em !important;
+}
+
+html[data-orange-effect="princess"] h1.bg-gradient-to-br,
+#personalization-preview[data-orange-effect="princess"] .preview-name {
+  font-family: "Orange Sacramento", cursive !important;
+  font-style: normal !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+}
+
+html[data-orange-effect="adventure"] h1.bg-gradient-to-br,
+#personalization-preview[data-orange-effect="adventure"] .preview-name {
+  font-family: "Orange Fraunces", Georgia, serif !important;
+  font-style: normal !important;
+  font-weight: 780 !important;
+  letter-spacing: .015em !important;
+}
+
+html[data-orange-effect="midnight"] h1.bg-gradient-to-br,
+#personalization-preview[data-orange-effect="midnight"] .preview-name {
+  font-family: "Orange Faculty Glyphic", Georgia, serif !important;
+  font-style: normal !important;
+  font-weight: 400 !important;
+  letter-spacing: .035em !important;
+}
+
+/* Preview titles are intentionally a little larger for expressive display faces. */
+#personalization-preview[data-orange-effect="arcade"] .preview-name,
+#personalization-preview[data-orange-effect="cyber"] .preview-name,
+#personalization-preview[data-orange-effect="adventure"] .preview-name,
+#personalization-preview[data-orange-effect="midnight"] .preview-name {
+  font-size: 15px;
+  line-height: 1.05;
+}
+#personalization-preview[data-orange-effect="princess"] .preview-name {
+  font-size: 19px;
+  line-height: 1.05;
 }
