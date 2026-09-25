@@ -123,7 +123,8 @@ def serve_admin():
         content = content.replace(
             "</head>",
             THEME_HEAD
-            + '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=3">\n</head>',
+            + '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=3">\n'
+            + '    <link rel="stylesheet" href="/static/admin-theme-overrides.css?v=1">\n</head>',
         )
         content = content.replace(
             "</body>",
@@ -136,6 +137,7 @@ def serve_admin():
             '    <script src="/static/admin-layout.js?v=1"></script>\n'
             '    <script src="/static/managed-comfyui.js?v=4"></script>\n'
             '    <script src="/static/managed-prompt-enhancer.js?v=3"></script>\n'
+            '    <script src="/static/llm-model-select.js?v=1"></script>\n'
             '    <script src="/static/mobile-navigation.js?v=4"></script>\n'
             "</body>",
         )
