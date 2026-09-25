@@ -1,0 +1,41 @@
+/* Shared brand-title typography for Orange themes.
+   Uses only system/local font stacks so themes stay fully offline. */
+
+html[data-orange-effect="cyber"] h1.bg-gradient-to-br {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
+  letter-spacing: .055em !important;
+  font-weight: 800 !important;
+}
+
+html[data-orange-effect="princess"] h1.bg-gradient-to-br {
+  font-family: Georgia, "Times New Roman", serif !important;
+  font-style: italic !important;
+  letter-spacing: .01em !important;
+  font-weight: 700 !important;
+}
+
+html[data-orange-effect="adventure"] h1.bg-gradient-to-br {
+  font-family: Rockwell, "Roboto Slab", "Trebuchet MS", Georgia, serif !important;
+  letter-spacing: .035em !important;
+  font-weight: 800 !important;
+}
+
+html[data-orange-effect="midnight"] h1.bg-gradient-to-br {
+  font-family: Georgia, "Times New Roman", serif !important;
+  letter-spacing: .045em !important;
+  font-weight: 700 !important;
+}
+
+/* Arcade uses the same cabinet-style title treatment on Admin and the user UI. */
+html[data-orange-effect="arcade"] h1.bg-gradient-to-br {
+  background: none !important;
+  color: #ff2d2d !important;
+  -webkit-text-fill-color: #ff2d2d !important;
+  font-family: Impact, Haettenschweiler, "Arial Black", sans-serif !important;
+  font-style: italic !important;
+  letter-spacing: .045em !important;
+  font-weight: 900 !important;
+  text-shadow:
+    0 0 5px rgba(255, 45, 45, .68),
+    0 0 14px rgba(255, 45, 45, .36) !important;
+}
