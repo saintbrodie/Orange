@@ -1,0 +1,167 @@
+name: Wire offline theme fonts
+
+on:
+  push:
+    paths:
+      - '.github/workflows/wire-theme-fonts.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wire vendored fonts into themes and live preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > static/brand-theme.css <<'EOF'
+          /* Shared title typography for Orange themes.
+             Every font below is vendored under /static/fonts so Orange remains fully offline. */
+
+          @font-face {
+            font-family: "Orange Permanent Marker";
+            src: url("/static/fonts/permanent-marker.woff2") format("woff2");
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+          }
+
+          @font-face {
+            font-family: "Orange Jersey 25";
+            src: url("/static/fonts/jersey-25.woff2") format("woff2");
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+          }
+
+          @font-face {
+            font-family: "Orange Sacramento";
+            src: url("/static/fonts/sacramento.woff2") format("woff2");
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+          }
+
+          @font-face {
+            font-family: "Orange Fraunces";
+            src: url("/static/fonts/fraunces-variable.woff2") format("woff2");
+            font-style: normal;
+            font-weight: 100 900;
+            font-display: swap;
+          }
+
+          @font-face {
+            font-family: "Orange Faculty Glyphic";
+            src: url("/static/fonts/faculty-glyphic.woff2") format("woff2");
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+          }
+
+          /* The real Admin/user title and the Personalization live preview share the same theme treatment. */
+          html[data-orange-effect="arcade"] h1.bg-gradient-to-br,
+          #personalization-preview[data-orange-effect="arcade"] .preview-name {
+            font-family: "Orange Permanent Marker", "Arial Black", sans-serif !important;
+            font-style: normal !important;
+            font-weight: 400 !important;
+            letter-spacing: .025em !important;
+            background: none !important;
+            color: #ff2d2d !important;
+            -webkit-text-fill-color: #ff2d2d !important;
+            text-shadow:
+              0 0 5px rgba(255,45,45,.72),
+              0 0 14px rgba(255,45,45,.40) !important;
+          }
+
+          html[data-orange-effect="cyber"] h1.bg-gradient-to-br,
+          #personalization-preview[data-orange-effect="cyber"] .preview-name {
+            font-family: "Orange Jersey 25", ui-monospace, monospace !important;
+            font-style: normal !important;
+            font-weight: 400 !important;
+            letter-spacing: .055em !important;
+          }
+
+          html[data-orange-effect="princess"] h1.bg-gradient-to-br,
+          #personalization-preview[data-orange-effect="princess"] .preview-name {
+            font-family: "Orange Sacramento", cursive !important;
+            font-style: normal !important;
+            font-weight: 400 !important;
+            letter-spacing: 0 !important;
+          }
+
+          html[data-orange-effect="adventure"] h1.bg-gradient-to-br,
+          #personalization-preview[data-orange-effect="adventure"] .preview-name {
+            font-family: "Orange Fraunces", Georgia, serif !important;
+            font-style: normal !important;
+            font-weight: 780 !important;
+            letter-spacing: .015em !important;
+          }
+
+          html[data-orange-effect="midnight"] h1.bg-gradient-to-br,
+          #personalization-preview[data-orange-effect="midnight"] .preview-name {
+            font-family: "Orange Faculty Glyphic", Georgia, serif !important;
+            font-style: normal !important;
+            font-weight: 400 !important;
+            letter-spacing: .035em !important;
+          }
+
+          /* Preview titles are intentionally a little larger for expressive display faces. */
+          #personalization-preview[data-orange-effect="arcade"] .preview-name,
+          #personalization-preview[data-orange-effect="cyber"] .preview-name,
+          #personalization-preview[data-orange-effect="adventure"] .preview-name,
+          #personalization-preview[data-orange-effect="midnight"] .preview-name {
+            font-size: 15px;
+            line-height: 1.05;
+          }
+          #personalization-preview[data-orange-effect="princess"] .preview-name {
+            font-size: 19px;
+            line-height: 1.05;
+          }
+          EOF
+
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('static/personalization.js')
+          text = p.read_text(encoding='utf-8')
+          marker = "    const preview = document.getElementById('personalization-preview');\n"
+          replacement = marker + "    preview.dataset.orangeEffect = selectedTheme;\n"
+          if replacement not in text:
+              if marker not in text:
+                  raise SystemExit('personalization preview marker not found')
+              text = text.replace(marker, replacement, 1)
+          p.write_text(text, encoding='utf-8')
+
+          p = Path('app/main.py')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace('/static/brand-theme.css?v=1', '/static/brand-theme.css?v=2')
+          text = text.replace('/static/personalization.js?v=1', '/static/personalization.js?v=2')
+          p.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validate wiring
+        shell: bash
+        run: |
+          grep -q 'Orange Permanent Marker' static/brand-theme.css
+          grep -q 'Orange Jersey 25' static/brand-theme.css
+          grep -q 'Orange Sacramento' static/brand-theme.css
+          grep -q 'Orange Fraunces' static/brand-theme.css
+          grep -q 'Orange Faculty Glyphic' static/brand-theme.css
+          grep -q 'preview.dataset.orangeEffect = selectedTheme' static/personalization.js
+          grep -q 'brand-theme.css?v=2' app/main.py
+          grep -q 'personalization.js?v=2' app/main.py
+          node --check static/personalization.js
+          python -m compileall -q app
+
+      - name: Commit wiring and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm .github/workflows/wire-theme-fonts.yml
+          git add static/brand-theme.css static/personalization.js app/main.py .github/workflows/wire-theme-fonts.yml
+          git commit -m 'Use vendored fonts for themed titles and preview'
+          git push
