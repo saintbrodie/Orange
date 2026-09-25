@@ -72,6 +72,18 @@ html[data-orange-effect="princess"] h1.bg-gradient-to-br,
   letter-spacing: 0 !important;
 }
 
+/* Sacramento has a deep lowercase descender. Give the Admin title a roomier
+   line box and lift it slightly so letters such as g are not clipped while the
+   script remains optically centered beside the mascot. */
+html[data-orange-effect="princess"] nav h1.bg-gradient-to-br {
+  display: inline-block !important;
+  line-height: 1.35 !important;
+  padding-bottom: .16em !important;
+  margin-bottom: -.16em !important;
+  transform: translateY(-2px);
+  overflow: visible !important;
+}
+
 html[data-orange-effect="adventure"] h1.bg-gradient-to-br,
 #personalization-preview[data-orange-effect="adventure"] .preview-name {
   font-family: "Orange Fraunces", Georgia, serif !important;
@@ -98,5 +110,6 @@ html[data-orange-effect="midnight"] h1.bg-gradient-to-br,
 }
 #personalization-preview[data-orange-effect="princess"] .preview-name {
   font-size: 19px;
-  line-height: 1.05;
+  line-height: 1.18;
+  padding-bottom: .1em;
 }
