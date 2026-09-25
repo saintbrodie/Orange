@@ -21,21 +21,23 @@
         } catch (_) { }
     }
 
-    function currentBaseUrl(selectEl) {
-        if (selectEl && selectEl.id === 'setting-llm-model') {
-            return document.getElementById('setting-llm-baseurl')?.value?.trim() || '';
-        }
+    function currentBaseUrl() {
         return document.getElementById('setting-llm-baseurl')?.value?.trim() || '';
     }
 
     window.populateModelSelect = function (selectEl, customContainerId, customInputId, provider, activeValue, fetchedModels = []) {
-        const baseUrl = currentBaseUrl(selectEl);
+        const baseUrl = currentBaseUrl();
         let models = Array.isArray(fetchedModels) ? fetchedModels.filter(Boolean) : [];
 
         if (models.length > 0) {
             saveCachedModels(provider, baseUrl, models);
         } else {
             models = loadCachedModels(provider, baseUrl);
+            // A saved model should remain a normal selection even before this
+            // browser has fetched/cached the provider's model list.
+            if (models.length === 0 && activeValue && activeValue !== '__custom__') {
+                models = [activeValue];
+            }
         }
 
         originalPopulate(selectEl, customContainerId, customInputId, provider, activeValue, models);
