@@ -1,0 +1,131 @@
+name: Polish model selector and Arcade branding
+
+on:
+  push:
+    paths:
+      - '.github/workflows/polish-model-selector-arcade.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply UI polish
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          admin = Path('static/admin.js')
+          text = admin.read_text(encoding='utf-8')
+
+          text = text.replace(
+              "const allModels = Array.from(new Set([...fetchedModels]));",
+              "const allModels = Array.from(new Set([...fetchedModels, activeValue].filter(v => v && v !== '__custom__')));",
+          )
+          text = text.replace("customOpt.textContent = 'Custom Model...';", "customOpt.textContent = 'Enter model ID...';")
+
+          marker = "        let activeFetchedModels = [];\n"
+          helpers = '''        let activeFetchedModels = [];
+
+        function llmModelCacheKey(provider, baseUrl) {
+            return `orange_llm_models::${provider || 'openai'}::${(baseUrl || '').trim()}`;
+        }
+
+        function loadCachedLlmModels(provider, baseUrl) {
+            try {
+                const raw = localStorage.getItem(llmModelCacheKey(provider, baseUrl));
+                const parsed = JSON.parse(raw || '[]');
+                return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+            } catch (_) {
+                return [];
+            }
+        }
+
+        function saveCachedLlmModels(provider, baseUrl, models) {
+            try {
+                localStorage.setItem(llmModelCacheKey(provider, baseUrl), JSON.stringify(models || []));
+            } catch (_) { }
+        }
+'''
+          if marker not in text:
+              raise SystemExit('activeFetchedModels marker not found')
+          text = text.replace(marker, helpers, 1)
+
+          fetch_marker = "                        activeFetchedModels = data.models;\n"
+          fetch_replacement = "                        activeFetchedModels = data.models;\n                        saveCachedLlmModels(provider, baseUrl, activeFetchedModels);\n"
+          if fetch_marker not in text:
+              raise SystemExit('model fetch marker not found')
+          text = text.replace(fetch_marker, fetch_replacement, 1)
+
+          load_marker = "                    document.getElementById('setting-llm-apikey').value = llm.apiKey || '';\n                    \n                    try {"
+          load_replacement = "                    document.getElementById('setting-llm-apikey').value = llm.apiKey || '';\n                    activeFetchedModels = loadCachedLlmModels(llmUiProvider, llmUiBaseUrl);\n                    \n                    try {"
+          if load_marker not in text:
+              raise SystemExit('LLM settings load marker not found')
+          text = text.replace(load_marker, load_replacement, 1)
+
+          text = text.replace(
+              "                        llm.provider || 'openai',\n                        llm.model || '',\n                        activeFetchedModels",
+              "                        llmUiProvider,\n                        llm.model || '',\n                        activeFetchedModels",
+              1,
+          )
+
+          provider_marker = "                // Re-populate global model select with presets for the new provider\n                populateModelSelect("
+          provider_replacement = "                activeFetchedModels = loadCachedLlmModels(provider, urlInput.value.trim());\n\n                // Re-populate global model select with cached/fetched models for the new provider\n                populateModelSelect("
+          if provider_marker not in text:
+              raise SystemExit('provider model repopulate marker not found')
+          text = text.replace(provider_marker, provider_replacement, 1)
+
+          admin.write_text(text, encoding='utf-8')
+
+          css = Path('static/theme-effects-v2.css')
+          css_text = css.read_text(encoding='utf-8')
+          arcade_marker = "html[data-orange-effect=\"arcade\"] .mesh-3 { background: radial-gradient(circle, rgba(122,44,255,.12), transparent 72%) !important; }\n"
+          arcade_rule = arcade_marker + '''html[data-orange-effect="arcade"] nav h1 {
+  background: none !important;
+  color: #ff2d2d !important;
+  -webkit-text-fill-color: #ff2d2d !important;
+  text-shadow: 0 0 12px rgba(255,45,45,.28) !important;
+}
+'''
+          if arcade_marker not in css_text:
+              raise SystemExit('arcade CSS marker not found')
+          css.write_text(css_text.replace(arcade_marker, arcade_rule, 1), encoding='utf-8')
+
+          html = Path('static/admin.html')
+          html_text = html.read_text(encoding='utf-8').replace('/static/admin.js?v=2', '/static/admin.js?v=3')
+          html.write_text(html_text, encoding='utf-8')
+
+          main = Path('app/main.py')
+          main_text = main.read_text(encoding='utf-8').replace('theme-effects-v2.css?v=12', 'theme-effects-v2.css?v=13')
+          main.write_text(main_text, encoding='utf-8')
+          PY
+      - name: Validate changes
+        run: |
+          node --check static/admin.js
+          python -m compileall -q app
+          python - <<'PY'
+          from pathlib import Path
+          admin = Path('static/admin.js').read_text(encoding='utf-8')
+          css = Path('static/theme-effects-v2.css').read_text(encoding='utf-8')
+          assert 'orange_llm_models::' in admin
+          assert "saveCachedLlmModels(provider, baseUrl, activeFetchedModels)" in admin
+          assert "[...fetchedModels, activeValue]" in admin
+          assert "Enter model ID..." in admin
+          assert '#ff2d2d' in css
+          PY
+      - name: Commit and remove workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm .github/workflows/polish-model-selector-arcade.yml
+          git add static/admin.js static/theme-effects-v2.css static/admin.html app/main.py .github/workflows/polish-model-selector-arcade.yml
+          git commit -m 'Polish prompt model selector and Arcade branding'
+          git push
