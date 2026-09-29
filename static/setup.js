@@ -1,5 +1,8 @@
 const $ = (id) => document.getElementById(id);
 
+const MANAGED_COMFY_STARTUP_TIMEOUT_MS = 90000;
+const MANAGED_COMFY_RETRY_INTERVAL_MS = 1500;
+
 let setupStatus = null;
 let backendOk = false;
 let compatibilityByPack = new Map();
@@ -140,21 +143,77 @@ function hardwareLabel(hardware) {
   return parts.length ? ` · ${parts.join(" · ")}` : "";
 }
 
+function comparableUrl(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
+}
+
+function shouldWaitForManagedComfy(url) {
+  return setupStatus?.installMode === "pinokio"
+    && setupStatus?.managedComfyAvailable === true
+    && comparableUrl(url) === comparableUrl(setupStatus?.defaultComfyUrl || "http://127.0.0.1:8188");
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function scanBackend(url, modelsRoot) {
+  const response = await fetch("/api/setup/test-backend", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({url, modelsRoot}),
+  });
+  let data = {};
+  try {
+    data = await response.json();
+  } catch (_) { /* use the generic message below */ }
+  if (!response.ok) {
+    const error = new Error(data.detail || "Connection failed");
+    error.status = response.status;
+    throw error;
+  }
+  return data;
+}
+
 async function testBackend() {
   const button = $("test-backend");
+  const url = $("comfy-url").value.trim();
+  const modelsRoot = $("models-root").value.trim();
+  const waitForManaged = shouldWaitForManagedComfy(url);
+  const deadline = Date.now() + MANAGED_COMFY_STARTUP_TIMEOUT_MS;
+
   button.disabled = true;
-  setStatus($("backend-result"), "Checking ComfyUI nodes and model inventory…");
+  setStatus(
+    $("backend-result"),
+    waitForManaged
+      ? "Waiting for managed ComfyUI to finish starting, then Orange will scan it…"
+      : "Checking ComfyUI nodes and model inventory…",
+  );
+
   try {
-    const response = await fetch("/api/setup/test-backend", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        url: $("comfy-url").value.trim(),
-        modelsRoot: $("models-root").value.trim(),
-      }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || "Connection failed");
+    let data = null;
+    while (!data) {
+      try {
+        data = await scanBackend(url, modelsRoot);
+      } catch (error) {
+        const retryableStartupFailure = !error.status || error.status === 502;
+        if (!waitForManaged || !retryableStartupFailure || Date.now() >= deadline) {
+          if (waitForManaged && retryableStartupFailure && Date.now() >= deadline) {
+            throw new Error(`Managed ComfyUI did not become ready within 90 seconds. ${error.message}`);
+          }
+          throw error;
+        }
+        backendOk = false;
+        setStatus($("backend-result"), "ComfyUI is still starting. Orange will keep checking…");
+        await sleep(MANAGED_COMFY_RETRY_INTERVAL_MS);
+      }
+    }
+
+    if (comparableUrl($("comfy-url").value) !== comparableUrl(url)) {
+      backendOk = false;
+      return;
+    }
+
     backendOk = true;
     compatibilityByPack = new Map((data.packCompatibility || []).map((pack) => [pack.pack, pack]));
     if (data.modelsRoot && !$("models-root").value.trim()) $("models-root").value = data.modelsRoot;

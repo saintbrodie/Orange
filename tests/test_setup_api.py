@@ -60,6 +60,22 @@ class SetupApiTests(unittest.TestCase):
         self.assertIn("recoverCompletedSetup", javascript)
         self.assertIn('window.location.replace("/admin")', javascript)
 
+    def test_setup_frontend_waits_for_managed_comfy_startup(self):
+        source = os.path.join(os.path.dirname(__file__), "..", "static", "setup.js")
+        with open(source, "r", encoding="utf-8") as handle:
+            javascript = handle.read()
+        self.assertIn("MANAGED_COMFY_STARTUP_TIMEOUT_MS = 90000", javascript)
+        self.assertIn("shouldWaitForManagedComfy", javascript)
+        self.assertIn('error.status === 502', javascript)
+        self.assertIn("ComfyUI is still starting. Orange will keep checking", javascript)
+        self.assertIn('setupStatus?.managedComfyAvailable === true', javascript)
+
+    def test_setup_script_cache_version_is_current(self):
+        source = os.path.join(os.path.dirname(__file__), "..", "static", "setup.html")
+        with open(source, "r", encoding="utf-8") as handle:
+            html = handle.read()
+        self.assertIn('/static/setup.js?v=6', html)
+
     def test_setup_uses_persistent_workflow_jobs(self):
         source = os.path.join(os.path.dirname(__file__), "..", "app", "api", "setup.py")
         with open(source, "r", encoding="utf-8") as handle:
