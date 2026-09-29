@@ -21,12 +21,13 @@ fi
 
 FRESH_INSTALL=0
 if [ ! -d "venv" ]; then
-    echo "Virtual environment not found. Installing Orange App..."
+    echo "Creating Orange environment..."
     python3 -m venv venv
     FRESH_INSTALL=1
 fi
 
 source venv/bin/activate
+export PYTHONUTF8=1
 
 # Re-sync dependencies after an Orange update changes requirements.txt.
 REQ_HASH=$(python -c "import hashlib; print(hashlib.sha256(open('requirements.txt','rb').read()).hexdigest())")
@@ -37,31 +38,14 @@ if [ -f "$REQ_HASH_FILE" ]; then
 fi
 
 if [ "$FRESH_INSTALL" = "1" ] || [ "$REQ_HASH" != "$OLD_HASH" ]; then
-    echo "Installing/updating Orange dependencies..."
-    python -m pip install -r requirements.txt
-    printf '%s' "$REQ_HASH" > "$REQ_HASH_FILE"
-    echo "Dependency sync complete!"
+    echo "Syncing Orange dependencies..."
+    python -m pip install --disable-pip-version-check --quiet -r requirements.txt
+    printf '%s\n' "$REQ_HASH" > "$REQ_HASH_FILE"
+    echo "Dependencies ready."
 fi
 
 if [ "$FRESH_INSTALL" = "1" ]; then
-    echo "Fresh install detected. Continue setup in the Orange browser wizard."
+    echo "Fresh install: finish setup in the Orange browser wizard."
 fi
 
-while true; do
-    rm -f RESTART_REQUIRED
-    echo "Starting Orange App on port 7070..."
-    if [ "${ORANGE_VERBOSE_LOGS:-0}" = "1" ]; then
-        uvicorn app.main:app --host 0.0.0.0 --port 7070
-    else
-        uvicorn app.main:app --host 0.0.0.0 --port 7070 --no-access-log --log-level warning
-    fi
-
-    if [ -f "RESTART_REQUIRED" ]; then
-        echo "Restart requested..."
-        rm -f RESTART_REQUIRED
-        sleep 2
-        continue
-    fi
-
-    break
-done
+exec python scripts/run_orange.py
