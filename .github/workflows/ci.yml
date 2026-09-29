@@ -22,6 +22,18 @@ jobs:
         run: python -m pip install -r requirements.txt
       - name: Compile Python sources
         run: python -m compileall -q app scripts tests
+      - name: Validate standalone launchers
+        run: |
+          bash -n run.sh
+          grep -Fq -- '--disable-pip-version-check --quiet' run.sh
+          grep -Fq -- '--disable-pip-version-check --quiet' run.bat
+          grep -Fq 'scripts/run_orange.py' run.sh
+          grep -Fq 'scripts\run_orange.py' run.bat
+          grep -Fq 'ORANGE_VERBOSE_LOGS' scripts/run_orange.py
+          if grep -Eq 'uvicorn app\.main:app' run.sh run.bat; then
+            echo 'Standalone shell launchers should delegate runtime behavior to scripts/run_orange.py.'
+            exit 1
+          fi
       - name: Check JavaScript syntax
         run: |
           node --check static/preflight.js
