@@ -47,7 +47,7 @@ def should_surface(line: str) -> bool:
     return bool(SURFACE_RE.search(line))
 
 
-def stream_reader(stream, label: str, log_handle, recent: deque[str], output_queue: queue.Queue[tuple[str, str]]) -> None:
+def stream_reader(stream, log_handle, recent: deque[str], output_queue: queue.Queue[tuple[str, str]]) -> None:
     try:
         for raw in iter(stream.readline, ""):
             log_handle.write(raw)
@@ -58,7 +58,7 @@ def stream_reader(stream, label: str, log_handle, recent: deque[str], output_que
             if VERBOSE:
                 output_queue.put(("raw", raw))
             elif should_surface(line.strip()):
-                output_queue.put((label, line.strip()))
+                output_queue.put(("Orange", line.strip()))
     finally:
         try:
             stream.close()
@@ -104,8 +104,14 @@ def terminate(proc: subprocess.Popen[str] | None) -> None:
     except Exception:
         try:
             proc.kill()
+            proc.wait(timeout=2)
         except Exception:
             pass
+
+
+def finish_reader(reader: threading.Thread, output_queue: queue.Queue[tuple[str, str]]) -> None:
+    reader.join(timeout=1)
+    drain_output(output_queue)
 
 
 def show_failure_tail(recent: deque[str]) -> None:
@@ -137,22 +143,23 @@ def run_once(log_handle) -> tuple[int, bool]:
         args,
         cwd=ROOT,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         text=True,
         encoding="utf-8",
         errors="replace",
         bufsize=1,
     )
+    if proc.stdout is None:
+        raise RuntimeError("Orange log stream was not created")
 
-    threads = [
-        threading.Thread(target=stream_reader, args=(proc.stdout, "Orange", log_handle, recent, output_queue), daemon=True),
-        threading.Thread(target=stream_reader, args=(proc.stderr, "Orange", log_handle, recent, output_queue), daemon=True),
-    ]
-    for thread in threads:
-        thread.start()
+    reader = threading.Thread(
+        target=stream_reader,
+        args=(proc.stdout, log_handle, recent, output_queue),
+        daemon=True,
+    )
+    reader.start()
 
     if not wait_for_ready(proc, output_queue):
-        drain_output(output_queue)
         code = proc.poll()
         if code is None:
             status("Orange", "failed to become ready")
@@ -160,6 +167,7 @@ def run_once(log_handle) -> tuple[int, bool]:
             code = 1
         else:
             status("Orange", f"stopped before ready (exit {code})")
+        finish_reader(reader, output_queue)
         show_failure_tail(recent)
         return int(code or 1), False
 
@@ -173,10 +181,10 @@ def run_once(log_handle) -> tuple[int, bool]:
         print()
         status("Orange", "stopping...")
         terminate(proc)
-        drain_output(output_queue)
+        finish_reader(reader, output_queue)
         return 0, False
 
-    drain_output(output_queue)
+    finish_reader(reader, output_queue)
     code = int(proc.returncode or 0)
     restart = RESTART_FILE.exists()
     if restart:
