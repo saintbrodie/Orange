@@ -3,7 +3,7 @@ import os
 import secrets
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -14,6 +14,7 @@ from app.core.database import init_db
 from app.core.managed_runtime import validate_pending_managed_runtime
 from app.core.managed_prompt_enhancer import stop_server as stop_managed_prompt_enhancer
 from app.core.onboarding import initialize_setup_state, setup_required
+from app.core.terminal_events import emit_terminal_event, emit_terminal_event_once
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 STATIC_DIR = os.path.join(PROJECT_ROOT, "static")
@@ -43,6 +44,57 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="ComfyUI Minimal Frontend - Orange", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.middleware("http")
+async def terminal_activity(request: Request, call_next):
+    path = request.url.path
+    method = request.method.upper()
+    activity = None
+
+    if method == "POST" and path == "/api/generate":
+        activity = ("generation", "working")
+        emit_terminal_event("generation", "working", "Submitting generation...")
+    elif method == "POST" and path in {
+        "/api/enhance-prompt",
+        "/api/admin/prompt-enhancer/managed/test",
+    }:
+        activity = ("llm", "working")
+        emit_terminal_event("llm", "working", "Prompt enhancer working...")
+
+    try:
+        response = await call_next(request)
+    except Exception:
+        if activity:
+            emit_terminal_event(activity[0], "failed", f"{activity[0].capitalize()} failed")
+        raise
+
+    if activity:
+        kind, _ = activity
+        if response.status_code < 400:
+            state = "queued" if kind == "generation" else "complete"
+            message = "Generation queued" if kind == "generation" else "Prompt enhancement complete"
+            emit_terminal_event(kind, state, message)
+        else:
+            emit_terminal_event(kind, "failed", f"{kind.capitalize()} failed ({response.status_code})")
+
+    if (
+        method == "GET"
+        and path in {"/api/output", "/api/media", "/api/image"}
+        and response.status_code < 300
+    ):
+        prompt_id = request.query_params.get("prompt_id")
+        if prompt_id:
+            short_id = prompt_id[:8]
+            emit_terminal_event_once(
+                f"generation-complete:{prompt_id}",
+                "generation",
+                "complete",
+                f"Generation {short_id} complete",
+            )
+
+    return response
+
 
 app.include_router(outputs.router)
 app.include_router(generation_v2.router)
