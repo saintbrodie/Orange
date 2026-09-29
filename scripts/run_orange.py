@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import queue
 import re
@@ -18,8 +19,21 @@ LOG_DIR = ROOT / "runtime" / "logs"
 LOG_FILE = LOG_DIR / "orange.log"
 ORANGE_URL = "http://127.0.0.1:7070"
 VERBOSE = str(os.environ.get("ORANGE_VERBOSE_LOGS", "")).lower() in {"1", "true", "yes"}
+COLOR = not os.environ.get("NO_COLOR") and str(os.environ.get("ORANGE_COLOR", "1")).lower() not in {"0", "false", "no"}
+EVENT_PREFIX = "ORANGE_EVENT "
 
 SURFACE_RE = re.compile(r"traceback|\bwarning\b|\berror\b|exception|critical|fatal|failed|failure", re.I)
+
+ANSI = {
+    "orange": "\033[38;5;208m",
+    "green": "\033[38;5;82m",
+    "cyan": "\033[38;5;45m",
+    "magenta": "\033[38;5;213m",
+    "yellow": "\033[38;5;220m",
+    "red": "\033[38;5;196m",
+    "dim": "\033[38;5;245m",
+    "reset": "\033[0m",
+}
 
 BANNER = (
     "      ▄▄▄   ▄▄▄·  ▐ ▄  ▄▄ • ▄▄▄ .",
@@ -30,15 +44,50 @@ BANNER = (
 )
 
 
+def paint(text: str, tone: str) -> str:
+    if not COLOR:
+        return text
+    return f"{ANSI[tone]}{text}{ANSI['reset']}"
+
+
+def value_tone(value: str) -> str:
+    lowered = value.lower()
+    if "ready" in lowered or "complete" in lowered:
+        return "green"
+    if "fail" in lowered or "stopped" in lowered or "error" in lowered:
+        return "red"
+    if "starting" in lowered or "working" in lowered or "restarting" in lowered:
+        return "yellow"
+    return "dim"
+
+
 def status(name: str, value: str) -> None:
-    print(f"  {name:<9} {value}", flush=True)
+    label_tone = "orange" if name == "Orange" else "cyan" if name == "ComfyUI" else "dim"
+    label = paint(f"{name:<9}", label_tone)
+    print(f"  {label} {paint(value, value_tone(value))}", flush=True)
 
 
 def print_banner() -> None:
     print()
     for line in BANNER:
-        print(line)
+        print(paint(line, "orange"))
     print()
+
+
+def render_event(payload_text: str) -> None:
+    try:
+        event = json.loads(payload_text)
+    except (TypeError, ValueError):
+        print(f"  {paint('[Orange]', 'orange')} {payload_text}", flush=True)
+        return
+
+    kind = str(event.get("kind", "activity")).lower()
+    state = str(event.get("state", "info")).lower()
+    message = str(event.get("message", "")).strip()
+    label = "Generate" if kind == "generation" else "LLM" if kind == "llm" else "Orange"
+    label_tone = "orange" if kind == "generation" else "magenta" if kind == "llm" else "cyan"
+    state_tone = "green" if state == "complete" else "red" if state == "failed" else "yellow" if state == "working" else "cyan"
+    print(f"  {paint(f'[{label}]', label_tone):<20} {paint(message, state_tone)}", flush=True)
 
 
 def should_surface(line: str) -> bool:
@@ -55,7 +104,9 @@ def stream_reader(stream, log_handle, recent: deque[str], output_queue: queue.Qu
             line = raw.rstrip("\r\n")
             if line:
                 recent.append(line)
-            if VERBOSE:
+            if line.startswith(EVENT_PREFIX):
+                output_queue.put(("event", line[len(EVENT_PREFIX):]))
+            elif VERBOSE:
                 output_queue.put(("raw", raw))
             elif should_surface(line.strip()):
                 output_queue.put(("Orange", line.strip()))
@@ -75,8 +126,10 @@ def drain_output(output_queue: queue.Queue[tuple[str, str]]) -> None:
         if label == "raw":
             sys.stdout.write(text)
             sys.stdout.flush()
+        elif label == "event":
+            render_event(text)
         else:
-            print(f"  [{label}] {text}", flush=True)
+            print(f"  {paint(f'[{label}]', 'red')} {text}", flush=True)
 
 
 def wait_for_ready(proc: subprocess.Popen[str], output_queue: queue.Queue[tuple[str, str]], timeout: float = 90.0) -> bool:
