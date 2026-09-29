@@ -27,6 +27,9 @@ Thumbs.db
 # Databases
 *.db
 
+# Runtime logs
+runtime/logs/
+
 # Downloaded/Generated Media (Optional - uncomment if you want to prevent pushing final creations)
 # output/
 
