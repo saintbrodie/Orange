@@ -14,6 +14,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.core.backends import get_backend_client
 from app.core.config import get_base_workflow, get_comfy_servers, get_tool_settings
 from app.core.database import get_backend_for_prompt, update_usage_status
+from app.core.terminal_events import emit_terminal_event_once
 
 router = APIRouter()
 
@@ -123,6 +124,17 @@ def _record_failure(prompt_id: str, target_url: str, status: str, technical_erro
     update_usage_status(prompt_id, status, technical_error)
 
 
+def _record_completion(prompt_id: str, announce: bool = True) -> None:
+    update_usage_status(prompt_id, "completed")
+    if announce:
+        emit_terminal_event_once(
+            f"generation-complete:{prompt_id}",
+            "generation",
+            "complete",
+            f"Generation {prompt_id[:8]} complete",
+        )
+
+
 @router.get("/api/health")
 async def get_health():
     servers = get_comfy_servers()
@@ -218,7 +230,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
 
     initial_state, initial_error = await get_history_state()
     if initial_state == "completed":
-        update_usage_status(prompt_id, "completed")
+        _record_completion(prompt_id, announce=False)
         yield json.dumps({"status": "completed"})
         return
     if initial_state in {"error", "interrupted"}:
@@ -256,7 +268,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
 
                 history_state, technical_error = await get_history_state()
                 if history_state == "completed":
-                    update_usage_status(prompt_id, "completed")
+                    _record_completion(prompt_id)
                     await queue.put({"status": "completed"})
                     return
                 if history_state in {"error", "interrupted"}:
@@ -299,7 +311,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
                     if event_type == "executing":
                         node_id = event_data.get("node")
                         if node_id is None:
-                            update_usage_status(prompt_id, "completed")
+                            _record_completion(prompt_id)
                             await queue.put({"status": "completed"})
                             return
                         class_type = node_map.get(str(node_id))
