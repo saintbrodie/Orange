@@ -14,7 +14,7 @@ from app.core.database import init_db
 from app.core.managed_runtime import validate_pending_managed_runtime
 from app.core.managed_prompt_enhancer import stop_server as stop_managed_prompt_enhancer
 from app.core.onboarding import initialize_setup_state, setup_required
-from app.core.terminal_events import emit_terminal_event, emit_terminal_event_once
+from app.core.terminal_events import emit_terminal_event
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 STATIC_DIR = os.path.join(PROJECT_ROOT, "static")
@@ -77,21 +77,6 @@ async def terminal_activity(request: Request, call_next):
             emit_terminal_event(kind, state, message)
         else:
             emit_terminal_event(kind, "failed", f"{kind.capitalize()} failed ({response.status_code})")
-
-    if (
-        method == "GET"
-        and path in {"/api/output", "/api/media", "/api/image"}
-        and response.status_code < 300
-    ):
-        prompt_id = request.query_params.get("prompt_id")
-        if prompt_id:
-            short_id = prompt_id[:8]
-            emit_terminal_event_once(
-                f"generation-complete:{prompt_id}",
-                "generation",
-                "complete",
-                f"Generation {short_id} complete",
-            )
 
     return response
 
