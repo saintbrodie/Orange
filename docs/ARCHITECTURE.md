@@ -137,12 +137,12 @@ The wizard:
 2. verifies `/object_info`
 3. reads `/system_stats`
 4. detects/accepts a writable model location when available
-5. installs the Z-Image starter and any selected optional curated packs
-6. materializes hardware-selected model filenames into active workflow copies
+5. lets the administrator choose any curated packs, or skip them entirely
+6. materializes hardware-selected model filenames into active workflow copies for selected packs
 7. runs Workflow Preflight
 8. only exposes packs that are routable
 9. creates the administrator password
-10. enters the normal Generate UI
+10. enters the normal Generate UI, or Admin when no tools were selected
 
 A fresh process initially receives a random bootstrap Admin credential, so new deployments do not expose the historical tracked `orangeadmin` template value as a usable first-run secret.
 
@@ -152,10 +152,12 @@ Orange's curated packs package known-good ComfyUI API workflows together with th
 
 Current curated packs are:
 
-- **Z-Image Turbo** — default starter text-to-image
+- **Z-Image Turbo** — recommended starter text-to-image
 - **Krea 2 Turbo** — advanced text-to-image; intentionally keeps `wan_2.1_vae.safetensors`
 - **Klein 9B Turbo** — instruction-based image editing
 - **SeedVR2 7B Upscale** — native-node SeedVR2 image upscaling
+
+All curated packs are optional. A fresh install can finish setup without installing any of them.
 
 The pack system does not make Orange a generic model manager. It only installs the dependencies declared by curated Orange tools when Orange has filesystem access to that backend's model storage.
 
