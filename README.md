@@ -1,6 +1,8 @@
 # Orange 😼
 
-![Orange Generate UI](docs/screenshots/generate.webp)
+<p align="center">
+  <img src="docs/screenshots/generate.webp" width="100%" alt="Orange Generate UI" />
+</p>
 
 Orange is a small web frontend for **ComfyUI**. It turns finished ComfyUI workflows into simple tools that people can use without seeing the node graph, model setup, or backend details.
 
@@ -55,9 +57,9 @@ You can add curated tools later from **Admin → Tools → Curated Library**, or
 
 <table border="0">
   <tr>
-    <td align="center"><img src="docs/screenshots/setup.webp" width="100%" alt="First-run setup" /></td>
-    <td align="center"><img src="docs/screenshots/curated-library.webp" width="100%" alt="Curated Library" /></td>
-    <td align="center"><img src="docs/screenshots/preflight.webp" width="100%" alt="Workflow Preflight" /></td>
+    <td align="center"><a href="docs/screenshots/setup.webp"><img src="docs/screenshots/setup.webp" width="100%" alt="First-run setup" /></a></td>
+    <td align="center"><a href="docs/screenshots/curated-library.webp"><img src="docs/screenshots/curated-library.webp" width="100%" alt="Curated Library" /></a></td>
+    <td align="center"><a href="docs/screenshots/preflight.webp"><img src="docs/screenshots/preflight.webp" width="100%" alt="Workflow Preflight" /></a></td>
   </tr>
   <tr>
     <td align="center"><b>First-run setup</b></td>
@@ -65,9 +67,9 @@ You can add curated tools later from **Admin → Tools → Curated Library**, or
     <td align="center"><b>Workflow Preflight</b></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/tools.webp" width="100%" alt="Tool Editor" /></td>
-    <td align="center"><img src="docs/screenshots/personalization.webp" width="100%" alt="Personalization" /></td>
-    <td align="center"><img src="docs/screenshots/settings.webp" width="100%" alt="General Settings" /></td>
+    <td align="center"><a href="docs/screenshots/tools.webp"><img src="docs/screenshots/tools.webp" width="100%" alt="Tool Editor" /></a></td>
+    <td align="center"><a href="docs/screenshots/personalization.webp"><img src="docs/screenshots/personalization.webp" width="100%" alt="Personalization" /></a></td>
+    <td align="center"><a href="docs/screenshots/settings.webp"><img src="docs/screenshots/settings.webp" width="100%" alt="General Settings" /></a></td>
   </tr>
   <tr>
     <td align="center"><b>Tool Editor</b></td>
