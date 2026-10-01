@@ -86,6 +86,13 @@ You can add curated tools later from **Admin → Tools → Curated Library**, or
 - [Managed ComfyUI Lifecycle](docs/MANAGED_COMFYUI.md)
 - [Managed Prompt Enhancement](docs/MANAGED_PROMPT_ENHANCEMENT.md)
 - [Personalization & White-Label Branding](docs/PERSONALIZATION.md)
+- [Changelog](CHANGELOG.md)
+
+## License
+
+Orange is released under the [MIT License](LICENSE).
+
+Third-party components and model weights keep their own licenses. The curated workflow packs can download models with terms that are more restrictive than Orange itself, so check [Third-party notices](THIRD_PARTY_NOTICES.md) before using a pack commercially.
 
 ## Project direction
 
