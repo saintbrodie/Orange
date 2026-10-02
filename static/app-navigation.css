@@ -19,8 +19,7 @@
     background: color-mix(in srgb, var(--orange-text, #f4f4f5) 6%, transparent);
 }
 
-.orange-page-link:focus-visible,
-.mobile-admin-drawer-item[href]:focus-visible {
+.orange-page-link:focus-visible {
     outline: 2px solid var(--orange-accent, #f97316);
     outline-offset: 2px;
 }
@@ -29,8 +28,31 @@
     margin-top: 1rem;
 }
 
-#login-container .orange-page-link {
-    width: 100%;
+.orange-generate-link {
+    flex: 0 0 auto;
+    color: var(--orange-accent, #f97316);
+    background: color-mix(in srgb, var(--orange-accent, #f97316) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--orange-accent, #f97316) 38%, transparent);
+    margin-left: 0.75rem;
+}
+
+@media (max-width: 1180px) {
+    body:has(#admin-menu) > nav > div:first-child {
+        flex: 1 1 auto;
+    }
+
+    body:has(#admin-menu) > nav h1 {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .orange-generate-link {
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+        padding-inline: 0.65rem;
+    }
 }
 
 @media (max-width: 640px) {

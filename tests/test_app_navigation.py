@@ -11,18 +11,23 @@ class NavigationParser(HTMLParser):
     def __init__(self):
         super().__init__()
         self.links = []
+        self.div_ids = []
         self.link = None
 
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
+        if tag == "div":
+            self.div_ids.append(attributes.get("id"))
         if tag == "a" and "orange-page-link" in attributes.get("class", "").split():
-            self.link = {**attributes, "label": ""}
+            self.link = {**attributes, "label": "", "containers": tuple(self.div_ids)}
 
     def handle_data(self, data):
         if self.link is not None:
             self.link["label"] += data
 
     def handle_endtag(self, tag):
+        if tag == "div" and self.div_ids:
+            self.div_ids.pop()
         if tag == "a" and self.link is not None:
             self.links.append(self.link)
             self.link = None
@@ -40,14 +45,16 @@ class AppNavigationTests(unittest.TestCase):
                     parser.feed(response.text)
                     self.assertEqual(
                         [(link["label"].strip(), link["href"]) for link in parser.links],
-                        [("Admin", "/admin")] if page == "/" else [("Generate", "/"), ("Generate", "/")],
+                        [("Admin", "/admin")] if page == "/" else [("Generate", "/")],
                     )
                     for link in parser.links:
                         self.assertNotIn("target", link)
+                        self.assertNotIn("admin-menu", link["containers"])
+                        self.assertNotIn("login-container", link["containers"])
                         self.assertNotEqual(link["href"], page)
                         destination = client.get(link["href"])
                         self.assertEqual(destination.status_code, 200)
-                    self.assertIn('/static/app-navigation.css?v=2', response.text)
+                    self.assertIn('/static/app-navigation.css?v=3', response.text)
                     self.assertEqual(client.get("/static/app-navigation.css").status_code, 200)
 
     def test_navigation_destinations_still_require_initial_setup(self):
