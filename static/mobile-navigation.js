@@ -384,6 +384,14 @@
             .filter(([element]) => !!element);
         adminOriginals.forEach(([element, icon]) => drawer.appendChild(makeAdminDrawerButton(element, icon)));
 
+        const generateLink = document.getElementById('admin-generate-link');
+        if (generateLink) {
+            const generate = generateLink.cloneNode(true);
+            generate.removeAttribute('id');
+            generate.className = 'mobile-admin-drawer-item';
+            drawer.appendChild(generate);
+        }
+
         const separator = document.createElement('div');
         separator.className = 'mobile-admin-drawer-separator';
         drawer.appendChild(separator);

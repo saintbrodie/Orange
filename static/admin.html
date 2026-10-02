@@ -9,7 +9,7 @@
     <script src="/static/tailwind.min.js"></script>
     <script src="/static/lucide.min.js"></script>
     <link rel="stylesheet" href="/static/styles.css?v=9">
-    <link rel="stylesheet" href="/static/app-navigation.css?v=1">
+    <link rel="stylesheet" href="/static/app-navigation.css?v=2">
     <style>
         /* Hide number input arrows */
         input[type="number"]::-webkit-inner-spin-button,
@@ -41,7 +41,7 @@
 <body
     class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col p-4 font-sans selection:bg-orange-950 selection:text-orange-200">
     <!-- Navbar -->
-    <nav id="orange-admin-navbar"
+    <nav
         class="w-[calc(100%-2rem)] max-w-7xl mx-auto mt-4 rounded-3xl bg-zinc-900/80 backdrop-blur-md border border-zinc-800 px-8 py-4 z-10 relative flex justify-between items-center shadow-2xl">
         <div class="flex items-center gap-3">
             <img src="/static/orange.svg" class="w-10 h-10 rounded-lg object-contain" alt="Orange Mascot">
@@ -67,11 +67,10 @@
                     class="admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition">
                     <i data-lucide="image" class="w-4 h-4"></i> Gallery
                 </button>
+                <a id="admin-generate-link" href="/" class="orange-page-link flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i data-lucide="wand-2" class="w-4 h-4"></i> Generate
+                </a>
             </div>
-        </div>
-        <div class="orange-app-navigation" role="navigation" aria-label="Main navigation">
-            <a href="/">Generate</a>
-            <a href="/admin" aria-current="page">Admin</a>
         </div>
         <button id="logout-btn"
             class="hidden bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-5 py-2.5 rounded-xl text-sm font-medium transition-colors border border-zinc-700 ml-auto flex items-center gap-2"><i
@@ -108,6 +107,7 @@
                     class="w-full bg-gradient-to-r from-orange-600 to-orange-500 text-white font-semibold flex items-center justify-center gap-3 rounded-xl py-4 hover:from-orange-500 hover:to-orange-400 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(249,115,22,0.2)] text-lg mt-4">
                     Secure Login <i data-lucide="arrow-right" class="w-5 h-5"></i>
                 </button>
+                <a href="/" class="orange-page-link"><i data-lucide="wand-2" class="w-4 h-4"></i> Generate</a>
             </div>
         </div>
 

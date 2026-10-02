@@ -10,15 +10,12 @@ from app.main import app
 class NavigationParser(HTMLParser):
     def __init__(self):
         super().__init__()
-        self.in_navigation = False
         self.links = []
         self.link = None
 
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
-        if attributes.get("aria-label") == "Main navigation":
-            self.in_navigation = True
-        elif self.in_navigation and tag == "a":
+        if tag == "a" and "orange-page-link" in attributes.get("class", "").split():
             self.link = {**attributes, "label": ""}
 
     def handle_data(self, data):
@@ -26,11 +23,9 @@ class NavigationParser(HTMLParser):
             self.link["label"] += data
 
     def handle_endtag(self, tag):
-        if self.in_navigation and tag == "a" and self.link is not None:
+        if tag == "a" and self.link is not None:
             self.links.append(self.link)
             self.link = None
-        elif self.in_navigation and tag in {"nav", "div"}:
-            self.in_navigation = False
 
 
 class AppNavigationTests(unittest.TestCase):
@@ -44,15 +39,15 @@ class AppNavigationTests(unittest.TestCase):
                     parser = NavigationParser()
                     parser.feed(response.text)
                     self.assertEqual(
-                        [(link["label"], link["href"]) for link in parser.links],
-                        [("Generate", "/"), ("Admin", "/admin")],
+                        [(link["label"].strip(), link["href"]) for link in parser.links],
+                        [("Admin", "/admin")] if page == "/" else [("Generate", "/"), ("Generate", "/")],
                     )
                     for link in parser.links:
                         self.assertNotIn("target", link)
-                        self.assertEqual(link.get("aria-current"), "page" if link["href"] == page else None)
+                        self.assertNotEqual(link["href"], page)
                         destination = client.get(link["href"])
                         self.assertEqual(destination.status_code, 200)
-                    self.assertIn('/static/app-navigation.css?v=1', response.text)
+                    self.assertIn('/static/app-navigation.css?v=2', response.text)
                     self.assertEqual(client.get("/static/app-navigation.css").status_code, 200)
 
     def test_navigation_destinations_still_require_initial_setup(self):
