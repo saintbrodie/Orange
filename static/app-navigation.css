@@ -1,0 +1,69 @@
+/* Page navigation stays outside tool selection and Admin authentication controls. */
+.orange-app-navigation {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.35rem;
+    border: 1px solid var(--orange-border, #3f3f46);
+    border-radius: 0.85rem;
+    background: var(--orange-panel, #18181b);
+}
+
+.orange-app-navigation a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.85rem;
+    border-radius: 0.6rem;
+    color: var(--orange-text, #f4f4f5);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.orange-app-navigation a:hover,
+.orange-app-navigation a[aria-current="page"] {
+    color: var(--orange-accent, #f97316);
+    background: color-mix(in srgb, var(--orange-accent, #f97316) 12%, transparent);
+}
+
+.orange-app-navigation a:focus-visible {
+    outline: 2px solid var(--orange-accent, #f97316);
+    outline-offset: 2px;
+}
+
+body > .max-w-6xl > div:first-child > .orange-app-navigation {
+    width: 100%;
+    margin-top: 1rem;
+}
+
+#orange-admin-navbar {
+    flex-wrap: wrap !important;
+    gap: 0.75rem !important;
+}
+
+#orange-admin-navbar > .orange-app-navigation {
+    margin-left: auto;
+}
+
+@media (max-width: 640px) {
+    body > .max-w-6xl > div:first-child {
+        flex-wrap: wrap !important;
+    }
+
+    body > .max-w-6xl > div:first-child > .orange-app-navigation {
+        flex-basis: 100%;
+        order: 1;
+        margin-top: 0;
+    }
+
+    #orange-admin-navbar > .orange-app-navigation {
+        flex-basis: 100%;
+        order: 1;
+        margin-left: 0;
+    }
+}

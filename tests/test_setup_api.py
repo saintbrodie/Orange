@@ -74,7 +74,7 @@ class SetupApiTests(unittest.TestCase):
         source = os.path.join(os.path.dirname(__file__), "..", "static", "setup.html")
         with open(source, "r", encoding="utf-8") as handle:
             html = handle.read()
-        self.assertIn('/static/setup.js?v=6', html)
+        self.assertIn('/static/setup.js?v=7', html)
 
     def test_setup_uses_persistent_workflow_jobs(self):
         source = os.path.join(os.path.dirname(__file__), "..", "app", "api", "setup.py")
