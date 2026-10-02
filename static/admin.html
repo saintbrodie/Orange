@@ -9,6 +9,7 @@
     <script src="/static/tailwind.min.js"></script>
     <script src="/static/lucide.min.js"></script>
     <link rel="stylesheet" href="/static/styles.css?v=9">
+    <link rel="stylesheet" href="/static/app-navigation.css?v=3">
     <style>
         /* Hide number input arrows */
         input[type="number"]::-webkit-inner-spin-button,
@@ -68,6 +69,9 @@
                 </button>
             </div>
         </div>
+        <a id="admin-generate-link" href="/" class="orange-page-link orange-generate-link">
+            <i data-lucide="wand-2" class="w-4 h-4"></i> Generate
+        </a>
         <button id="logout-btn"
             class="hidden bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-5 py-2.5 rounded-xl text-sm font-medium transition-colors border border-zinc-700 ml-auto flex items-center gap-2"><i
                 data-lucide="log-out" class="w-4 h-4"></i> Logout</button>

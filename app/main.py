@@ -139,7 +139,7 @@ def serve_index():
         content = content.replace(
             "</body>",
             '    <script src="/static/result-actions.js?v=3"></script>\n'
-            '    <script src="/static/mobile-navigation.js?v=4"></script>\n'
+            '    <script src="/static/mobile-navigation.js?v=6"></script>\n'
             "</body>",
         )
         return HTMLResponse(content=content)
@@ -176,7 +176,7 @@ def serve_admin():
             '    <script src="/static/managed-comfyui.js?v=4"></script>\n'
             '    <script src="/static/managed-prompt-enhancer.js?v=3"></script>\n'
             '    <script src="/static/llm-model-select.js?v=1"></script>\n'
-            '    <script src="/static/mobile-navigation.js?v=4"></script>\n'
+            '    <script src="/static/mobile-navigation.js?v=6"></script>\n'
             "</body>",
         )
         return HTMLResponse(content=content)

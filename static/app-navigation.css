@@ -1,0 +1,67 @@
+/* Simple links between pages, independent of tool and settings tabs. */
+.orange-page-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.85rem;
+    border-radius: 0.6rem;
+    color: var(--orange-muted, #a1a1aa);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.orange-page-link:hover {
+    color: var(--orange-text, #f4f4f5);
+    background: color-mix(in srgb, var(--orange-text, #f4f4f5) 6%, transparent);
+}
+
+.orange-page-link:focus-visible {
+    outline: 2px solid var(--orange-accent, #f97316);
+    outline-offset: 2px;
+}
+
+.orange-app-navigation {
+    margin-top: 1rem;
+}
+
+.orange-generate-link {
+    flex: 0 0 auto;
+    color: var(--orange-accent, #f97316);
+    background: color-mix(in srgb, var(--orange-accent, #f97316) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--orange-accent, #f97316) 38%, transparent);
+    margin-left: 0.75rem;
+}
+
+@media (max-width: 1180px) {
+    body:has(#admin-menu) > nav > div:first-child {
+        flex: 1 1 auto;
+    }
+
+    body:has(#admin-menu) > nav h1 {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .orange-generate-link {
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+        padding-inline: 0.65rem;
+    }
+}
+
+@media (max-width: 640px) {
+    body > .max-w-6xl > div:first-child > .orange-app-navigation {
+        margin-top: 0;
+        flex: 0 0 auto;
+    }
+
+    body > .max-w-6xl > div:first-child > .orange-app-navigation .orange-page-link {
+        padding-inline: 0.5rem;
+    }
+}

@@ -9,6 +9,7 @@
     <script src="/static/lucide.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7"></script>
     <link rel="stylesheet" href="/static/styles.css?v=9">
+    <link rel="stylesheet" href="/static/app-navigation.css?v=3">
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen flex items-center justify-center p-4 font-sans selection:bg-orange-950 selection:text-orange-200">
     <div class="max-w-6xl w-full flex bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 min-h-[600px] h-[80vh]">
@@ -34,6 +35,10 @@
                 <i data-lucide="flame" class="w-5 h-5 shrink-0 animate-pulse"></i>
                 <div class="text-[11px] leading-tight font-medium text-center px-2">Server under heavy load.<br>Generations may be slow.</div>
                 <i data-lucide="flame" class="w-5 h-5 shrink-0 animate-pulse"></i>
+            </div>
+
+            <div class="orange-app-navigation" role="navigation" aria-label="Main navigation">
+                <a class="orange-page-link" href="/admin"><i data-lucide="settings" class="w-4 h-4"></i> Admin</a>
             </div>
 
             <!-- Status footer -->

@@ -309,7 +309,7 @@ async function finishSetup() {
     if (problems.length) parts.push(`${problems.length} tool${problems.length === 1 ? "" : "s"} need attention`);
     setStatus(
       $("setup-result"),
-      `✓ Orange setup is complete${parts.length ? ` · ${parts.join(" · ")}` : ""}. Opening Admin…`,
+      `✓ Orange setup is complete${parts.length ? ` · ${parts.join(" · ")}` : ""}. Opening Admin to manage your tools. Use Generate to start creating once a tool is ready.`,
       problems.length ? "" : "ok",
     );
     setTimeout(() => window.location.replace("/admin"), 500);
