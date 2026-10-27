@@ -65,4 +65,77 @@ A lightweight maintainer flow is enough:
 5. If satisfied, update `runtime/managed-runtime.json` to that ComfyUI SHA and its test date.
 6. Normal users can then choose **Update ComfyUI (Orange-tested)** to receive it.
 
-There is intentionally no scheduled GPU CI or automatic upstream promotion in the current design.
+## Repeatable GPU verification
+
+`scripts/verify_comfyui_runtime.py` automates Preflight, local image generation,
+output retrieval/decoding, and promotion. It never updates or restarts ComfyUI.
+Run a **separate test checkout and environment**, with the exact candidate
+requirements installed and existing model files exposed through an extra model
+paths file. Launch with an absolute `main.py` path on a dedicated loopback port.
+Do not move the checkout while its test server is running.
+
+For example, after starting the candidate on port 8197:
+
+```powershell
+python scripts/verify_comfyui_runtime.py --comfy-dir C:\test\ComfyUI --ref v0.42.5 --url http://127.0.0.1:8197 --config C:\pinokio\api\orange\app\workflows\workflows-config.json --report runtime/verification/report.json --smoke --promote
+```
+
+The config selects the **installed Pinokio tools**. Workflow files are read from
+that config's directory, with bundled defaults as fallback. Running without
+`--smoke` checks compatibility only and cannot promote. `--promote` updates
+`testedCommit`, `testedVersion`, and `testedDate` only when every configured tool
+passes both checks and all four bundled curated packs are covered. Missing
+models, execution errors, timeouts, unavailable outputs, and undecodable images
+block promotion. Reports include exact source and workflow hashes, runtime
+versions, prompts' IDs, warnings, and errors. Reports and test checkouts live in
+the ignored `runtime/verification/` directory.
+Successful promotion also writes a compact, shareable record to
+`runtime/managed-runtime-verification.json` alongside the pin.
+
+Smoke tests use fixed seeds, 512px mapped generation sizes, and a generated
+256px input fixture for image tools. They retain model choices and sampling
+settings. This verifies execution and output transport; it does not grade image
+quality, test every resolution/platform/GPU, or exercise Orange's browser UI.
+A source checkout/version check prevents accidental verification against a
+different installation. Start a fresh test process for every candidate: Git HEAD
+alone cannot prove which code a long-running process has loaded.
+
+### Scheduled maintenance on a local GPU machine
+
+A Codex recurring automation can orchestrate this process (the machine and app
+must be running). The local maintainer schedule is Monday at 04:00 Eastern:
+
+1. Resolve a newer stable upstream tag to a full commit. Use stable version tags,
+   not the moving `latest` portable-build tag or development HEAD.
+2. Check queues and GPU memory; defer while normal generation work is active.
+3. Fetch the candidate into the separate test checkout. Sync its requirements in
+   an isolated environment without changing the user's normal installation.
+   Existing model files may be reused; do not silently download new models.
+4. Start a fresh loopback test server, then run the verifier against the current
+   Pinokio tools with `--smoke --promote`. Run Orange's unit tests too. Never
+   submit paid API workflows as smoke tests.
+5. Keep the old pin on failure. Retain the report and flag new blockers. When
+   verification and focused tests pass, review the manifest and evidence diff,
+   then commit and publish only the pin, verification record, and related
+   maintenance changes to the repository's default branch. Check the full suite
+   for new failures against its known baseline. Respect branch protections and
+   never force-push or include unrelated working changes. Notify the user of the
+   published commit. Installed Pinokio copies still use their normal update action.
+6. Stop only the test process started by this run to release its GPU memory.
+
+The automation belongs to the maintainer's local Codex setup; cloning this
+repository does not register a schedule or install a background service.
+
+### Current verification
+
+On 2026-10-26, v0.42.5 (`483dae4326356b81de05d27aca3f433dd323cc25`)
+passed Preflight and image smoke tests for the Pinokio install's four tools:
+Z-Image, Krea 2, Klein editing, and SeedVR2 upscaling. The isolated test environment
+used the candidate's pinned ComfyUI packages with Python 3.12.12 and PyTorch
+2.13.0+cu130, reusing GPU libraries and model files from the local machine.
+This was not a clean Pinokio installation test.
+
+The focused runtime tests passed. The full Orange unit suite also revealed
+Windows SQLite temporary-file cleanup errors and an Admin provider-label
+assertion failure in areas untouched by this update. These remain separate
+issues; the GPU verification record does not imply a clean full CI run.

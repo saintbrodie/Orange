@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "commit": "483dae4326356b81de05d27aca3f433dd323cc25",
+  "ref": "v0.42.5",
+  "checkedAt": "2026-10-26T17:04:47.504951+00:00",
+  "orangeCommit": "7cabe2d56b7596423bca0a4728a443baabc69bd7",
+  "passed": true,
+  "system": {
+    "comfyui_version": "0.42.5",
+    "python_version": "3.12.12 (main, Feb  3 2026, 22:54:57) [MSC v.1944 64 bit (AMD64)]",
+    "pytorch_version": "2.13.0+cu130",
+    "comfy_package_versions": [
+      {
+        "name": "comfyui-frontend-package",
+        "installed": "1.55.18",
+        "required": "1.55.18"
+      },
+      {
+        "name": "comfyui-workflow-templates",
+        "installed": "0.11.96",
+        "required": "0.11.96"
+      },
+      {
+        "name": "comfyui-embedded-docs",
+        "installed": "0.5.14",
+        "required": "0.5.14"
+      },
+      {
+        "name": "comfy-kitchen",
+        "installed": "0.2.39",
+        "required": "0.2.39"
+      },
+      {
+        "name": "comfy-aimdo",
+        "installed": "0.5.6",
+        "required": "0.5.6"
+      }
+    ]
+  },
+  "tools": [
+    {
+      "id": "z-image",
+      "workflowSha256": "009d6e56235864a1c23602b01d525fd30e0cfc50c93e502d585f621278e493c4",
+      "preflightPassed": true,
+      "smokePassed": true
+    },
+    {
+      "id": "krea-2",
+      "workflowSha256": "75d07f2d7c096febccd08799a827ae1d629742d84af70f60080769dc1bf59209",
+      "preflightPassed": true,
+      "smokePassed": true
+    },
+    {
+      "id": "klein-edit",
+      "workflowSha256": "4af87e870598cac4525ed784e4d13ba69637327d48f05574831213325a1c2742",
+      "preflightPassed": true,
+      "smokePassed": true
+    },
+    {
+      "id": "seedvr2-upscale",
+      "workflowSha256": "18377ecf3a14c936a13c3794d3f7f66a01cb349134146ce0d1c8091c775319ab",
+      "preflightPassed": true,
+      "smokePassed": true
+    }
+  ],
+  "scope": "512px mapped generation sizes; 256px fixture for editing/upscaling; output retrieval and image decoding. No visual-quality or browser UI assessment."
+}

@@ -9,7 +9,7 @@ class ManagedRuntimeTests(unittest.TestCase):
     def test_manifest_contains_pinned_comfyui_commit(self):
         manifest = managed_runtime.load_managed_runtime_manifest()
         comfy = manifest.get("comfyui", {})
-        self.assertEqual(comfy.get("testedCommit"), "387f98aa2822f684b8597959a52a467d88cc4806")
+        self.assertRegex(comfy.get("testedCommit", ""), r"^[0-9a-f]{40}$")
         self.assertEqual(comfy.get("repository"), "https://github.com/Comfy-Org/ComfyUI.git")
 
     @patch("app.core.managed_runtime._read_state")
@@ -17,7 +17,7 @@ class ManagedRuntimeTests(unittest.TestCase):
     @patch("app.core.managed_runtime._comfyui_dir")
     def test_status_marks_tested_commit(self, comfy_dir, git_head, read_state):
         comfy_dir.return_value = "/tmp/comfy"
-        git_head.return_value = "387f98aa2822f684b8597959a52a467d88cc4806"
+        git_head.return_value = managed_runtime.load_managed_runtime_manifest()["comfyui"]["testedCommit"]
         read_state.return_value = {"validation": "passed", "previousCommit": "oldsha"}
 
         status = managed_runtime.managed_runtime_status()
