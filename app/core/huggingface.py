@@ -1,8 +1,10 @@
 """Server-only Hugging Face credentials and authenticated model downloads."""
+import hashlib
 import os
 from pathlib import Path
 import re
-import tempfile
+import sys
+import threading
 import urllib.error
 import urllib.request
 from urllib.parse import urlsplit
@@ -11,13 +13,77 @@ from app.core.config import PROJECT_ROOT
 
 TOKEN_PATH = Path(PROJECT_ROOT) / "runtime" / "secrets" / "huggingface-token"
 TOKEN_PATTERN = re.compile(r"hf_[A-Za-z0-9_]{5,500}")
+_STORE_LOCK = threading.RLock()
+_SERVICE = "Orange.HuggingFace"
+CREDENTIAL_STORAGE_ERROR = (
+    "Orange could not access the operating system credential store. "
+    "Install Orange's dependencies and unlock your Windows credential store, "
+    "macOS Keychain, or Linux Secret Service, or configure HF_TOKEN on the server."
+)
+
+
+def _credential_store():
+    # Instantiate only native backends. Never accept configured/plugin backends,
+    # including keyrings.alt's plaintext files or the silent null backend.
+    try:
+        if sys.platform == "win32":
+            from keyring.backends.Windows import WinVaultKeyring
+            backend = WinVaultKeyring()
+            backend.persist = "local machine"
+        elif sys.platform == "darwin":
+            from keyring.backends.macOS import Keyring
+            backend = Keyring()
+        elif sys.platform.startswith("linux"):
+            from keyring.backends.SecretService import Keyring
+            backend = Keyring()
+        else:
+            raise OSError(CREDENTIAL_STORAGE_ERROR)
+        if backend.priority <= 0:
+            raise OSError(CREDENTIAL_STORAGE_ERROR)
+        return backend
+    except Exception:
+        raise OSError(CREDENTIAL_STORAGE_ERROR) from None
+
+
+def _account():
+    # Isolate separate Orange installations under the same operating system user.
+    identity = os.path.normcase(str(TOKEN_PATH.resolve()))
+    return hashlib.sha256(identity.encode("utf-8")).hexdigest()
+
+
+def _store_call(backend, method, *args):
+    try:
+        return getattr(backend, method)(f"{_SERVICE}.{_account()}", "token", *args)
+    except Exception:
+        # Backend exceptions may contain credentials; never propagate them.
+        raise OSError(CREDENTIAL_STORAGE_ERROR) from None
+
+
+def _write_verified(backend, value):
+    _store_call(backend, "set_password", value)
+    if _store_call(backend, "get_password") != value:
+        raise OSError(CREDENTIAL_STORAGE_ERROR)
 
 
 def _saved_token():
-    try:
-        return TOKEN_PATH.read_text(encoding="utf-8").strip()
-    except FileNotFoundError:
-        return ""
+    with _STORE_LOCK:
+        backend = _credential_store()
+        saved = _store_call(backend, "get_password")
+        try:
+            legacy = TOKEN_PATH.read_text(encoding="utf-8").strip()
+        except FileNotFoundError:
+            return saved or ""
+        except (OSError, UnicodeError):
+            raise OSError("Could not migrate the old Hugging Face token file.") from None
+        if not saved and legacy:
+            if not TOKEN_PATTERN.fullmatch(legacy):
+                raise OSError("The old Hugging Face token file is invalid. Save a new token or remove it.")
+            _write_verified(backend, legacy)
+            saved = legacy
+        # Delete plaintext only after native storage has confirmed the write.
+        # An existing native credential always takes precedence over a stale file.
+        TOKEN_PATH.unlink(missing_ok=True)
+        return saved or ""
 
 
 def get_token():
@@ -34,21 +100,18 @@ def token_status():
 def save_token(value):
     if not isinstance(value, str) or not TOKEN_PATTERN.fullmatch(value.strip()):
         raise ValueError("Enter a Hugging Face access token beginning with hf_.")
-    TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    descriptor, temporary = tempfile.mkstemp(dir=TOKEN_PATH.parent, prefix=".hf-token-")
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            handle.write(value.strip())
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, TOKEN_PATH)
-    finally:
-        if os.path.exists(temporary):
-            os.unlink(temporary)
+    with _STORE_LOCK:
+        _write_verified(_credential_store(), value.strip())
+        TOKEN_PATH.unlink(missing_ok=True)
 
 
 def clear_token():
-    TOKEN_PATH.unlink(missing_ok=True)
+    with _STORE_LOCK:
+        backend = _credential_store()
+        # Remove the legacy copy first so a failed delete cannot resurrect it.
+        TOKEN_PATH.unlink(missing_ok=True)
+        if _store_call(backend, "get_password") is not None:
+            _store_call(backend, "delete_password")
 
 
 def _is_hub_url(url):

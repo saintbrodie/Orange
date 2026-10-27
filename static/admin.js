@@ -1055,10 +1055,11 @@ lucide.createIcons();
         async function loadHfTokenStatus() {
             try {
                 const res = await adminFetch('/api/admin/huggingface-token');
-                if (!res.ok) throw new Error('Could not read token status.');
-                renderHfTokenStatus(await res.json());
-            } catch (_) {
-                document.getElementById('hf-token-status').textContent = 'Could not read token status. Try refreshing Settings.';
+                const data = await res.json();
+                if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Could not read token status.');
+                renderHfTokenStatus(data);
+            } catch (error) {
+                document.getElementById('hf-token-status').textContent = error.message || 'Could not read token status. Try refreshing Settings.';
             }
         }
 

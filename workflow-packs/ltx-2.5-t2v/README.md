@@ -28,9 +28,19 @@ omitted because Orange already has its own optional enhancement flow.
    files and downloads only missing components using the configured token.
 
 You can also set `HF_TOKEN` on the Orange server; it takes precedence over a
-saved token. Tokens are stored in `runtime/secrets/huggingface-token`, separately
-from workflow config, and excluded from Git. This is a local secret file, not an
-exported setting. The admin API returns only whether a token is configured; it
+saved token. Saved tokens use the server user's native OS credential store:
+Windows Credential Manager, macOS Keychain, or Linux Secret Service. Orange
+does not write new token files, and never falls back to plaintext storage.
+Install the updated requirements and ensure the native credential store is
+available and unlocked; headless Linux servers can use `HF_TOKEN` instead.
+Existing `runtime/secrets/huggingface-token` files migrate automatically when
+token settings or a download first reads them: Orange verifies the native
+credential before deleting the old plaintext file. A failed migration preserves
+the old file and reports an error. Remove any older backups yourself.
+Credentials belong to the OS account running Orange and this installation path;
+changing accounts or moving Orange requires saving the token again.
+Other programs running as that OS user may also access the credential store.
+The admin API returns only whether a token is configured; it
 never returns the saved token. Remove it with **Remove saved token** (an
 `HF_TOKEN` environment setting remains active until removed from the environment).
 The token field has its own save action; leaving it blank preserves the saved

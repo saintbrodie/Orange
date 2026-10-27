@@ -189,7 +189,10 @@ def get_admin_usage(period: str = "all", export: bool = False, _=Depends(verify_
 
 @router.get("/api/admin/huggingface-token")
 def get_huggingface_token_status(_=Depends(verify_admin)):
-    return huggingface.token_status()
+    try:
+        return huggingface.token_status()
+    except OSError:
+        raise HTTPException(status_code=503, detail=huggingface.CREDENTIAL_STORAGE_ERROR)
 
 
 @router.post("/api/admin/huggingface-token")
@@ -200,7 +203,7 @@ def set_huggingface_token(payload: dict, _=Depends(verify_admin)):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except OSError:
-        raise HTTPException(status_code=500, detail="Could not save the Hugging Face token on this server.")
+        raise HTTPException(status_code=503, detail=huggingface.CREDENTIAL_STORAGE_ERROR)
 
 
 @router.delete("/api/admin/huggingface-token")
@@ -209,7 +212,7 @@ def delete_huggingface_token(_=Depends(verify_admin)):
         huggingface.clear_token()
         return huggingface.token_status()
     except OSError:
-        raise HTTPException(status_code=500, detail="Could not remove the saved Hugging Face token.")
+        raise HTTPException(status_code=503, detail=huggingface.CREDENTIAL_STORAGE_ERROR)
 
 
 @router.get("/api/admin/config")

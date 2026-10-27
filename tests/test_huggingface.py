@@ -2,6 +2,7 @@ import io
 import os
 from pathlib import Path
 import tempfile
+import types
 import unittest
 from unittest.mock import Mock, patch
 import urllib.error
@@ -19,6 +20,45 @@ from app.core import workflow_packs
 TOKEN = "hf_testReadTokenOnly123"
 
 
+class MemoryCredentialStore:
+    """Keep unit tests out of the real user's operating system credential store."""
+    def __init__(self):
+        self.values = {}
+
+    def get_password(self, service, account):
+        return self.values.get((service, account))
+
+    def set_password(self, service, account, value):
+        self.values[service, account] = value
+
+    def delete_password(self, service, account):
+        del self.values[service, account]
+
+
+class NativeBackendSelectionTests(unittest.TestCase):
+    def test_only_native_backends_are_used_despite_configured_null_backend(self):
+        for platform, module, name in (
+            ("win32", "keyring.backends.Windows", "WinVaultKeyring"),
+            ("darwin", "keyring.backends.macOS", "Keyring"),
+            ("linux", "keyring.backends.SecretService", "Keyring"),
+        ):
+            with self.subTest(platform=platform):
+                backend = Mock(priority=5)
+                factory = Mock(return_value=backend)
+                fake_module = types.ModuleType(module)
+                setattr(fake_module, name, factory)
+                with patch.dict("sys.modules", {module: fake_module}), \
+                     patch.object(hf.sys, "platform", platform), \
+                     patch.dict(os.environ, {"PYTHON_KEYRING_BACKEND": "keyring.backends.null.Keyring"}):
+                    self.assertIs(hf._credential_store(), backend)
+                    factory.assert_called_once_with()
+
+    def test_unsupported_platform_fails_without_fallback(self):
+        with patch.object(hf.sys, "platform", "unsupported"):
+            with self.assertRaisesRegex(OSError, "credential store"):
+                hf._credential_store()
+
+
 class TokenStoreTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
@@ -30,15 +70,72 @@ class TokenStoreTests(unittest.TestCase):
         self.environment.start()
         self.addCleanup(self.token_path.stop)
         self.addCleanup(self.environment.stop)
+        self.store = MemoryCredentialStore()
+        native = patch.object(hf, "_credential_store", return_value=self.store)
+        native.start()
+        self.addCleanup(native.stop)
 
-    def test_saved_token_is_atomic_and_status_is_redacted(self):
+    def test_saved_token_uses_native_store_without_a_secret_file(self):
         hf.save_token(TOKEN)
         self.assertEqual(hf.get_token(), TOKEN)
         self.assertEqual(hf.token_status(), {"configured": True, "saved": True, "source": "saved"})
         self.assertNotIn(TOKEN, repr(hf.token_status()))
-        self.assertEqual(list(self.path.parent.iterdir()), [self.path])
+        self.assertFalse(self.path.exists())
+        self.assertFalse(self.path.parent.exists())
         hf.clear_token()
         self.assertFalse(hf.token_status()["configured"])
+        self.assertEqual(self.store.values, {})
+
+    def test_legacy_plaintext_is_verified_then_removed(self):
+        self.path.parent.mkdir()
+        self.path.write_text(TOKEN, encoding="utf-8")
+        self.assertEqual(hf.get_token(), TOKEN)
+        self.assertFalse(self.path.exists())
+        self.assertEqual(hf.get_token(), TOKEN)
+
+    def test_failed_migration_preserves_legacy_and_redacts_backend_errors(self):
+        self.path.parent.mkdir()
+        self.path.write_text(TOKEN, encoding="utf-8")
+        with patch.object(self.store, "set_password", side_effect=RuntimeError(TOKEN)):
+            with self.assertRaises(OSError) as caught:
+                hf.get_token()
+        self.assertNotIn(TOKEN, str(caught.exception))
+        self.assertEqual(self.path.read_text(encoding="utf-8"), TOKEN)
+
+    def test_unverified_migration_keeps_original(self):
+        self.path.parent.mkdir()
+        self.path.write_text(TOKEN, encoding="utf-8")
+        with patch.object(self.store, "set_password"):
+            with self.assertRaises(OSError):
+                hf.get_token()
+        self.assertTrue(self.path.exists())
+
+    def test_native_credential_wins_over_stale_legacy_and_remove_clears_both(self):
+        hf.save_token(TOKEN)
+        self.path.parent.mkdir()
+        self.path.write_text("hf_oldReadToken123", encoding="utf-8")
+        self.assertEqual(hf.get_token(), TOKEN)
+        self.assertFalse(self.path.exists())
+        self.path.write_text(TOKEN, encoding="utf-8")
+        hf.clear_token()
+        self.assertFalse(hf.get_token())
+        self.assertFalse(self.path.exists())
+
+    def test_unavailable_native_store_does_not_write_plaintext(self):
+        with patch.object(hf, "_credential_store", side_effect=OSError("unavailable")):
+            with self.assertRaises(OSError):
+                hf.save_token(TOKEN)
+            self.assertFalse(self.path.exists())
+            with patch.dict(os.environ, {"HF_TOKEN": TOKEN}):
+                self.assertEqual(hf.get_token(), TOKEN)
+
+    def test_installations_have_separate_credentials(self):
+        hf.save_token(TOKEN)
+        with patch.object(hf, "TOKEN_PATH", self.path.parent / "other-token"):
+            self.assertEqual(hf.get_token(), "")
+            hf.save_token("hf_secondInstallation123")
+            hf.clear_token()
+        self.assertEqual(hf.get_token(), TOKEN)
 
     def test_environment_overrides_saved_token_and_survives_removal(self):
         hf.save_token(TOKEN)
@@ -127,6 +224,25 @@ class TokenStoreTests(unittest.TestCase):
 
 
 class TokenAPITests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        native = patch.object(hf, "_credential_store", return_value=MemoryCredentialStore())
+        native.start()
+        self.addCleanup(native.stop)
+
+    async def test_unavailable_storage_returns_sanitized_actionable_error(self):
+        app = FastAPI()
+        app.include_router(admin.router)
+        with patch.object(hf, "_credential_store", side_effect=OSError(TOKEN)), \
+             patch.object(admin, "load_config", return_value={"adminKey": "admin-test"}):
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://orange") as client:
+                for method in ("GET", "POST", "DELETE"):
+                    response = await client.request(method, "/api/admin/huggingface-token",
+                                                    headers={"Authorization": "Bearer admin-test"},
+                                                    **({"json": {"token": TOKEN}} if method == "POST" else {}))
+                    self.assertEqual(response.status_code, 503)
+                    self.assertNotIn(TOKEN, response.text)
+                    self.assertIn("credential store", response.text)
+
     async def test_endpoints_require_admin_and_never_return_token(self):
         app = FastAPI()
         app.include_router(admin.router)
