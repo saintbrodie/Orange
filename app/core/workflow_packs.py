@@ -7,6 +7,7 @@ import urllib.request
 from copy import deepcopy
 
 from app.core.config import PROJECT_ROOT
+from app.core.video_controls import tool_variants
 
 PACKS_DIR = os.path.join(PROJECT_ROOT, "workflow-packs")
 ACTIVE_WORKFLOWS_DIR = os.path.join(PROJECT_ROOT, "workflows")
@@ -218,7 +219,13 @@ def _selected_lookup(selected_models: list[dict]) -> dict[str, dict]:
 def materialize_workflow_pack(pack_id: str, selected_models: list[dict]) -> str:
     """Copy a curated workflow into active state and bind selected model filenames."""
     manifest = get_workflow_pack(pack_id)
-    workflow_file = os.path.basename(str(manifest.get("workflowFile") or "").strip())
+    variants = tool_variants(manifest.get("tool") or {"workflowFile": manifest.get("workflowFile")})
+    paths = [_materialize_workflow(pack_id, manifest, variant["workflowFile"], selected_models) for variant in variants]
+    return paths[0]
+
+
+def _materialize_workflow(pack_id, manifest, workflow_file, selected_models):
+    workflow_file = os.path.basename(str(workflow_file or "").strip())
     if not workflow_file or not workflow_file.lower().endswith(".json"):
         raise ValueError(f"Workflow pack '{pack_id}' has an invalid workflowFile")
 

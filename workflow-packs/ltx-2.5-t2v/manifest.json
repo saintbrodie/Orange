@@ -2,12 +2,12 @@
   "id": "ltx-2.5-t2v",
   "name": "LTX 2.5 Video",
   "type": "text-to-video",
-  "description": "Generate a short video with synchronized audio from a text prompt. About four seconds at 24 fps, with two-stage refinement. Plan for 32 GB+ VRAM with INT8 models.",
-  "tagline": "Generate a four-second video with sound, locally. INT8 models recommended for 32 GB+ GPUs.",
+  "description": "Local video with synchronized audio, adjustable length, and an optional first-frame image. Plan for 32 GB+ VRAM with INT8 models.",
+  "tagline": "Generate video with sound from a prompt or optional first frame. Choose 2\u201312 seconds.",
   "highlights": [
-    "Text to video",
-    "Synchronized audio",
-    "Local generation"
+    "Text or first frame",
+    "2\u201312 seconds",
+    "Synchronized audio"
   ],
   "recommended": false,
   "thumbnail": "/static/curated-thumbnails/ltx-2.5-t2v.jpg",
@@ -36,6 +36,10 @@
       "height": {
         "nodeId": "405:356",
         "field": "height"
+      },
+      "duration": {
+        "nodeId": "video_frames",
+        "field": "value"
       }
     },
     "aspectRatios": {
@@ -50,6 +54,49 @@
       "9:16": {
         "width": 288,
         "height": 512
+      }
+    },
+    "duration": {
+      "default": 4,
+      "options": [
+        2,
+        4,
+        6,
+        8,
+        10,
+        12
+      ],
+      "frameRate": 24,
+      "frameMultiple": 8
+    },
+    "imageVariant": {
+      "workflowFile": "video_ltx_2_5_i2v.json",
+      "nodeMapping": {
+        "prompt": {
+          "nodeId": "405:364",
+          "field": "text"
+        },
+        "seed": {
+          "nodeId": "405:339",
+          "field": "noise_seed",
+          "generateRandom": true
+        },
+        "width": {
+          "nodeId": "405:356",
+          "field": "width"
+        },
+        "height": {
+          "nodeId": "405:356",
+          "field": "height"
+        },
+        "duration": {
+          "nodeId": "video_frames",
+          "field": "value"
+        },
+        "image": {
+          "nodeId": "first_frame",
+          "field": "image"
+        }
       }
     }
   },

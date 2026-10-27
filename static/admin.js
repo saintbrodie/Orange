@@ -1589,7 +1589,12 @@ lucide.createIcons();
                 delete tool.outputType; // default is image, no need to store
             }
 
-            tool.nodeMapping = {};
+            const durationMapping = tool.outputType === 'video' ? tool.nodeMapping?.duration : null;
+            tool.nodeMapping = durationMapping ? {duration: durationMapping} : {};
+            if (tool.outputType !== 'video') {
+                delete tool.duration;
+                delete tool.imageVariant;
+            }
             delete tool.aspectRatios;
 
             MAPPING_TYPES.forEach(type => {

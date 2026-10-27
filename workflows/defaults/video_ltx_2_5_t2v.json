@@ -348,7 +348,10 @@
       "batch_size": 1,
       "width": 384,
       "height": 256,
-      "length": 97
+      "length": [
+        "video_frames",
+        0
+      ]
     },
     "class_type": "EmptyLTXVLatentVideo",
     "_meta": {
@@ -358,7 +361,10 @@
   "405:366": {
     "inputs": {
       "batch_size": 1,
-      "frames_number": 97,
+      "frames_number": [
+        "video_frames",
+        0
+      ],
       "frame_rate": 24,
       "audio_vae": [
         "405:386",
@@ -416,6 +422,15 @@
     "class_type": "CLIPLoader",
     "_meta": {
       "title": "Load CLIP"
+    }
+  },
+  "video_frames": {
+    "class_type": "PrimitiveInt",
+    "inputs": {
+      "value": 97
+    },
+    "_meta": {
+      "title": "Video frame count"
     }
   }
 }

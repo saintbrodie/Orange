@@ -21,6 +21,7 @@ from app.core.config import get_base_workflow, get_comfy_servers, get_tool_setti
 from app.core.database import log_usage
 from app.core.submission import SubmissionFailure, submit_prompt, upload_image_bytes
 from app.core.workflow_assets import find_managed_asset_references
+from app.core.video_controls import apply_duration, select_input_variant
 
 router = APIRouter()
 
@@ -74,6 +75,7 @@ async def generate_v2(
     aspect_ratio: str = Form(None),
     image: UploadFile = File(None),
     image2: UploadFile = File(None),
+    duration: float | None = Form(None),
 ):
     client_ip = request.client.host if request.client else "unknown"
 
@@ -84,6 +86,7 @@ async def generate_v2(
     if not tool:
         raise HTTPException(status_code=400, detail="Invalid tool ID")
 
+    tool = select_input_variant(tool, bool(image))
     mapping = tool.get("nodeMapping", {})
     workflow_file = tool.get("workflowFile")
     try:
@@ -97,6 +100,13 @@ async def generate_v2(
             error=f"Workflow load failure: {type(exc).__name__}: {exc}",
         )
         raise HTTPException(status_code=500, detail="This tool's workflow could not be loaded. Check it in the admin dashboard.")
+
+    duration_value = duration if isinstance(duration, (int, float)) else None
+    try:
+        duration_check = copy.deepcopy(base_workflow)
+        apply_duration(duration_check, tool, duration_value)
+    except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     compatibility_key = workflow_compatibility_key(workflow_file, base_workflow, mapping)
 
@@ -167,6 +177,7 @@ async def generate_v2(
         client = await get_backend_client()
         try:
             workflow = copy.deepcopy(base_workflow)
+            apply_duration(workflow, tool, duration_value)
             await _stage_assets(workflow, asset_references, asset_payloads, target_url, client)
 
             uploaded_image_name = None

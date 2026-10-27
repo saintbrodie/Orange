@@ -25,8 +25,9 @@ class LTXWorkflowPackTests(unittest.TestCase):
         self.assertEqual(validate_config({"tools": [self.tool]})["errors"], [])
 
     def test_av_timing_and_native_output_are_connected(self):
-        self.assertEqual(self.workflow["405:356"]["inputs"]["length"], 97)
-        self.assertEqual(self.workflow["405:366"]["inputs"]["frames_number"], 97)
+        self.assertEqual(self.workflow["405:356"]["inputs"]["length"], ["video_frames", 0])
+        self.assertEqual(self.workflow["video_frames"]["inputs"]["value"], 97)
+        self.assertEqual(self.workflow["405:366"]["inputs"]["frames_number"], ["video_frames", 0])
         self.assertEqual(self.workflow["405:366"]["inputs"]["frame_rate"], 24)
         self.assertEqual(self.workflow["405:370"]["inputs"]["fps"], 24)
         self.assertIn("audio", self.workflow["405:370"]["inputs"])
@@ -57,7 +58,8 @@ class LTXWorkflowPackTests(unittest.TestCase):
         self.assertEqual(selected["spatial_upscaler"]["folder"], "latent_upscale_models")
 
     def test_probe_reuses_native_typed_combo_upscaler_inventory(self):
-        info = {n["class_type"]: {"input": {"required": {}}} for n in self.workflow.values()}
+        image_workflow = json.loads((Path(workflow_packs.DEFAULT_WORKFLOWS_DIR) / self.tool["imageVariant"]["workflowFile"]).read_text())
+        info = {n["class_type"]: {"input": {"required": {}}} for graph in (self.workflow, image_workflow) for n in graph.values()}
         models = {m["id"]: m for m in workflow_packs.select_model_dependencies("ltx-2.5-t2v", {})}
         for binding in self.manifest["bindings"]:
             node_type = self.workflow[binding["nodeId"]]["class_type"]
@@ -69,6 +71,10 @@ class LTXWorkflowPackTests(unittest.TestCase):
         self.assertEqual(len(inspection["selectedModels"]), 5)
         self.assertEqual(inspection["recommendedDownloads"], [])
         self.assertEqual(inspection["unknownModels"], [])
+        del info["LTXVImgToVideoInplace"]
+        inspection = inspect_workflow_pack("ltx-2.5-t2v", info, {})
+        self.assertFalse(inspection["ready"])
+        self.assertIn("LTXVImgToVideoInplace", inspection["missingNodes"])
 
     def test_install_binds_all_five_components_to_inventory_filenames(self):
         selected = workflow_packs.select_model_dependencies("ltx-2.5-t2v", {})
@@ -80,8 +86,11 @@ class LTXWorkflowPackTests(unittest.TestCase):
             with patch.object(workflow_packs, "ACTIVE_WORKFLOWS_DIR", directory):
                 path = workflow_packs.materialize_workflow_pack("ltx-2.5-t2v", selected)
             workflow = json.loads(Path(path).read_text())
+            image_workflow = json.loads((Path(directory) / self.tool["imageVariant"]["workflowFile"]).read_text())
             for binding in self.manifest["bindings"]:
                 self.assertEqual(workflow[binding["nodeId"]]["inputs"][binding["field"]],
+                                 by_id[binding["modelId"]]["filename"])
+                self.assertEqual(image_workflow[binding["nodeId"]]["inputs"][binding["field"]],
                                  by_id[binding["modelId"]]["filename"])
 
 

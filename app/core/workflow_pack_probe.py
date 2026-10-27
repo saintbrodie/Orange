@@ -3,6 +3,7 @@ import os
 from copy import deepcopy
 
 from app.core.config import PROJECT_ROOT
+from app.core.video_controls import tool_variants
 from app.core.workflow_packs import (
     get_workflow_pack,
     select_model_dependencies,
@@ -121,6 +122,10 @@ def selection_for_install(inspection: dict) -> list[dict]:
 def inspect_workflow_pack(pack_id: str, object_info: dict, system_stats: dict | None = None) -> dict:
     manifest = get_workflow_pack(pack_id)
     workflow = _load_curated_workflow(manifest)
+    graphs = [workflow] + [
+        _load_curated_workflow({"workflowFile": variant["workflowFile"]})
+        for variant in tool_variants(manifest.get("tool") or {})[1:]
+    ]
     hardware = summarize_system_stats(system_stats)
     preferred = {
         str(item.get("id")): item
@@ -131,7 +136,7 @@ def inspect_workflow_pack(pack_id: str, object_info: dict, system_stats: dict | 
     missing_nodes = sorted(
         {
             str(node.get("class_type"))
-            for node in workflow.values()
+            for graph in graphs for node in graph.values()
             if isinstance(node, dict)
             and node.get("class_type")
             and not isinstance(object_info.get(str(node.get("class_type"))), dict)

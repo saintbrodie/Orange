@@ -149,3 +149,7 @@ retain the workflow's frame count, audio path, and sampling settings. The LTX 2.
 pack upscales this to 768x512. A missing video, failed fetch, or undecodable video
 blocks promotion just like an image failure. Every new curated pack must be
 included in the verification configuration before a future pin can be promoted.
+
+Video tools with an optional `imageVariant` are verified in both modes, including
+an uploaded fixture for the first-frame graph. Duration uses the configured
+default and the same seconds-to-frame conversion as normal requests.

@@ -28,6 +28,7 @@ from app.core.managed_runtime import _routing_compatible
 from app.core.outputs import collect_media_outputs
 from app.core.preflight import run_preflight
 from app.core.submission import submit_prompt, upload_image_bytes
+from app.core.video_controls import apply_duration, tool_variants
 
 
 def git(repo, *args):
@@ -158,7 +159,7 @@ async def verify(args):
     url = args.url.rstrip("/")
     config = json.loads(Path(args.config).read_text(encoding="utf-8"))
     workflow_dir = Path(args.config).resolve().parent
-    tools = config.get("tools", [])
+    tools = [variant for tool in config.get("tools", []) for variant in tool_variants(tool)]
     if not tools or len({tool["id"] for tool in tools}) != len(tools):
         raise ValueError("Verification requires a nonempty list of unique tools")
     report = {"schemaVersion": 1, "commit": commit, "ref": args.ref,
@@ -205,6 +206,7 @@ async def verify(args):
                     raise ValueError("Smoke verification currently supports image and video tools")
                 result["workflowSha256"] = hashlib.sha256(json.dumps(original, sort_keys=True).encode()).hexdigest()
                 workflow = prepare_workflow(original, tool.get("nodeMapping", {}), image_name, output_type) if args.smoke else original
+                apply_duration(workflow, tool)
                 check = await run_preflight(tool["workflowFile"], workflow, tool.get("nodeMapping", {}), [{"url": url, "priority": 1}])
                 result["preflight"] = check
                 result["preflightPassed"] = bool(
