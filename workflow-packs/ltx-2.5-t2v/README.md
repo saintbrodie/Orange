@@ -18,14 +18,30 @@ omitted because Orange already has its own optional enhancement flow.
 
 ## Setup
 
-Accept the model terms at https://huggingface.co/Lightricks/LTX-2.5 and download
-the five selected components using ComfyUI or your authenticated model manager.
-The manifest lists exact filenames and official download URLs. Place the
-transformer in `diffusion_models`, Gemma encoder in `text_encoders`, both VAEs in
-`vae`, and the spatial upscaler in `latent_upscale_models`. In Orange, open the
-Curated Library, inspect the backend, and add the pack; existing models are reused.
-An unauthenticated download from the gated repository may be refused. Orange
-neither accepts the model terms nor handles that account consent on your behalf.
+1. Accept the model terms at https://huggingface.co/Lightricks/LTX-2.5 using
+   your own Hugging Face account.
+2. Create a read token, or a fine-grained token that can read the model, at
+   https://huggingface.co/settings/tokens.
+3. In Orange, open **Admin > General Settings > Hugging Face downloads**,
+   paste the token, and click **Save token**.
+4. Inspect and add the pack in the Curated Library. Orange reuses existing model
+   files and downloads only missing components using the configured token.
+
+You can also set `HF_TOKEN` on the Orange server; it takes precedence over a
+saved token. Tokens are stored in `runtime/secrets/huggingface-token`, separately
+from workflow config, and excluded from Git. This is a local secret file, not an
+exported setting. The admin API returns only whether a token is configured; it
+never returns the saved token. Remove it with **Remove saved token** (an
+`HF_TOKEN` environment setting remains active until removed from the environment).
+The token field has its own save action; leaving it blank preserves the saved
+value. Files can still be downloaded with ComfyUI or an authenticated model
+manager and Orange will reuse them.
+
+A token does not accept the model terms or grant access that its account lacks.
+A 401/403 download error asks the user to check the token and model access.
+Orange authenticates only HTTPS requests to the exact `huggingface.co` origin
+and strips authorization from redirects to external file storage. The same
+credentials apply to download-size checks and both model installer paths.
 
 ## Sources and validation
 

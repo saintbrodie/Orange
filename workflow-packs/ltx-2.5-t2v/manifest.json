@@ -117,7 +117,7 @@
           "url": "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/diffusion_models/ltx-2.5-22b-distilled-transformer-bf16.safetensors"
         }
       ],
-      "sourceNote": "LTX model access requires accepting the model terms on Hugging Face. Already-installed files are reused; see the pack guide for gated downloads."
+      "sourceNote": "Gated LTX weights: accept the model terms on Hugging Face, then configure a read token in General Settings. Already-installed models are reused."
     },
     {
       "id": "text_encoder",
@@ -135,7 +135,7 @@
           "url": "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/text_encoders/gemma4-12b-with-proj-ltx-2.5-bf16.safetensors"
         }
       ],
-      "sourceNote": "LTX model access requires accepting the model terms on Hugging Face. Already-installed files are reused; see the pack guide for gated downloads."
+      "sourceNote": "Gated LTX weights: accept the model terms on Hugging Face, then configure a read token in General Settings. Already-installed models are reused."
     },
     {
       "id": "video_vae",
@@ -143,7 +143,7 @@
       "precision": "bf16",
       "filename": "ltx-2.5-video-vae-conv-bf16.safetensors",
       "url": "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/vae/ltx-2.5-video-vae-conv-bf16.safetensors",
-      "sourceNote": "LTX model access requires accepting the model terms on Hugging Face. Already-installed files are reused; see the pack guide for gated downloads."
+      "sourceNote": "Gated LTX weights: accept the model terms on Hugging Face, then configure a read token in General Settings. Already-installed models are reused."
     },
     {
       "id": "audio_vae",
@@ -151,7 +151,7 @@
       "precision": "bf16",
       "filename": "ltx-2.5-audio-vae-bf16.safetensors",
       "url": "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/vae/ltx-2.5-audio-vae-bf16.safetensors",
-      "sourceNote": "LTX model access requires accepting the model terms on Hugging Face. Already-installed files are reused; see the pack guide for gated downloads."
+      "sourceNote": "Gated LTX weights: accept the model terms on Hugging Face, then configure a read token in General Settings. Already-installed models are reused."
     },
     {
       "id": "spatial_upscaler",
@@ -159,7 +159,7 @@
       "precision": "bf16",
       "filename": "ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors",
       "url": "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors",
-      "sourceNote": "LTX model access requires accepting the model terms on Hugging Face. Already-installed files are reused; see the pack guide for gated downloads."
+      "sourceNote": "Gated LTX weights: accept the model terms on Hugging Face, then configure a read token in General Settings. Already-installed models are reused."
     }
   ],
   "bindings": [
@@ -189,5 +189,5 @@
       "field": "model_name"
     }
   ],
-  "setupNote": "Accept the LTX model terms on Hugging Face and download the models in ComfyUI first. Orange reuses installed files."
+  "setupNote": "Accept the LTX model terms on Hugging Face, then add a read token in General Settings so Orange can download missing models. Existing files are reused."
 }

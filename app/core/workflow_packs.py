@@ -3,10 +3,10 @@ import os
 import re
 import shutil
 import tempfile
-import urllib.request
 from copy import deepcopy
 
 from app.core.config import PROJECT_ROOT
+from app.core.huggingface import open_model_download
 from app.core.video_controls import tool_variants
 
 PACKS_DIR = os.path.join(PROJECT_ROOT, "workflow-packs")
@@ -356,8 +356,7 @@ def _download_file(url: str, destination: str) -> None:
     try:
         if os.path.exists(part_path):
             os.remove(part_path)
-        request = urllib.request.Request(url, headers={"User-Agent": "Orange/1.0"})
-        with urllib.request.urlopen(request) as response, open(part_path, "wb") as output:
+        with open_model_download(url) as response, open(part_path, "wb") as output:
             shutil.copyfileobj(response, output, length=1024 * 1024)
             output.flush()
             os.fsync(output.fileno())

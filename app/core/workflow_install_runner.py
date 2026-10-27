@@ -1,6 +1,7 @@
 import os
 import time
-import urllib.request
+
+from app.core.huggingface import open_model_download
 
 from app.core.workflow_install_jobs import is_cancel_requested, update_file_progress
 from app.core.workflow_packs import (
@@ -28,12 +29,11 @@ def _download_with_progress(url: str, destination: str, job_id: str, filename: s
             pass
 
     _raise_if_canceled(job_id)
-    request = urllib.request.Request(url, headers={"User-Agent": "Orange/1.0"})
     downloaded = 0
     started = time.monotonic()
     last_report = 0.0
     try:
-        with urllib.request.urlopen(request) as response, open(part_path, "wb") as output:
+        with open_model_download(url) as response, open(part_path, "wb") as output:
             raw_total = response.headers.get("Content-Length")
             try:
                 total = int(raw_total) if raw_total else None

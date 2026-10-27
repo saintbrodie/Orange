@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse
 from app.core.config import PROJECT_ROOT, get_comfy_servers, get_system_prompt, load_config, restore_defaults, save_config
 from app.core.database import delete_usage, get_backend_for_prompt, get_db_path
 from app.core.outputs import collect_media_outputs
+from app.core import huggingface
 
 router = APIRouter()
 
@@ -184,6 +185,31 @@ def get_admin_usage(period: str = "all", export: bool = False, _=Depends(verify_
         return {"logs": rows, "tools_summary": tools_summary, "ip_summary": ip_summary}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/api/admin/huggingface-token")
+def get_huggingface_token_status(_=Depends(verify_admin)):
+    return huggingface.token_status()
+
+
+@router.post("/api/admin/huggingface-token")
+def set_huggingface_token(payload: dict, _=Depends(verify_admin)):
+    try:
+        huggingface.save_token(payload.get("token"))
+        return huggingface.token_status()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except OSError:
+        raise HTTPException(status_code=500, detail="Could not save the Hugging Face token on this server.")
+
+
+@router.delete("/api/admin/huggingface-token")
+def delete_huggingface_token(_=Depends(verify_admin)):
+    try:
+        huggingface.clear_token()
+        return huggingface.token_status()
+    except OSError:
+        raise HTTPException(status_code=500, detail="Could not remove the saved Hugging Face token.")
 
 
 @router.get("/api/admin/config")

@@ -217,6 +217,23 @@
                             class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono">
                     </div>
 
+                    <div class="pt-4 border-t border-zinc-800/50 space-y-3">
+                        <label for="setting-hf-token" class="text-sm font-semibold text-zinc-300 block">Hugging Face downloads</label>
+                        <p class="text-xs text-zinc-500">Add a read token to download gated models after accepting their terms on Hugging Face.</p>
+                        <div class="flex flex-wrap gap-2">
+                            <input type="password" id="setting-hf-token" autocomplete="new-password" spellcheck="false" placeholder="hf_…" aria-label="Hugging Face read token"
+                                class="flex-1 min-w-48 bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono">
+                            <button type="button" id="save-hf-token-btn" class="bg-orange-600 hover:bg-orange-500 text-white rounded-xl px-4 py-2 text-sm">Save token</button>
+                            <button type="button" id="clear-hf-token-btn" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl px-4 py-2 text-sm disabled:opacity-40">Remove saved token</button>
+                        </div>
+                        <p id="hf-token-status" role="status" class="text-xs text-zinc-400">Checking token status…</p>
+                        <p class="text-xs text-zinc-500">Stored locally on the Orange server. The saved value is never sent back to this page. HF_TOKEN overrides a saved token.</p>
+                        <div class="flex gap-4 text-xs text-orange-400">
+                            <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener noreferrer">Create a read token</a>
+                            <a href="https://huggingface.co/Lightricks/LTX-2.5" target="_blank" rel="noopener noreferrer">LTX model access</a>
+                        </div>
+                    </div>
+
                     <!-- AI Prompt Enhancer Settings -->
                     <div class="pt-4 border-t border-zinc-800/50">
                         <div class="flex justify-between items-center mb-3">
