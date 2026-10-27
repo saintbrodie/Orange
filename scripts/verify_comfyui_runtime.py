@@ -28,6 +28,7 @@ from app.core.managed_runtime import _routing_compatible
 from app.core.outputs import collect_media_outputs
 from app.core.preflight import run_preflight
 from app.core.submission import submit_prompt, upload_image_bytes
+from app.core.video_controls import apply_duration, tool_variants
 
 
 def git(repo, *args):
@@ -79,15 +80,15 @@ def verification_summary(report):
         "tools": [{key: tool[key] for key in (
             "id", "workflowSha256", "preflightPassed", "smokePassed",
         )} for tool in report["tools"]],
-        "scope": "512px mapped generation sizes; 256px fixture for editing/upscaling; output retrieval and image decoding. No visual-quality or browser UI assessment.",
+        "scope": "512px mapped image generation sizes; 384x256 mapped video base size; 256px fixture for editing/upscaling; output retrieval and media decoding. No visual-quality or browser UI assessment.",
     }
 
 
-def prepare_workflow(workflow, mapping, image_name):
+def prepare_workflow(workflow, mapping, image_name, output_type="image"):
     workflow = copy.deepcopy(workflow)
     values = {
         "prompt": "A bright orange ceramic mug on a plain blue table, studio photograph",
-        "seed": 12345, "width": 512, "height": 512,
+        "seed": 12345, "width": 384 if output_type == "video" else 512, "height": 256 if output_type == "video" else 512,
         "image": image_name, "image2": image_name,
     }
     for key, value in values.items():
@@ -96,12 +97,29 @@ def prepare_workflow(workflow, mapping, image_name):
             workflow[str(entry["nodeId"])]["inputs"][entry["field"]] = value
     # Give test outputs their own namespace; leave models and sampling unchanged.
     for node in workflow.values():
-        if node.get("class_type") == "SaveImage":
+        if node.get("class_type") in {"SaveImage", "SaveVideo"}:
             node["inputs"]["filename_prefix"] = "orange-verification/smoke"
     return workflow
 
 
-async def smoke(client, url, workflow, timeout):
+def decode_video(data, python_executable):
+    # Use the candidate ComfyUI environment, where PyAV is already required.
+    code = """import av,io,json,sys
+with av.open(io.BytesIO(sys.stdin.buffer.read())) as container:
+    frame = next(container.decode(video=0))
+    print(json.dumps(dict(width=frame.width,height=frame.height,
+                         audioStreams=len(container.streams.audio))))
+"""
+    try:
+        decoded = subprocess.run([python_executable, "-c", code], input=data,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 check=True, timeout=60)
+    except subprocess.CalledProcessError as exc:
+        raise ValueError("Video decode failed: " + exc.stderr.decode(errors="replace")[-1500:]) from exc
+    return json.loads(decoded.stdout)
+
+
+async def smoke(client, url, workflow, timeout, output_type="image", video_python=sys.executable):
     payload = await submit_prompt(client, url, {"prompt": workflow, "client_id": str(uuid.uuid4())})
     prompt_id = payload["prompt_id"]
     deadline = time.monotonic() + timeout
@@ -114,17 +132,21 @@ async def smoke(client, url, workflow, timeout):
             if status.get("status_str") == "error":
                 raise ValueError(f"Generation {prompt_id} failed: {status.get('messages')}")
             if status.get("completed"):
-                items = collect_media_outputs(record.get("outputs", {}), "image")
+                items = collect_media_outputs(record.get("outputs", {}), output_type)
                 if not items:
-                    raise ValueError(f"Generation {prompt_id} completed without an image")
+                    raise ValueError(f"Generation {prompt_id} completed without an image" if output_type == "image" else f"Generation {prompt_id} completed without a video")
                 output = items[0]
                 media = await client.get(f"{url}/view", params={
                     "filename": output["filename"], "subfolder": output["subfolder"], "type": output["type"],
                 })
                 media.raise_for_status()
-                with Image.open(io.BytesIO(media.content)) as image:
-                    image.verify()
-                return {"promptId": prompt_id, "output": output, "bytes": len(media.content)}
+                result = {"promptId": prompt_id, "output": output, "bytes": len(media.content)}
+                if output_type == "video":
+                    result["video"] = decode_video(media.content, video_python)
+                else:
+                    with Image.open(io.BytesIO(media.content)) as image:
+                        image.verify()
+                return result
         await asyncio.sleep(2)
     # Remove only our pending job; never interrupt another user's running work.
     await client.post(f"{url}/queue", json={"delete": [prompt_id]})
@@ -137,7 +159,7 @@ async def verify(args):
     url = args.url.rstrip("/")
     config = json.loads(Path(args.config).read_text(encoding="utf-8"))
     workflow_dir = Path(args.config).resolve().parent
-    tools = config.get("tools", [])
+    tools = [variant for tool in config.get("tools", []) for variant in tool_variants(tool)]
     if not tools or len({tool["id"] for tool in tools}) != len(tools):
         raise ValueError("Verification requires a nonempty list of unique tools")
     report = {"schemaVersion": 1, "commit": commit, "ref": args.ref,
@@ -179,8 +201,12 @@ async def verify(args):
                 if not workflow_path.is_file():
                     workflow_path = ROOT / "workflows" / "defaults" / Path(tool["workflowFile"]).name
                 original = json.loads(workflow_path.read_text(encoding="utf-8"))
+                output_type = tool.get("outputType", "image")
+                if output_type not in {"image", "video"}:
+                    raise ValueError("Smoke verification currently supports image and video tools")
                 result["workflowSha256"] = hashlib.sha256(json.dumps(original, sort_keys=True).encode()).hexdigest()
-                workflow = prepare_workflow(original, tool.get("nodeMapping", {}), image_name) if args.smoke else original
+                workflow = prepare_workflow(original, tool.get("nodeMapping", {}), image_name, output_type) if args.smoke else original
+                apply_duration(workflow, tool)
                 check = await run_preflight(tool["workflowFile"], workflow, tool.get("nodeMapping", {}), [{"url": url, "priority": 1}])
                 result["preflight"] = check
                 result["preflightPassed"] = bool(
@@ -188,7 +214,7 @@ async def verify(args):
                     and all(_routing_compatible(backend) for backend in check["backends"])
                 )
                 if result["preflightPassed"] and args.smoke:
-                    result["smoke"] = await smoke(client, url, workflow, args.timeout)
+                    result["smoke"] = await smoke(client, url, workflow, args.timeout, output_type, args.video_python)
                     result["smokePassed"] = True
             except Exception as exc:
                 result["error"] = str(exc)
@@ -213,7 +239,7 @@ async def verify(args):
         manifest["comfyui"].update({
             "testedCommit": commit, "testedDate": report["checkedAt"][:10],
             "testedVersion": args.ref,
-            "note": "Preflight and GPU image smoke tests passed for all curated packs and configured tools. See docs/MANAGED_COMFYUI.md for scope.",
+            "note": "Preflight and GPU media smoke tests passed for all curated packs and configured tools. See docs/MANAGED_COMFYUI.md for scope.",
         })
         write_json(ROOT / "runtime" / "managed-runtime-verification.json", verification_summary(report))
         write_json(manifest_path, manifest)
@@ -228,7 +254,8 @@ def main():
     parser.add_argument("--config", default=str(ROOT / "workflows" / "workflows-config.json"))
     parser.add_argument("--report", default=str(ROOT / "runtime" / "verification" / "report.json"))
     parser.add_argument("--timeout", type=int, default=600)
-    parser.add_argument("--smoke", action="store_true", help="Submit local GPU image jobs")
+    parser.add_argument("--video-python", default=sys.executable, help="Python executable with PyAV for video output decoding (candidate ComfyUI environment)")
+    parser.add_argument("--smoke", action="store_true", help="Submit local GPU image/video jobs")
     parser.add_argument("--promote", action="store_true", help="Update the tested pin only after this run passes")
     args = parser.parse_args()
     if args.promote and not args.smoke:

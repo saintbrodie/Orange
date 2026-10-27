@@ -3,6 +3,7 @@ import os
 from copy import deepcopy
 
 from app.core.config import PROJECT_ROOT
+from app.core.video_controls import tool_variants
 from app.core.workflow_packs import (
     get_workflow_pack,
     select_model_dependencies,
@@ -33,8 +34,13 @@ def _input_options(node_def: dict, field: str) -> list | None:
         if not isinstance(section, dict):
             continue
         spec = section.get(field)
-        if isinstance(spec, (list, tuple)) and spec and isinstance(spec[0], list):
-            return spec[0]
+        if isinstance(spec, (list, tuple)) and spec:
+            if isinstance(spec[0], list):
+                return spec[0]
+            if spec[0] == "COMBO" and len(spec) > 1 and isinstance(spec[1], dict):
+                options = spec[1].get("options")
+                if isinstance(options, list):
+                    return options
     return None
 
 
@@ -116,6 +122,10 @@ def selection_for_install(inspection: dict) -> list[dict]:
 def inspect_workflow_pack(pack_id: str, object_info: dict, system_stats: dict | None = None) -> dict:
     manifest = get_workflow_pack(pack_id)
     workflow = _load_curated_workflow(manifest)
+    graphs = [workflow] + [
+        _load_curated_workflow({"workflowFile": variant["workflowFile"]})
+        for variant in tool_variants(manifest.get("tool") or {})[1:]
+    ]
     hardware = summarize_system_stats(system_stats)
     preferred = {
         str(item.get("id")): item
@@ -126,7 +136,7 @@ def inspect_workflow_pack(pack_id: str, object_info: dict, system_stats: dict | 
     missing_nodes = sorted(
         {
             str(node.get("class_type"))
-            for node in workflow.values()
+            for graph in graphs for node in graph.values()
             if isinstance(node, dict)
             and node.get("class_type")
             and not isinstance(object_info.get(str(node.get("class_type"))), dict)

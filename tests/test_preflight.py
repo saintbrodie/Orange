@@ -49,6 +49,17 @@ def _load_image_info(files=None):
 
 
 class WorkflowPreflightTests(unittest.TestCase):
+    def test_typed_combo_inventory_blocks_unavailable_model(self):
+        info = _object_info()
+        info["CheckpointLoaderSimple"]["input"]["required"]["ckpt_name"] = [
+            "COMBO", {"options": ["other.safetensors"]},
+        ]
+        result = validate_backend(_workflow(), {}, info)
+        self.assertTrue(any(w["code"] == "value_unavailable" for w in result["warnings"]))
+        info["CheckpointLoaderSimple"]["input"]["required"]["ckpt_name"][1]["options"].append("model.safetensors")
+        result = validate_backend(_workflow(), {}, info)
+        self.assertFalse(any(w["code"] == "value_unavailable" for w in result["warnings"]))
+
     def test_ui_workflow_format_is_rejected(self):
         result = validate_workflow_structure({"nodes": [], "links": []})
         self.assertTrue(result["errors"])

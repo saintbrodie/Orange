@@ -11,7 +11,7 @@ WORKFLOWS_DIR = os.path.join(PROJECT_ROOT, "workflows")
 DEFAULT_WORKFLOWS_DIR = os.path.join(WORKFLOWS_DIR, "defaults")
 
 TOOL_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
-ALLOWED_MAPPING_KEYS = {"prompt", "image", "image2", "width", "height", "seed", "outputText"}
+ALLOWED_MAPPING_KEYS = {"prompt", "image", "image2", "width", "height", "seed", "outputText", "duration"}
 ALLOWED_OUTPUT_TYPES = {"image", "video", "audio", "text"}
 ALLOWED_LLM_PROVIDERS = {"managed", "openai", "ollama", "gemini", "anthropic"}
 
@@ -272,6 +272,36 @@ def validate_config(config: Any) -> dict:
                     )
             except (OSError, ValueError) as exc:
                 errors.append(_issue(f"{path}.workflowFile", "workflow_json_invalid", f"Could not read workflow JSON: {exc}"))
+
+    for index, tool in enumerate(tools):
+        if not isinstance(tool, dict):
+            continue
+        path = f"tools[{index}]"
+        duration = tool.get("duration")
+        control_mapping = tool.get("nodeMapping") if isinstance(tool.get("nodeMapping"), dict) else {}
+        if duration is not None:
+            valid = isinstance(duration, dict)
+            choices = duration.get("options") if valid else None
+            valid = valid and isinstance(choices, list) and bool(choices)
+            valid = valid and all(isinstance(value, int) and not isinstance(value, bool) and value > 0 for value in choices)
+            valid = valid and isinstance(duration.get("default"), int) and not isinstance(duration.get("default"), bool) and duration.get("default") in choices
+            valid = valid and all(isinstance(duration.get(key), int) and not isinstance(duration.get(key), bool) and duration[key] > 0 for key in ("frameRate", "frameMultiple"))
+            valid = valid and bool(control_mapping.get("duration")) and tool.get("outputType") == "video"
+            if not valid:
+                errors.append(_issue(f"{path}.duration", "duration_invalid", "Video duration needs positive integer options, a matching default, frameRate, frameMultiple, and a duration mapping."))
+        variant = tool.get("imageVariant")
+        if variant is not None:
+            if not isinstance(variant, dict) or "imageVariant" in variant:
+                errors.append(_issue(f"{path}.imageVariant", "image_variant_invalid", "First-frame configuration must be a single workflow variant."))
+                continue
+            variant_tool = {**tool, **variant}
+            variant_tool.pop("imageVariant", None)
+            variant_mapping = variant_tool.get("nodeMapping") if isinstance(variant_tool.get("nodeMapping"), dict) else {}
+            if not variant_mapping.get("image"):
+                errors.append(_issue(f"{path}.imageVariant", "image_variant_no_image", "First-frame workflow must expose an image mapping."))
+            checked = validate_config({"tools": [variant_tool]})
+            for issue in checked["errors"]:
+                errors.append({**issue, "path": issue["path"].replace("tools[0]", f"{path}.imageVariant", 1)})
 
     modify_tool = config.get("modifyTool")
     if modify_tool:

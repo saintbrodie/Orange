@@ -10,6 +10,7 @@ PUBLIC_MAPPING_KEYS = (
     "height",
     "seed",
     "outputText",
+    "duration",
 )
 
 
@@ -44,6 +45,11 @@ def _public_tool(tool: Any) -> dict:
         "outputType": tool.get("outputType", "image"),
         "nodeMapping": public_mapping,
     }
+
+    if isinstance(tool.get("imageVariant"), dict):
+        result["firstFrame"] = True
+    if isinstance(tool.get("duration"), dict):
+        result["duration"] = {key: deepcopy(tool["duration"][key]) for key in ("default", "options") if key in tool["duration"]}
 
     ratios = _public_ratios(tool.get("aspectRatios"))
     if ratios:

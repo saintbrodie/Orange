@@ -1,3 +1,4 @@
+from app.core.video_controls import tool_variants
 import asyncio
 import ipaddress
 import os
@@ -126,6 +127,16 @@ async def _preflight_pack(pack_id: str, server: dict) -> tuple[dict, bool]:
     routable = any(_routing_compatible(backend) for backend in backends)
     compatibility_key = workflow_compatibility_key(workflow_file, workflow, node_mapping)
     backend_manager.record_preflight(compatibility_key, _cacheable_preflight_results(backends))
+    for variant in tool_variants(tool)[1:]:
+        variant_file = variant["workflowFile"]
+        variant_workflow = get_base_workflow(variant_file)
+        variant_mapping = variant.get("nodeMapping") or {}
+        check = await run_preflight(variant_file, variant_workflow, variant_mapping, [server])
+        variant_backends = check.get("backends") or []
+        key = workflow_compatibility_key(variant_file, variant_workflow, variant_mapping)
+        backend_manager.record_preflight(key, _cacheable_preflight_results(variant_backends))
+        if not any(_routing_compatible(backend) for backend in variant_backends):
+            return check, False
     return preflight, routable
 
 

@@ -13,6 +13,8 @@ from fastapi.responses import FileResponse
 
 from app.core.config import PROJECT_ROOT, get_comfy_servers, get_system_prompt, load_config, restore_defaults, save_config
 from app.core.database import delete_usage, get_backend_for_prompt, get_db_path
+from app.core.outputs import collect_media_outputs
+from app.core import huggingface
 
 router = APIRouter()
 
@@ -138,27 +140,20 @@ async def get_admin_media(_=Depends(verify_admin)):
     media_items = []
     for prompt_id, data in reversed(list(hist_data.items())):
         outputs = data.get("outputs", {})
-        types_added = set()
-        for output_data in outputs.values():
-            for media_key in ["images", "gifs", "video", "audio"]:
-                if media_key in types_added:
-                    continue
-                items = output_data.get(media_key, [])
-                if not items:
-                    continue
-                output_type = "image" if media_key in ["images", "gifs"] else media_key
-                if output_type in types_added:
-                    continue
+        for output_type in ("image", "video", "audio"):
+            items = collect_media_outputs(outputs, output_type)
+            if output_type == "video":
+                # Keep animated GIF/WebP outputs as image cards, as before.
+                items = [item for item in items if item["media_type"].startswith("video/")]
+            if items:
                 media_items.append(
                     {
                         "prompt_id": prompt_id,
-                        "filename": items[0].get("filename"),
+                        "filename": items[0]["filename"],
                         "type": output_type,
                         "analytics": usage_logs.get(prompt_id),
                     }
                 )
-                types_added.add(output_type)
-                types_added.add(media_key)
 
     return {"media": media_items}
 
@@ -190,6 +185,34 @@ def get_admin_usage(period: str = "all", export: bool = False, _=Depends(verify_
         return {"logs": rows, "tools_summary": tools_summary, "ip_summary": ip_summary}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/api/admin/huggingface-token")
+def get_huggingface_token_status(_=Depends(verify_admin)):
+    try:
+        return huggingface.token_status()
+    except OSError:
+        raise HTTPException(status_code=503, detail=huggingface.CREDENTIAL_STORAGE_ERROR)
+
+
+@router.post("/api/admin/huggingface-token")
+def set_huggingface_token(payload: dict, _=Depends(verify_admin)):
+    try:
+        huggingface.save_token(payload.get("token"))
+        return huggingface.token_status()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except OSError:
+        raise HTTPException(status_code=503, detail=huggingface.CREDENTIAL_STORAGE_ERROR)
+
+
+@router.delete("/api/admin/huggingface-token")
+def delete_huggingface_token(_=Depends(verify_admin)):
+    try:
+        huggingface.clear_token()
+        return huggingface.token_status()
+    except OSError:
+        raise HTTPException(status_code=503, detail=huggingface.CREDENTIAL_STORAGE_ERROR)
 
 
 @router.get("/api/admin/config")

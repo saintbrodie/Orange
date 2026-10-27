@@ -5,3 +5,4 @@ pillow==12.3.0
 python-multipart==0.0.32
 sse-starlette==2.1.0
 websockets==12.0
+keyring==25.7.0

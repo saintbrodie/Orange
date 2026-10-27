@@ -1,0 +1,193 @@
+{
+  "id": "ltx-2.5-t2v",
+  "name": "LTX 2.5 Video",
+  "type": "text-to-video",
+  "description": "Local video with synchronized audio, adjustable length, and an optional first-frame image. Plan for 32 GB+ VRAM with INT8 models.",
+  "tagline": "Generate video with sound from a prompt or optional first frame. Choose 2\u201312 seconds.",
+  "highlights": [
+    "Text or first frame",
+    "2\u201312 seconds",
+    "Synchronized audio"
+  ],
+  "recommended": false,
+  "thumbnail": "/static/curated-thumbnails/ltx-2.5-t2v.jpg",
+  "thumbnailAlt": "An orange cat by a rainy window, generated with LTX 2.5",
+  "workflowFile": "video_ltx_2_5_t2v.json",
+  "source": "https://github.com/Comfy-Org/workflow_templates/blob/main/templates/video_ltx2_5_t2v.json",
+  "tool": {
+    "id": "ltx-2-5-video",
+    "name": "Generate Video",
+    "outputType": "video",
+    "workflowFile": "video_ltx_2_5_t2v.json",
+    "nodeMapping": {
+      "prompt": {
+        "nodeId": "405:364",
+        "field": "text"
+      },
+      "seed": {
+        "nodeId": "405:339",
+        "field": "noise_seed",
+        "generateRandom": true
+      },
+      "width": {
+        "nodeId": "405:356",
+        "field": "width"
+      },
+      "height": {
+        "nodeId": "405:356",
+        "field": "height"
+      },
+      "duration": {
+        "nodeId": "video_frames",
+        "field": "value"
+      }
+    },
+    "aspectRatios": {
+      "3:2": {
+        "width": 384,
+        "height": 256
+      },
+      "16:9": {
+        "width": 512,
+        "height": 288
+      },
+      "9:16": {
+        "width": 288,
+        "height": 512
+      }
+    },
+    "duration": {
+      "default": 4,
+      "options": [
+        2,
+        4,
+        6,
+        8,
+        10,
+        12
+      ],
+      "frameRate": 24,
+      "frameMultiple": 8
+    },
+    "imageVariant": {
+      "workflowFile": "video_ltx_2_5_i2v.json",
+      "nodeMapping": {
+        "prompt": {
+          "nodeId": "405:364",
+          "field": "text"
+        },
+        "seed": {
+          "nodeId": "405:339",
+          "field": "noise_seed",
+          "generateRandom": true
+        },
+        "width": {
+          "nodeId": "405:356",
+          "field": "width"
+        },
+        "height": {
+          "nodeId": "405:356",
+          "field": "height"
+        },
+        "duration": {
+          "nodeId": "video_frames",
+          "field": "value"
+        },
+        "image": {
+          "nodeId": "first_frame",
+          "field": "image"
+        }
+      }
+    }
+  },
+  "models": [
+    {
+      "id": "diffusion",
+      "folder": "diffusion_models",
+      "variants": [
+        {
+          "precision": "int8",
+          "filename": "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+          "url": "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/diffusion_models/ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+          "requiresInt8ConvRot": true
+        },
+        {
+          "precision": "bf16",
+          "filename": "ltx-2.5-22b-distilled-transformer-bf16.safetensors",
+          "url": "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/diffusion_models/ltx-2.5-22b-distilled-transformer-bf16.safetensors"
+        }
+      ],
+      "sourceNote": "Gated LTX weights: accept the model terms on Hugging Face, then configure a read token in General Settings. Already-installed models are reused."
+    },
+    {
+      "id": "text_encoder",
+      "folder": "text_encoders",
+      "variants": [
+        {
+          "precision": "int8",
+          "filename": "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+          "url": "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/text_encoders/gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+          "requiresInt8ConvRot": true
+        },
+        {
+          "precision": "bf16",
+          "filename": "gemma4-12b-with-proj-ltx-2.5-bf16.safetensors",
+          "url": "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/text_encoders/gemma4-12b-with-proj-ltx-2.5-bf16.safetensors"
+        }
+      ],
+      "sourceNote": "Gated LTX weights: accept the model terms on Hugging Face, then configure a read token in General Settings. Already-installed models are reused."
+    },
+    {
+      "id": "video_vae",
+      "folder": "vae",
+      "precision": "bf16",
+      "filename": "ltx-2.5-video-vae-conv-bf16.safetensors",
+      "url": "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/vae/ltx-2.5-video-vae-conv-bf16.safetensors",
+      "sourceNote": "Gated LTX weights: accept the model terms on Hugging Face, then configure a read token in General Settings. Already-installed models are reused."
+    },
+    {
+      "id": "audio_vae",
+      "folder": "vae",
+      "precision": "bf16",
+      "filename": "ltx-2.5-audio-vae-bf16.safetensors",
+      "url": "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/vae/ltx-2.5-audio-vae-bf16.safetensors",
+      "sourceNote": "Gated LTX weights: accept the model terms on Hugging Face, then configure a read token in General Settings. Already-installed models are reused."
+    },
+    {
+      "id": "spatial_upscaler",
+      "folder": "latent_upscale_models",
+      "precision": "bf16",
+      "filename": "ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors",
+      "url": "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors",
+      "sourceNote": "Gated LTX weights: accept the model terms on Hugging Face, then configure a read token in General Settings. Already-installed models are reused."
+    }
+  ],
+  "bindings": [
+    {
+      "modelId": "diffusion",
+      "nodeId": "405:384",
+      "field": "unet_name"
+    },
+    {
+      "modelId": "text_encoder",
+      "nodeId": "405:387",
+      "field": "clip_name"
+    },
+    {
+      "modelId": "video_vae",
+      "nodeId": "405:385",
+      "field": "vae_name"
+    },
+    {
+      "modelId": "audio_vae",
+      "nodeId": "405:386",
+      "field": "vae_name"
+    },
+    {
+      "modelId": "spatial_upscaler",
+      "nodeId": "405:371",
+      "field": "model_name"
+    }
+  ],
+  "setupNote": "Accept the LTX model terms on Hugging Face, then add a read token in General Settings so Orange can download missing models. Existing files are reused."
+}

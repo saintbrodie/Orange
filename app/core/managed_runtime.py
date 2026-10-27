@@ -9,6 +9,7 @@ import httpx
 from app.core.backends import backend_manager, workflow_compatibility_key
 from app.core.config import PROJECT_ROOT, get_base_workflow, load_config
 from app.core.preflight import run_preflight
+from app.core.video_controls import tool_variants
 
 RUNTIME_MANIFEST_PATH = os.path.join(PROJECT_ROOT, "runtime", "managed-runtime.json")
 ROUTING_BLOCKING_WARNING_CODES = {"value_unavailable"}
@@ -194,6 +195,7 @@ async def validate_pending_managed_runtime() -> None:
 
     config = load_config()
     tools = config.get("tools") if isinstance(config.get("tools"), list) else []
+    tools = [variant for tool in tools if isinstance(tool, dict) for variant in tool_variants(tool)]
     results = []
 
     try:

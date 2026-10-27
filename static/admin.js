@@ -1044,12 +1044,65 @@ lucide.createIcons();
             });
         }
 
+        function renderHfTokenStatus(data) {
+            const status = document.getElementById('hf-token-status');
+            status.textContent = data.source === 'environment'
+                ? 'Using HF_TOKEN from the Orange server environment.'
+                : data.configured ? 'Saved token available for downloads.' : 'No Hugging Face token configured.';
+            document.getElementById('clear-hf-token-btn').disabled = !data.saved;
+        }
+
+        async function loadHfTokenStatus() {
+            try {
+                const res = await adminFetch('/api/admin/huggingface-token');
+                const data = await res.json();
+                if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Could not read token status.');
+                renderHfTokenStatus(data);
+            } catch (error) {
+                document.getElementById('hf-token-status').textContent = error.message || 'Could not read token status. Try refreshing Settings.';
+            }
+        }
+
+        async function updateHfToken(remove = false) {
+            const input = document.getElementById('setting-hf-token');
+            const status = document.getElementById('hf-token-status');
+            if (!remove && !input.value.trim()) {
+                status.textContent = 'Enter a token to save. The existing token has not changed.';
+                return;
+            }
+            const save = document.getElementById('save-hf-token-btn');
+            const clear = document.getElementById('clear-hf-token-btn');
+            save.disabled = clear.disabled = true;
+            try {
+                const options = {method: remove ? 'DELETE' : 'POST'};
+                if (!remove) {
+                    options.headers = {'Content-Type': 'application/json'};
+                    options.body = JSON.stringify({token: input.value.trim()});
+                }
+                const res = await adminFetch('/api/admin/huggingface-token', options);
+                const data = await res.json();
+                if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Could not update the Hugging Face token.');
+                input.value = '';
+                renderHfTokenStatus(data);
+            } catch (error) {
+                status.textContent = error.message || 'Could not update the Hugging Face token.';
+                clear.disabled = false;
+            } finally {
+                save.disabled = false;
+            }
+        }
+
+        document.getElementById('save-hf-token-btn').addEventListener('click', () => updateHfToken());
+        document.getElementById('clear-hf-token-btn').addEventListener('click', () => updateHfToken(true));
+
         async function loadEditorData() {
             try {
                 // Config
                 const cRes = await adminFetch('/api/admin/config');
                 if (cRes.ok) {
                     appConfig = await cRes.json();
+
+                    await loadHfTokenStatus();
 
                     // Populate General Settings
                     if (!appConfig.comfyServers) {
@@ -1589,7 +1642,12 @@ lucide.createIcons();
                 delete tool.outputType; // default is image, no need to store
             }
 
-            tool.nodeMapping = {};
+            const durationMapping = tool.outputType === 'video' ? tool.nodeMapping?.duration : null;
+            tool.nodeMapping = durationMapping ? {duration: durationMapping} : {};
+            if (tool.outputType !== 'video') {
+                delete tool.duration;
+                delete tool.imageVariant;
+            }
             delete tool.aspectRatios;
 
             MAPPING_TYPES.forEach(type => {

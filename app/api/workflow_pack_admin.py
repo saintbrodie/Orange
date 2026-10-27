@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.api.admin import verify_admin
 from app.api.preflight import _routing_cache_results, _routing_compatible
 from app.core.backends import backend_manager, workflow_compatibility_key
+from app.core.video_controls import tool_variants
 from app.core.config import get_base_workflow, load_config, save_config
 from app.core.preflight import run_preflight
 from app.core.workflow_install_jobs import (
@@ -106,6 +107,17 @@ async def _preflight_and_enable(
                 "preflight": preflight,
             },
         )
+
+    for variant in tool_variants(tool)[1:]:
+        variant_file = variant["workflowFile"]
+        variant_workflow = get_base_workflow(variant_file)
+        variant_mapping = variant.get("nodeMapping") or {}
+        variant_preflight = await run_preflight(variant_file, variant_workflow, variant_mapping, [preflight_server])
+        variant_backends = variant_preflight.get("backends") or []
+        key = workflow_compatibility_key(variant_file, variant_workflow, variant_mapping)
+        backend_manager.record_preflight(key, _routing_cache_results(variant_backends))
+        if not any(_routing_compatible(backend) for backend in variant_backends):
+            raise HTTPException(status_code=409, detail={"message": "This backend is not ready for first-frame generation.", "preflight": variant_preflight})
 
     updated = add_pack_tool_to_config(config, pack_id)
     servers = [dict(item) if isinstance(item, dict) else item for item in (updated.get("comfyServers") or [])]

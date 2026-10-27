@@ -24,7 +24,7 @@ class CuratedThumbnailTests(unittest.TestCase):
 
         self.assertEqual(
             set(thumbnail_packs),
-            {"z-image-turbo", "krea-2-turbo", "klein-9b-edit", "seedvr2-7b-upscale"},
+            {"z-image-turbo", "krea-2-turbo", "klein-9b-edit", "seedvr2-7b-upscale", "ltx-2.5-t2v"},
         )
 
     def test_imported_comfy_thumbnails_are_pngs(self):
