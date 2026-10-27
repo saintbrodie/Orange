@@ -18,6 +18,7 @@ _PACK_DISPLAY_ORDER = {
     "krea-2-turbo": 10,
     "klein-9b-edit": 20,
     "seedvr2-7b-upscale": 30,
+    "ltx-2.5-t2v": 40,
 }
 
 

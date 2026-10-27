@@ -29,6 +29,21 @@ class PromotionTests(unittest.TestCase):
 
 
 class SmokeTests(unittest.IsolatedAsyncioTestCase):
+    @patch("scripts.verify_comfyui_runtime.decode_video", return_value={"width": 768, "height": 512, "audioStreams": 1})
+    @patch("scripts.verify_comfyui_runtime.submit_prompt", new_callable=AsyncMock)
+    async def test_video_is_fetched_and_passed_to_candidate_decoder(self, submit, decoder):
+        submit.return_value = {"prompt_id": "video-test"}
+        history = Mock()
+        history.json.return_value = {"video-test": {
+            "status": {"completed": True},
+            "outputs": {"75": {"images": [{"filename": "clip.mp4"}]}},
+        }}
+        media = Mock(content=b"video-content")
+        client = Mock(get=AsyncMock(side_effect=[history, media]))
+        result = await smoke(client, "http://localhost", {}, 10, "video", "candidate-python")
+        decoder.assert_called_once_with(b"video-content", "candidate-python")
+        self.assertEqual(result["video"]["audioStreams"], 1)
+
     @patch("scripts.verify_comfyui_runtime.submit_prompt", new_callable=AsyncMock)
     async def test_success_requires_fetchable_decodable_image(self, submit):
         submit.return_value = {"prompt_id": "test"}

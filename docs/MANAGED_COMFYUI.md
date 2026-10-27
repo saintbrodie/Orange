@@ -67,7 +67,7 @@ A lightweight maintainer flow is enough:
 
 ## Repeatable GPU verification
 
-`scripts/verify_comfyui_runtime.py` automates Preflight, local image generation,
+`scripts/verify_comfyui_runtime.py` automates Preflight, local image/video generation,
 output retrieval/decoding, and promotion. It never updates or restarts ComfyUI.
 Run a **separate test checkout and environment**, with the exact candidate
 requirements installed and existing model files exposed through an extra model
@@ -84,7 +84,7 @@ The config selects the **installed Pinokio tools**. Workflow files are read from
 that config's directory, with bundled defaults as fallback. Running without
 `--smoke` checks compatibility only and cannot promote. `--promote` updates
 `testedCommit`, `testedVersion`, and `testedDate` only when every configured tool
-passes both checks and all four bundled curated packs are covered. Missing
+passes both checks and all bundled curated packs are covered. Missing
 models, execution errors, timeouts, unavailable outputs, and undecodable images
 block promotion. Reports include exact source and workflow hashes, runtime
 versions, prompts' IDs, warnings, and errors. Reports and test checkouts live in
@@ -139,3 +139,13 @@ The focused runtime tests passed. The full Orange unit suite also revealed
 Windows SQLite temporary-file cleanup errors and an Admin provider-label
 assertion failure in areas untouched by this update. These remain separate
 issues; the GPU verification record does not imply a clean full CI run.
+
+### Video packs
+
+The verifier also generates and decodes video outputs. Supply `--video-python`
+with the candidate ComfyUI environment's Python executable so its existing PyAV
+installation can check the MP4. Video tests use a 384x256 mapped base size and
+retain the workflow's frame count, audio path, and sampling settings. The LTX 2.5
+pack upscales this to 768x512. A missing video, failed fetch, or undecodable video
+blocks promotion just like an image failure. Every new curated pack must be
+included in the verification configuration before a future pin can be promoted.

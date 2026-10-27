@@ -14,7 +14,7 @@ class WorkflowPackTests(unittest.TestCase):
         packs = {pack["id"]: pack for pack in catalog}
         self.assertEqual(
             set(packs),
-            {"z-image-turbo", "krea-2-turbo", "klein-9b-edit", "seedvr2-7b-upscale"},
+            {"z-image-turbo", "krea-2-turbo", "klein-9b-edit", "seedvr2-7b-upscale", "ltx-2.5-t2v"},
         )
         self.assertEqual(catalog[0]["id"], "z-image-turbo")
         self.assertTrue(packs["z-image-turbo"]["recommended"])

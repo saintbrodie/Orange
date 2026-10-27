@@ -149,6 +149,10 @@ def _enum_options(spec: Any) -> list | None:
     options = spec[0]
     if isinstance(options, list):
         return options
+    if options == "COMBO" and len(spec) > 1 and isinstance(spec[1], dict):
+        typed_options = spec[1].get("options")
+        if isinstance(typed_options, list):
+            return typed_options
     return None
 
 

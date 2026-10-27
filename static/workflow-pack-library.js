@@ -103,6 +103,7 @@
 
   function typePresentation(pack) {
     const id = String(pack?.id || '');
+    if (pack?.tool?.outputType === 'video' || ['text-to-video', 'image-to-video'].includes(pack?.type)) return {label: 'Video', icon: 'video'};
     if (id.includes('upscale')) return {label: 'Upscale', icon: 'maximize-2'};
     if (id.includes('edit') || pack?.type === 'image-to-image') return {label: 'Image edit', icon: 'image-plus'};
     return {label: 'Generate', icon: 'sparkles'};
@@ -530,6 +531,7 @@
 
           <div>
             <p class="text-xs text-zinc-400 leading-relaxed">${escapeHtml(pack.tagline || pack.description || '')}</p>
+            ${pack.setupNote ? `<p class="text-xs text-amber-300/80 mt-2 leading-relaxed">${escapeHtml(pack.setupNote)}</p>` : ''}
             ${highlights.length ? `<div class="flex flex-wrap gap-1.5 mt-2.5">${highlights.map((item) => `<span class="text-[10px] text-zinc-500 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1">${escapeHtml(item)}</span>`).join('')}</div>` : ''}
           </div>
 

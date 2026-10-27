@@ -33,8 +33,13 @@ def _input_options(node_def: dict, field: str) -> list | None:
         if not isinstance(section, dict):
             continue
         spec = section.get(field)
-        if isinstance(spec, (list, tuple)) and spec and isinstance(spec[0], list):
-            return spec[0]
+        if isinstance(spec, (list, tuple)) and spec:
+            if isinstance(spec[0], list):
+                return spec[0]
+            if spec[0] == "COMBO" and len(spec) > 1 and isinstance(spec[1], dict):
+                options = spec[1].get("options")
+                if isinstance(options, list):
+                    return options
     return None
 
 
