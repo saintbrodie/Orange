@@ -128,14 +128,21 @@ repository does not register a schedule or install a background service.
 
 ### Current verification
 
-On 2026-10-26, v0.42.5 (`483dae4326356b81de05d27aca3f433dd323cc25`)
+On 2026-11-02, v0.43.0 (`426f5eea52a7ece1dd599fff4cb6cd1f352ddd24`)
 passed Preflight and image smoke tests for the Pinokio install's four tools:
 Z-Image, Krea 2, Klein editing, and SeedVR2 upscaling. The isolated test environment
 used the candidate's pinned ComfyUI packages with Python 3.12.12 and PyTorch
 2.13.0+cu130, reusing GPU libraries and model files from the local machine.
 This was not a clean Pinokio installation test.
 
+The candidate used the exact v0.43.0 pinned ComfyUI packages in the isolated
+verification environment. Existing models were read from the shared Stability
+Matrix model folders; no models were downloaded and normal installations were
+not changed. The dedicated test process on port 8197 was stopped after all four
+tools passed output retrieval and image decoding.
+
 The focused runtime tests passed. The full Orange unit suite also revealed
 Windows SQLite temporary-file cleanup errors and an Admin provider-label
-assertion failure in areas untouched by this update. These remain separate
+assertion failure in areas untouched by this update (195 tests: one assertion
+failure and 12 error entries, matching the documented baseline). These remain separate
 issues; the GPU verification record does not imply a clean full CI run.
