@@ -128,14 +128,14 @@ repository does not register a schedule or install a background service.
 
 ### Current verification
 
-On 2026-11-02, v0.43.0 (`426f5eea52a7ece1dd599fff4cb6cd1f352ddd24`)
+On 2026-11-09, v0.44.0 (`2c75dc1b379a59e0880619d029607af5169a62ef`)
 passed Preflight and image smoke tests for the Pinokio install's four tools:
 Z-Image, Krea 2, Klein editing, and SeedVR2 upscaling. The isolated test environment
 used the candidate's pinned ComfyUI packages with Python 3.12.12 and PyTorch
 2.13.0+cu130, reusing GPU libraries and model files from the local machine.
 This was not a clean Pinokio installation test.
 
-The candidate used the exact v0.43.0 pinned ComfyUI packages in the isolated
+The candidate used the exact v0.44.0 pinned ComfyUI packages in the isolated
 verification environment. Existing models were read from the shared Stability
 Matrix model folders; no models were downloaded and normal installations were
 not changed. The dedicated test process on port 8197 was stopped after all four

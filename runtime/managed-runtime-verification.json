@@ -1,29 +1,29 @@
 {
   "schemaVersion": 1,
-  "commit": "426f5eea52a7ece1dd599fff4cb6cd1f352ddd24",
-  "ref": "v0.43.0",
-  "checkedAt": "2026-11-02T09:03:10.668906+00:00",
-  "orangeCommit": "a415184b3b406da83a58c641a2c9c0ca262c2145",
+  "commit": "2c75dc1b379a59e0880619d029607af5169a62ef",
+  "ref": "v0.44.0",
+  "checkedAt": "2026-11-09T09:08:01.465752+00:00",
+  "orangeCommit": "55fdb2cfeb8e985a832ac6d025c2746806589547",
   "passed": true,
   "system": {
-    "comfyui_version": "0.43.0",
+    "comfyui_version": "0.44.0",
     "python_version": "3.12.12 (main, Feb  3 2026, 22:54:57) [MSC v.1944 64 bit (AMD64)]",
     "pytorch_version": "2.13.0+cu130",
     "comfy_package_versions": [
       {
         "name": "comfyui-frontend-package",
-        "installed": "1.57.4",
-        "required": "1.57.4"
+        "installed": "1.57.6",
+        "required": "1.57.6"
       },
       {
         "name": "comfyui-workflow-templates",
-        "installed": "0.11.97",
-        "required": "0.11.97"
+        "installed": "0.11.101",
+        "required": "0.11.101"
       },
       {
         "name": "comfyui-embedded-docs",
-        "installed": "0.5.15",
-        "required": "0.5.15"
+        "installed": "0.5.16",
+        "required": "0.5.16"
       },
       {
         "name": "comfy-aimdo",
