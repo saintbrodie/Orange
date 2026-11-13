@@ -22,7 +22,7 @@
 
     const description = document.createElement('p');
     description.className = 'text-xs text-zinc-500 mt-1';
-    description.textContent = 'Checks mappings, installed nodes, and backend compatibility without executing the workflow.';
+    description.textContent = 'Rescans models and checks mappings, installed nodes, and backend compatibility without executing the workflow.';
     headingWrap.append(heading, description);
 
     const runButton = document.createElement('button');
@@ -44,7 +44,7 @@
     mappingSection.insertAdjacentElement('afterend', panel);
     if (window.lucide) lucide.createIcons();
 
-    const MAPPING_NAMES = ['prompt', 'image', 'image2', 'resolution', 'seed', 'outputText'];
+    const MAPPING_NAMES = ['prompt', 'image', 'image2', 'resolution', 'seed', 'duration', 'outputText'];
     let contextVersion = 0;
 
     function collectNodeMapping() {
@@ -115,9 +115,10 @@
         parent.appendChild(wrapper);
     }
 
-    function renderPreflight(data) {
-        results.replaceChildren();
+    function renderPreflight(data, append = false) {
+        if (!append) results.replaceChildren();
         results.classList.remove('hidden');
+        results.appendChild(makeElement('h5', 'text-sm font-semibold text-zinc-200', data.workflow?.file || 'Workflow'));
 
         const summary = data.summary || {};
         const workflow = data.workflow || {};
@@ -172,6 +173,10 @@
 
             appendIssues(card, 'Errors', backend.errors, 'text-red-400');
             appendIssues(card, 'Warnings', backend.warnings, 'text-amber-400');
+            const renderedContext = contextVersion;
+            window.ModelBindings?.render(card, backend.url, workflow.file, backend.models, () => {
+                if (renderedContext === contextVersion) runButton.click();
+            });
             if ((!backend.errors || backend.errors.length === 0) && (!backend.warnings || backend.warnings.length === 0)) {
                 card.appendChild(makeElement('div', 'text-xs text-emerald-400 flex items-center gap-2', '✓ Workflow is compatible with this backend.'));
             }
@@ -201,10 +206,10 @@
     }
 
     editorForm.addEventListener('input', event => {
-        if (event.target.closest('#node-mappings-container') || event.target.id === 'edit-tool-file') markStale();
+        if (event.target.closest('#node-mappings-container, #tool-input-options') || event.target.id === 'edit-tool-file') markStale();
     });
     editorForm.addEventListener('change', event => {
-        if (event.target.closest('#node-mappings-container') || event.target.id === 'edit-tool-file') markStale();
+        if (event.target.closest('#node-mappings-container, #tool-input-options') || event.target.id === 'edit-tool-file') markStale();
     });
 
     // Tool selection is a change of context, not merely a stale version of the
@@ -238,18 +243,25 @@
         if (window.lucide) lucide.createIcons();
 
         try {
-            const response = await adminFetch('/api/admin/workflows/preflight', {
+            const draft = {workflowFile, nodeMapping: collectNodeMapping(), outputType: document.getElementById('edit-tool-output-type').value};
+            window.ToolInputEditor?.apply(draft);
+            const variants = [draft, draft.imageVariant || draft.referenceVariant].filter(Boolean);
+            const reports = [];
+            for (const variant of variants) {
+              const response = await adminFetch('/api/admin/workflows/preflight', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    workflowFile,
-                    nodeMapping: collectNodeMapping(),
+                    workflowFile: variant.workflowFile,
+                    nodeMapping: variant.nodeMapping,
                 }),
             });
             const data = await response.json().catch(() => ({}));
             if (requestContextVersion !== contextVersion) return;
             if (!response.ok) throw new Error(data.detail || `Preflight failed (${response.status})`);
-            renderPreflight(data);
+              reports.push(data);
+            }
+            reports.forEach((data, index) => renderPreflight(data, index > 0));
         } catch (error) {
             if (requestContextVersion === contextVersion) {
                 renderFailure(error.message || 'Workflow preflight failed.');

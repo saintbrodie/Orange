@@ -6,6 +6,26 @@ from app.api import workflow_pack_admin
 
 
 class WorkflowPackAdminTests(unittest.TestCase):
+    def test_active_tool_resolves_stale_model_subfolder_without_changing_workflow(self):
+        workflow = {"58": {"class_type": "VAELoader", "inputs": {"vae_name": "Wan\\wan_2.1_vae.safetensors"}}}
+        info = {"VAELoader": {"input": {"required": {"vae_name": [["wan_2.1_vae.safetensors"]]}}}}
+        tool = {"workflowFile": "krea.json", "nodeMapping": {}}
+        with mock.patch.object(workflow_pack_admin, "get_base_workflow", return_value=workflow):
+            result = workflow_pack_admin._inspect_active_tool(tool, info)
+            self.assertTrue(result["activeWorkflowReady"])
+            self.assertEqual(workflow["58"]["inputs"]["vae_name"], "Wan\\wan_2.1_vae.safetensors")
+            workflow["58"]["inputs"]["vae_name"] = "wan_2.1_vae.safetensors"
+            self.assertTrue(workflow_pack_admin._inspect_active_tool(tool, info)["activeWorkflowReady"])
+
+    def test_active_tool_checks_alternate_workflow_and_missing_files(self):
+        tool = {"workflowFile": "base.json", "nodeMapping": {}, "referenceVariant": {"workflowFile": "reference.json", "nodeMapping": {}}}
+        workflow = {"1": {"class_type": "VAELoader", "inputs": {"vae_name": "model.safetensors"}}}
+        info = {"VAELoader": {"input": {"required": {"vae_name": [["model.safetensors"]]}}}}
+        with mock.patch.object(workflow_pack_admin, "get_base_workflow", side_effect=[workflow, FileNotFoundError("Missing alternate workflow")]):
+            result = workflow_pack_admin._inspect_active_tool(tool, info)
+        self.assertFalse(result["activeWorkflowReady"])
+        self.assertEqual(result["activeWorkflowIssues"][0]["workflowFile"], "reference.json")
+
     def test_server_lookup_normalizes_trailing_slash(self):
         config = {"comfyServers": [{"url": "http://127.0.0.1:8188/", "priority": 2}]}
         index, server = workflow_pack_admin._server_for_url(config, "http://127.0.0.1:8188")

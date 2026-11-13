@@ -6,9 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.api.admin import verify_admin
 from app.api.preflight import _routing_cache_results, _routing_compatible
 from app.core.backends import backend_manager, workflow_compatibility_key
+from app.core.model_bindings import cache_inventory, resolve_models
 from app.core.video_controls import tool_variants
 from app.core.config import get_base_workflow, load_config, save_config
-from app.core.preflight import run_preflight
+from app.core.preflight import run_preflight, validate_backend, validate_mappings, validate_workflow_structure
 from app.core.workflow_install_jobs import (
     cancel_job,
     clear_jobs,
@@ -45,6 +46,31 @@ router = APIRouter()
 _background_install_tasks: set[asyncio.Task] = set()
 
 
+def _inspect_active_tool(tool: dict, object_info: dict, backend_url: str = "") -> dict:
+    """Inventory readiness does not imply an already-installed graph is runnable."""
+    issues = []
+    for variant in tool_variants(tool):
+        filename = variant.get("workflowFile")
+        try:
+            workflow = get_base_workflow(filename)
+            mapping = variant.get("nodeMapping") or {}
+            structure = validate_workflow_structure(workflow)
+            errors = list(structure["errors"])
+            if not errors:
+                errors.extend(validate_mappings(workflow, mapping)["errors"])
+                resolution = resolve_models(workflow, object_info, backend_url, mapping)
+                errors.extend(resolution["errors"])
+                backend = validate_backend(resolution["workflow"], mapping, object_info)
+                errors.extend(backend["errors"])
+                unresolved = {(m["node_id"], m["field"]) for m in resolution["models"] if m["resolved"] is None}
+                errors.extend(w for w in backend["warnings"] if w.get("code") == "value_unavailable"
+                              and (w.get("node_id"), w.get("field")) not in unresolved)
+            issues.extend({**issue, "workflowFile": filename} for issue in errors)
+        except (OSError, ValueError, TypeError) as exc:
+            issues.append({"code": "active_workflow_unreadable", "workflowFile": filename, "message": str(exc)})
+    return {"activeWorkflowReady": not issues, "activeWorkflowIssues": issues}
+
+
 def _server_for_url(config: dict, url: str) -> tuple[int, dict]:
     normalized = str(url or "").strip().rstrip("/")
     for index, server in enumerate(config.get("comfyServers") or []):
@@ -68,6 +94,8 @@ async def _backend_metadata(url: str) -> tuple[dict, dict]:
                 raise ValueError("ComfyUI returned invalid /object_info data")
             if not isinstance(system_stats, dict):
                 system_stats = {}
+            cache_inventory(url, object_info)
+            backend_manager.invalidate_compatibility(url)
             return object_info, system_stats
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Could not inspect ComfyUI: {exc}")
@@ -117,7 +145,7 @@ async def _preflight_and_enable(
         key = workflow_compatibility_key(variant_file, variant_workflow, variant_mapping)
         backend_manager.record_preflight(key, _routing_cache_results(variant_backends))
         if not any(_routing_compatible(backend) for backend in variant_backends):
-            raise HTTPException(status_code=409, detail={"message": "This backend is not ready for first-frame generation.", "preflight": variant_preflight})
+            raise HTTPException(status_code=409, detail={"message": "This backend is not ready for the alternate input workflow.", "preflight": variant_preflight})
 
     updated = add_pack_tool_to_config(config, pack_id)
     servers = [dict(item) if isinstance(item, dict) else item for item in (updated.get("comfyServers") or [])]
@@ -163,7 +191,7 @@ async def _run_install_job(job_id: str) -> None:
 
         update_job(job_id, stage="inspecting", message="Scanning ComfyUI nodes and model inventory…")
         object_info, system_stats = await _backend_metadata(server_url)
-        inspection = inspect_workflow_pack(pack_id, object_info, system_stats)
+        inspection = inspect_workflow_pack(pack_id, object_info, system_stats, backend_url=server_url)
         hardware = summarize_system_stats(system_stats)
         update_job(job_id, hardware=hardware)
 
@@ -346,8 +374,11 @@ async def inspect_admin_workflow_packs(payload: dict, _=Depends(verify_admin)):
     packs = []
     for manifest in list_workflow_packs():
         pack_id = str(manifest.get("id"))
-        inspection = inspect_workflow_pack(pack_id, object_info, system_stats)
+        inspection = inspect_workflow_pack(pack_id, object_info, system_stats, backend_url=server_url)
         inspection["installed"] = bool((manifest.get("tool") or {}).get("id") in installed_tool_ids)
+        active_tool = next((tool for tool in config.get("tools", []) if tool.get("id") == (manifest.get("tool") or {}).get("id")), None)
+        if active_tool:
+            inspection.update(_inspect_active_tool(active_tool, object_info, server_url))
         inspection["downloadPlan"] = await enrich_download_plan(
             plan_selected_models(inspection.get("recommendedDownloads") or [], models_root)
         )
@@ -435,7 +466,7 @@ async def activate_admin_workflow_pack(payload: dict, _=Depends(verify_admin)):
     config = dict(load_config())
     server_index, server = _server_for_url(config, server_url)
     object_info, system_stats = await _backend_metadata(server_url)
-    inspection = inspect_workflow_pack(pack_id, object_info, system_stats)
+    inspection = inspect_workflow_pack(pack_id, object_info, system_stats, backend_url=server_url)
     if not inspection.get("ready"):
         raise HTTPException(
             status_code=409,
@@ -491,7 +522,7 @@ async def install_admin_workflow_pack(payload: dict, _=Depends(verify_admin)):
         )
 
     object_info, system_stats = await _backend_metadata(server_url)
-    inspection = inspect_workflow_pack(pack_id, object_info, system_stats)
+    inspection = inspect_workflow_pack(pack_id, object_info, system_stats, backend_url=server_url)
     if inspection.get("missingNodes") or inspection.get("unknownModels"):
         raise HTTPException(
             status_code=409,

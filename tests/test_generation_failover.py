@@ -1,4 +1,5 @@
 import unittest
+import copy
 from unittest.mock import AsyncMock, patch
 
 from starlette.requests import Request
@@ -20,6 +21,70 @@ def _request():
 
 
 class GenerationFailoverTests(unittest.IsolatedAsyncioTestCase):
+    async def test_model_resolution_skips_ambiguous_backend_before_upload_or_submit(self):
+        original = {"1": {"class_type": "VAELoader", "inputs": {"vae_name": "old/model.safetensors"}}}
+        submitted = []
+
+        async def inventory(_client, url, **_kwargs):
+            paths = ["a/model.safetensors", "b/model.safetensors"] if url == "http://one" else ["vae/model.safetensors"]
+            return {"VAELoader": {"input": {"required": {"vae_name": [paths]}}}}
+
+        async def submit(_client, url, payload):
+            submitted.append((url, copy.deepcopy(payload["prompt"])))
+            return {"prompt_id": "resolved"}
+
+        with (
+            patch.object(generation_v2, "get_tool_settings", return_value={"workflowFile": "custom.json", "nodeMapping": {}}),
+            patch.object(generation_v2, "get_base_workflow", return_value=original),
+            patch.object(generation_v2, "_prepare_asset_payloads", return_value=([], {})),
+            patch.object(generation_v2, "_stage_assets", AsyncMock()) as stage,
+            patch.object(generation_v2, "load_config", return_value={}),
+            patch.object(generation_v2, "get_comfy_servers", return_value=[]),
+            patch.object(generation_v2, "get_best_backend", AsyncMock(side_effect=["http://one", "http://two"])),
+            patch.object(generation_v2, "get_backend_client", AsyncMock(return_value=object())),
+            patch.object(generation_v2, "backend_inventory", inventory),
+            patch.object(generation_v2, "submit_prompt", submit),
+            patch.object(generation_v2, "increment_active"), patch.object(generation_v2, "decrement_active"),
+            patch.object(generation_v2, "report_backend_failure") as failed,
+            patch.object(generation_v2, "report_backend_success"), patch.object(generation_v2, "log_usage"),
+        ):
+            result = await generation_v2.generate_v2(_request(), tool_id="test", prompt=None, aspect_ratio=None, image=None, image2=None)
+        self.assertEqual(result["prompt_id"], "resolved")
+        self.assertEqual(submitted, [("http://two", {"1": {"class_type": "VAELoader", "inputs": {"vae_name": "vae/model.safetensors"}}})])
+        self.assertEqual(original["1"]["inputs"]["vae_name"], "old/model.safetensors")
+        stage.assert_awaited_once()
+        failed.assert_not_called()
+
+    async def test_explicit_rejection_rescans_and_retries_only_when_model_moved(self):
+        original = {"1": {"class_type": "VAELoader", "inputs": {"vae_name": "model.safetensors"}}}
+        paths = iter(["old/model.safetensors", "new/model.safetensors", "new/model.safetensors"])
+        async def inventory(*_args, **_kwargs):
+            return {"VAELoader": {"input": {"required": {"vae_name": [[next(paths)]]}}}}
+        rejection = SubmissionFailure("Rejected", "ComfyUI rejected /prompt with HTTP 400: value_not_in_list", 422, True)
+        submitted = []
+        async def submit(_client, _url, payload):
+            submitted.append(payload["prompt"]["1"]["inputs"]["vae_name"])
+            if len(submitted) == 1:
+                raise rejection
+            return {"prompt_id": "moved"}
+        with (
+            patch.object(generation_v2, "get_tool_settings", return_value={"workflowFile": "custom.json", "nodeMapping": {}}),
+            patch.object(generation_v2, "get_base_workflow", return_value=original),
+            patch.object(generation_v2, "_prepare_asset_payloads", return_value=([], {})),
+            patch.object(generation_v2, "load_config", return_value={}),
+            patch.object(generation_v2, "get_comfy_servers", return_value=[]),
+            patch.object(generation_v2, "get_best_backend", AsyncMock(return_value="http://one")) as choose,
+            patch.object(generation_v2, "get_backend_client", AsyncMock(return_value=object())),
+            patch.object(generation_v2, "backend_inventory", inventory), patch.object(generation_v2, "submit_prompt", submit),
+            patch.object(generation_v2, "increment_active"), patch.object(generation_v2, "decrement_active"),
+            patch.object(generation_v2, "report_backend_success"), patch.object(generation_v2, "log_usage"),
+        ):
+            result = await generation_v2.generate_v2(_request(), tool_id="test", prompt=None, aspect_ratio=None, image=None, image2=None)
+        self.assertEqual(result["prompt_id"], "moved")
+        self.assertEqual(submitted, ["old/model.safetensors", "new/model.safetensors"])
+        choose.assert_awaited_once()
+        self.assertEqual(original["1"]["inputs"]["vae_name"], "model.safetensors")
+
     async def test_backend_specific_workflow_rejection_fails_over_without_marking_server_unhealthy(self):
         tool = {
             "workflowFile": "workflow.json",
@@ -61,6 +126,9 @@ class GenerationFailoverTests(unittest.IsolatedAsyncioTestCase):
             patch.object(generation_v2, "get_comfy_servers", return_value=servers),
             patch.object(generation_v2, "get_best_backend", side_effect=choose_backend) as get_best,
             patch.object(generation_v2, "get_backend_client", AsyncMock(return_value=backend_client)),
+            patch.object(generation_v2, "backend_inventory", AsyncMock(return_value={"CheckpointLoaderSimple": {
+                "input": {"required": {"ckpt_name": [["model.safetensors"]]}}
+            }})),
             patch.object(generation_v2, "submit_prompt", submit),
             patch.object(generation_v2, "increment_active") as increment_active,
             patch.object(generation_v2, "decrement_active"),

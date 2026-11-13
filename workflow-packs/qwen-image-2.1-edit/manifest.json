@@ -1,0 +1,124 @@
+{
+  "id": "qwen-image-2.1-edit",
+  "name": "Qwen Image 2.1 Turbo Edit",
+  "type": "image-to-image",
+  "description": "Detailed image transformations guided by written instructions, including sketch-to-photo conversion, outfit changes, and reimagined objects. Prompts can specify both the changes and the features to preserve, with an optional second image for visual guidance.",
+  "tagline": "Detailed transformations such as sketch-to-photo conversion, outfit changes, and reimagined objects. Written instructions and an optional reference guide changes and preserved features.",
+  "highlights": [
+    "Detailed instructions",
+    "Creative transformations",
+    "Optional reference"
+  ],
+  "recommended": false,
+  "thumbnail": "/static/curated-thumbnails/qwen-image-2.1-turbo-edit-mug-executive.jpg",
+  "thumbnailAlt": "Before and after: an orange mug becomes a moustached executive holding a tiny coffee, edited with Qwen Image 2.1",
+  "workflowFile": "image_qwen_2_1_edit.json",
+  "source": "https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_turbo_image_edit.json",
+  "tool": {
+    "id": "qwen-image-2-1-edit",
+    "name": "Qwen Image 2.1 Turbo Edit",
+    "outputType": "image",
+    "workflowFile": "image_qwen_2_1_edit.json",
+    "nodeMapping": {
+      "image": {
+        "nodeId": "4",
+        "field": "image"
+      },
+      "prompt": {
+        "nodeId": "5",
+        "field": "prompt"
+      },
+      "seed": {
+        "nodeId": "11",
+        "field": "noise_seed",
+        "generateRandom": true
+      }
+    },
+    "referenceVariant": {
+      "workflowFile": "image_qwen_2_1_edit_reference.json",
+      "nodeMapping": {
+        "image": {
+          "nodeId": "4",
+          "field": "image"
+        },
+        "prompt": {
+          "nodeId": "5",
+          "field": "prompt"
+        },
+        "seed": {
+          "nodeId": "11",
+          "field": "noise_seed",
+          "generateRandom": true
+        },
+        "image2": {
+          "nodeId": "10",
+          "field": "image"
+        }
+      }
+    }
+  },
+  "models": [
+    {
+      "id": "diffusion",
+      "folder": "diffusion_models",
+      "variants": [
+        {
+          "precision": "int8",
+          "filename": "qwen_image_2.1_turbo_int8_convrot.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_turbo_int8_convrot.safetensors",
+          "requiresInt8ConvRot": true
+        },
+        {
+          "precision": "bf16",
+          "filename": "qwen_image_2.1_turbo_bf16.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_turbo_bf16.safetensors"
+        }
+      ]
+    },
+    {
+      "id": "text_encoder",
+      "folder": "text_encoders",
+      "variants": [
+        {
+          "precision": "int8",
+          "filename": "qwen3vl_8b_int8_convrot.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
+          "requiresInt8ConvRot": true
+        },
+        {
+          "precision": "bf16",
+          "filename": "qwen3vl_8b_bf16.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_bf16.safetensors"
+        }
+      ]
+    },
+    {
+      "id": "vae",
+      "folder": "vae",
+      "precision": "bf16",
+      "filename": "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
+      "url": "https://huggingface.co/madebyollin/texture-fix-vae-for-qwen-image-2.1/resolve/main/texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
+      "sourceNote": "Uses madebyollin texture-fix VAE as the curated quality choice."
+    }
+  ],
+  "bindings": [
+    {
+      "modelId": "diffusion",
+      "nodeId": "1",
+      "field": "unet_name"
+    },
+    {
+      "modelId": "text_encoder",
+      "nodeId": "2",
+      "field": "clip_name"
+    },
+    {
+      "modelId": "vae",
+      "nodeId": "3",
+      "field": "vae_name"
+    }
+  ],
+  "tags": [
+    "edit"
+  ]
+}

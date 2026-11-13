@@ -48,6 +48,11 @@ def _public_tool(tool: Any) -> dict:
 
     if isinstance(tool.get("imageVariant"), dict):
         result["firstFrame"] = True
+    if isinstance(tool.get("referenceVariant"), dict):
+        result["optionalReference"] = True
+    scale = tool.get("outputScale")
+    if isinstance(scale, int) and not isinstance(scale, bool) and scale > 0:
+        result["outputScale"] = scale
     if isinstance(tool.get("duration"), dict):
         result["duration"] = {key: deepcopy(tool["duration"][key]) for key in ("default", "options") if key in tool["duration"]}
 

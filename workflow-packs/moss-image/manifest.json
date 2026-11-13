@@ -1,0 +1,109 @@
+{
+  "id": "moss-image",
+  "name": "MOSS-Image",
+  "type": "text-to-image",
+  "description": "Image generation with strong English and Chinese text rendering, suited to posters, illustrated covers, and designs that combine pictures with words. Detailed scene descriptions guide composition, lettering, and the placement of visual elements.",
+  "tagline": "Strong English and Chinese text rendering for posters, illustrated covers, and images that combine pictures with words. Supports detailed scene and composition descriptions.",
+  "highlights": [
+    "Posters and covers",
+    "Text in images",
+    "Illustration"
+  ],
+  "recommended": false,
+  "thumbnail": "/static/curated-thumbnails/moss-image-poster.jpg",
+  "thumbnailAlt": "An illustrated coastal travel poster with MOSS lettering, generated with MOSS-Image",
+  "workflowFile": "image_moss_image.json",
+  "source": "https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_moss_image_t2i.json",
+  "tool": {
+    "id": "moss-image",
+    "name": "MOSS-Image",
+    "outputType": "image",
+    "workflowFile": "image_moss_image.json",
+    "nodeMapping": {
+      "prompt": {
+        "nodeId": "4",
+        "field": "text"
+      },
+      "width": {
+        "nodeId": "6",
+        "field": "width"
+      },
+      "height": {
+        "nodeId": "6",
+        "field": "height"
+      },
+      "seed": {
+        "nodeId": "7",
+        "field": "seed",
+        "generateRandom": true
+      }
+    },
+    "aspectRatios": {
+      "1:1": {
+        "width": 1024,
+        "height": 1024
+      },
+      "16:9": {
+        "width": 1344,
+        "height": 768
+      },
+      "9:16": {
+        "width": 768,
+        "height": 1344
+      }
+    }
+  },
+  "models": [
+    {
+      "id": "diffusion",
+      "folder": "diffusion_models",
+      "variants": [
+        {
+          "precision": "int8",
+          "filename": "moss_image_sft_int8_convrot.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/diffusion_models/moss_image_sft_int8_convrot.safetensors",
+          "requiresInt8ConvRot": true
+        },
+        {
+          "precision": "bf16",
+          "filename": "moss_image_sft_bf16.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/diffusion_models/moss_image_sft_bf16.safetensors"
+        }
+      ]
+    },
+    {
+      "id": "text_encoder",
+      "folder": "text_encoders",
+      "precision": "w4a8",
+      "filename": "qwen3.5_9b_w4a8_gptq.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/text_encoders/qwen3.5_9b_w4a8_gptq.safetensors"
+    },
+    {
+      "id": "vae",
+      "folder": "vae",
+      "precision": "bf16",
+      "filename": "flux2-vae_small.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/vae/flux2-vae_small.safetensors"
+    }
+  ],
+  "bindings": [
+    {
+      "modelId": "diffusion",
+      "nodeId": "1",
+      "field": "unet_name"
+    },
+    {
+      "modelId": "text_encoder",
+      "nodeId": "2",
+      "field": "clip_name"
+    },
+    {
+      "modelId": "vae",
+      "nodeId": "3",
+      "field": "vae_name"
+    }
+  ],
+  "tags": [
+    "image"
+  ]
+}

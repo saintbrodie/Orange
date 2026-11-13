@@ -44,16 +44,16 @@
     },
     "aspectRatios": {
       "3:2": {
-        "width": 384,
-        "height": 256
+        "width": 576,
+        "height": 384
       },
       "16:9": {
-        "width": 512,
-        "height": 288
+        "width": 672,
+        "height": 384
       },
       "9:16": {
-        "width": 288,
-        "height": 512
+        "width": 384,
+        "height": 672
       }
     },
     "duration": {
@@ -98,7 +98,8 @@
           "field": "image"
         }
       }
-    }
+    },
+    "outputScale": 2
   },
   "models": [
     {
@@ -189,5 +190,8 @@
       "field": "model_name"
     }
   ],
-  "setupNote": "Accept the LTX model terms on Hugging Face, then add a read token in General Settings so Orange can download missing models. Existing files are reused."
+  "setupNote": "Accept the LTX model terms on Hugging Face, then add a read token in General Settings so Orange can download missing models. Existing files are reused.",
+  "tags": [
+    "video"
+  ]
 }

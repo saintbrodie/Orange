@@ -2,9 +2,13 @@
   "id": "seedvr2-7b-upscale",
   "name": "SeedVR2 7B Upscale",
   "type": "image-to-image",
-  "description": "4× image upscaling with ComfyUI's native SeedVR2 nodes.",
-  "tagline": "Straightforward 4× image upscaling with ComfyUI's native SeedVR2 workflow.",
-  "highlights": ["4× upscale", "Image to image", "Native nodes"],
+  "description": "4\u00d7 image upscaling with ComfyUI's native SeedVR2 nodes.",
+  "tagline": "Straightforward 4\u00d7 image upscaling with ComfyUI's native SeedVR2 workflow.",
+  "highlights": [
+    "4\u00d7 upscale",
+    "Image to image",
+    "Native nodes"
+  ],
   "recommended": false,
   "thumbnail": "/static/curated-thumbnails/seedvr2-7b-upscale.jpg",
   "thumbnailAlt": "Before and after example of SeedVR2 image upscaling",
@@ -14,8 +18,15 @@
     "name": "Upscale Image",
     "workflowFile": "utility_seedvr2_7b_int8_upscale_image.json",
     "nodeMapping": {
-      "image": {"nodeId": "1", "field": "image"},
-      "seed": {"nodeId": "66:54", "field": "seed", "generateRandom": true}
+      "image": {
+        "nodeId": "1",
+        "field": "image"
+      },
+      "seed": {
+        "nodeId": "66:54",
+        "field": "seed",
+        "generateRandom": true
+      }
     }
   },
   "models": [
@@ -51,7 +62,18 @@
     }
   ],
   "bindings": [
-    {"modelId": "diffusion", "nodeId": "66:52", "field": "unet_name"},
-    {"modelId": "vae", "nodeId": "66:51", "field": "vae_name"}
+    {
+      "modelId": "diffusion",
+      "nodeId": "66:52",
+      "field": "unet_name"
+    },
+    {
+      "modelId": "vae",
+      "nodeId": "66:51",
+      "field": "vae_name"
+    }
+  ],
+  "tags": [
+    "tools"
   ]
 }

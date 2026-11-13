@@ -36,6 +36,7 @@
             justify-content: flex-start !important;
         }
     </style>
+    <link rel="stylesheet" href="/static/tool-config.css?v=2">
 </head>
 
 <body
@@ -544,8 +545,8 @@
 
                     <div class="space-y-1">
                         <label class="text-xs font-medium text-zinc-400 uppercase">Workflow File (.json)</label>
-                        <input type="text" id="edit-tool-file" readonly
-                            class="w-full bg-zinc-950/50 border border-zinc-800 rounded-lg p-3 text-sm outline-none text-zinc-500 cursor-not-allowed">
+                        <input type="text" id="edit-tool-file" list="tool-workflow-files"
+                            class="w-full bg-zinc-950/50 border border-zinc-800 rounded-lg p-3 text-sm outline-none text-zinc-300">
                     </div>
 
                     <datalist id="nodes-list"></datalist>
@@ -684,8 +685,10 @@
     </div>
 
     <!-- Script -->
-    <script src="/static/admin.js?v=2"></script>
-    <script src="/static/workflow-pack-library.js?v=3"></script>
+    <script src="/static/tool-input-editor.js?v=4"></script>
+    <script src="/static/admin.js?v=5"></script>
+    <script src="/static/workflow-pack-library.js?v=7"></script>
+    <script src="/static/tool-config-layout.js?v=4"></script>
 </body>
 
 </html>

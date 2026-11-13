@@ -96,12 +96,16 @@ Upstream: https://github.com/Comfy-Org/ComfyUI
 
 Orange's MIT License does not grant rights to model weights downloaded by curated workflow packs. Those files remain subject to the model authors' licenses and terms. Users are responsible for confirming that their intended use is permitted.
 
-As of Orange v1.0.0, the curated packs include:
+As of Orange v1.1.0, the curated packs include:
 
 - Z-Image Turbo - model files are published through Comfy-Org under Apache-2.0.
 - SeedVR2 - model files are published through Comfy-Org under Apache-2.0.
 - Krea 2 Turbo - Krea 2 Community License. Commercial use under the community license is limited to users or organizations below the license's stated revenue threshold; larger commercial users require an enterprise license from Krea.
 - FLUX.2 Klein 9B - the Black Forest Labs checkpoint used by the Klein pack is under the FLUX Non-Commercial License unless separate commercial rights are obtained.
+
+- LTX 2.5 - diffusion weights are published under the LTX-2.x Community License Agreement; the text encoder and other components retain their own upstream terms.
+- Qwen Image 2.1 Turbo Edit - the diffusion model repository identifies the Qwen research license. The separately sourced madebyollin texture-fix VAE and text encoder retain their upstream terms.
+- MOSS-Image - the Comfy-Org model repository identifies Apache-2.0; the pack's text encoder and VAE retain their upstream terms.
 
 Model-license sources:
 
@@ -109,5 +113,10 @@ Model-license sources:
 - https://huggingface.co/Comfy-Org/SeedVR2
 - https://huggingface.co/Comfy-Org/Krea-2
 - https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-kv-fp8
+
+- https://huggingface.co/Lightricks/LTX-2.5
+- https://huggingface.co/Comfy-Org/Qwen-Image-2.1
+- https://huggingface.co/madebyollin/texture-fix-vae-for-qwen-image-2.1
+- https://huggingface.co/Comfy-Org/MOSS-Image
 
 This file is provided to make license boundaries visible. It is not legal advice.

@@ -24,6 +24,15 @@ class LTXWorkflowPackTests(unittest.TestCase):
         self.assertEqual(validate_mappings(self.workflow, self.tool["nodeMapping"])["errors"], [])
         self.assertEqual(validate_config({"tools": [self.tool]})["errors"], [])
 
+    def test_output_defaults_are_about_one_megapixel(self):
+        from app.core.public_config import build_public_config
+        public = build_public_config({"tools": [self.tool]})["tools"][0]
+        self.assertEqual(public["outputScale"], 2)
+        for ratio in self.tool["aspectRatios"].values():
+            self.assertGreaterEqual(ratio["width"] * ratio["height"] * 4, 880000)
+            self.assertEqual(ratio["width"] % 32, 0)
+            self.assertEqual(ratio["height"] % 32, 0)
+
     def test_av_timing_and_native_output_are_connected(self):
         self.assertEqual(self.workflow["405:356"]["inputs"]["length"], ["video_frames", 0])
         self.assertEqual(self.workflow["video_frames"]["inputs"]["value"], 97)
@@ -76,7 +85,7 @@ class LTXWorkflowPackTests(unittest.TestCase):
         self.assertFalse(inspection["ready"])
         self.assertIn("LTXVImgToVideoInplace", inspection["missingNodes"])
 
-    def test_install_binds_all_five_components_to_inventory_filenames(self):
+    def test_install_keeps_all_five_model_references_portable(self):
         selected = workflow_packs.select_model_dependencies("ltx-2.5-t2v", {})
         for model in selected:
             model["filename"] = "organized/" + model["filename"]
@@ -89,9 +98,9 @@ class LTXWorkflowPackTests(unittest.TestCase):
             image_workflow = json.loads((Path(directory) / self.tool["imageVariant"]["workflowFile"]).read_text())
             for binding in self.manifest["bindings"]:
                 self.assertEqual(workflow[binding["nodeId"]]["inputs"][binding["field"]],
-                                 by_id[binding["modelId"]]["filename"])
+                                 by_id[binding["modelId"]]["filename"].rsplit("/", 1)[-1])
                 self.assertEqual(image_workflow[binding["nodeId"]]["inputs"][binding["field"]],
-                                 by_id[binding["modelId"]]["filename"])
+                                 by_id[binding["modelId"]]["filename"].rsplit("/", 1)[-1])
 
 
 if __name__ == "__main__":

@@ -6,8 +6,10 @@ It uses native ComfyUI nodes, the distilled 22B transformer, two sampling stages
 a 2x latent upscaler, and the lighter Conv video VAE. Prompt enhancement is
 omitted because Orange already has its own optional enhancement flow.
 
-- Default: 97 frames at 24 fps (about 4 seconds), final 768x512.
-- Ratios: 3:2 (768x512), 16:9 (1024x576), 9:16 (576x1024).
+- Default: 97 frames at 24 fps (about 4 seconds), final 1152x768.
+- Ratios: 3:2 (1152x768), 16:9 (1344x768), 9:16 (768x1344).
+  These are final output sizes after the 2x latent upscale (roughly 1 megapixel);
+  mapped sampling-stage dimensions are half the final width and height.
 - Prompt, random seed, ratio, and length (2, 4, 6, 8, 10, or 12 seconds) are exposed in Orange.
 - Upload an optional first frame to guide both generation stages, or leave it empty for text-to-video.
 - A shared frame-count node keeps audio and video in sync; counts are rounded to 8n+1 frames, so actual duration is about one frame longer than the selected length.
@@ -83,3 +85,7 @@ text-only and an uploaded first frame each generated 49-frame (2.04-second)
 768x512 MP4s with audio when a two-second length was requested. The browser form
 also showed the optional upload and all six duration choices, and hid these
 controls when switching to a normal image tool.
+
+Resolution update validated on 2026-11-12: the new 576x384 base generated a
+1152x768 H.264 MP4 with AAC audio, 49 frames at 24 fps (2.04 seconds).
+Orange displays final output dimensions on the aspect-ratio controls.

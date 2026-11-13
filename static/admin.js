@@ -576,7 +576,7 @@ lucide.createIcons();
         let availableWorkflowFiles = [];
         let editingToolIndex = -1;
         let parsedNodes = {}; // Cache of nodes from currently selected workflow json
-        const MAPPING_TYPES = ['prompt', 'image', 'image2', 'resolution', 'seed', 'outputText'];
+        const MAPPING_TYPES = ['prompt', 'image', 'image2', 'resolution', 'seed', 'duration', 'outputText'];
 
         function resetTabs() {
             const defaultClass = "admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition";
@@ -1395,13 +1395,14 @@ lucide.createIcons();
             }
 
             renderMappings(tool.nodeMapping || {});
+            ToolInputEditor.load(tool, availableWorkflowFiles, appConfig.aspectRatios);
         }
 
-        window.toggleMapping = function (type) {
-            const cb = document.getElementById(`map-${type}-enable`);
+        window.toggleMapping = function (type, prefix = '') {
+            const cb = document.getElementById(`${prefix}map-${type}-enable`);
             const isEnabled = cb.checked;
-            const container = document.getElementById(`map-${type}-container`);
-            const nodeInput = document.getElementById(`map-${type}-node`);
+            const container = document.getElementById(`${prefix}map-${type}-container`);
+            const nodeInput = document.getElementById(`${prefix}map-${type}-node`);
             const dot = cb.nextElementSibling.nextElementSibling;
 
             if (isEnabled) {
@@ -1410,8 +1411,8 @@ lucide.createIcons();
                 dot.classList.add('translate-x-3');
                 dot.classList.replace('bg-white', 'bg-orange-500');
                 if (type === 'resolution') {
-                    document.getElementById('map-res-wfield').disabled = false;
-                    document.getElementById('map-res-hfield').disabled = false;
+                    document.getElementById(prefix + 'map-res-wfield').disabled = false;
+                    document.getElementById(prefix + 'map-res-hfield').disabled = false;
                     const customArCheckbox = document.getElementById('map-res-custom-ar');
                     if (customArCheckbox) customArCheckbox.disabled = false;
                     Object.keys(appConfig.aspectRatios || {}).forEach(r => {
@@ -1422,9 +1423,9 @@ lucide.createIcons();
                         if (arh) arh.disabled = false;
                     });
                 } else {
-                    const fieldInput = document.getElementById(`map-${type}-field`);
+                    const fieldInput = document.getElementById(`${prefix}map-${type}-field`);
                     if (fieldInput) fieldInput.disabled = false;
-                    const seedRand = document.getElementById('map-seed-rand');
+                    const seedRand = document.getElementById(prefix + 'map-seed-rand');
                     if (type === 'seed' && seedRand) seedRand.disabled = false;
                 }
             } else {
@@ -1433,8 +1434,8 @@ lucide.createIcons();
                 dot.classList.remove('translate-x-3');
                 dot.classList.replace('bg-orange-500', 'bg-white');
                 if (type === 'resolution') {
-                    document.getElementById('map-res-wfield').disabled = true;
-                    document.getElementById('map-res-hfield').disabled = true;
+                    document.getElementById(prefix + 'map-res-wfield').disabled = true;
+                    document.getElementById(prefix + 'map-res-hfield').disabled = true;
                     const customArCheckbox = document.getElementById('map-res-custom-ar');
                     if (customArCheckbox) customArCheckbox.disabled = true;
                     Object.keys(appConfig.aspectRatios || {}).forEach(r => {
@@ -1445,9 +1446,9 @@ lucide.createIcons();
                         if (arh) arh.disabled = true;
                     });
                 } else {
-                    const fieldInput = document.getElementById(`map-${type}-field`);
+                    const fieldInput = document.getElementById(`${prefix}map-${type}-field`);
                     if (fieldInput) fieldInput.disabled = true;
-                    const seedRand = document.getElementById('map-seed-rand');
+                    const seedRand = document.getElementById(prefix + 'map-seed-rand');
                     if (type === 'seed' && seedRand) seedRand.disabled = true;
                 }
             }
@@ -1499,11 +1500,14 @@ lucide.createIcons();
             }
         };
 
-        function renderMappings(mappings) {
-            const container = document.getElementById('node-mappings-container');
+        function renderMappings(mappings, context = 'base') {
+            const prefix = context === 'alternate' ? 'alt-' : '';
+            const container = document.getElementById(context === 'alternate' ? 'alternate-node-mappings' : 'node-mappings-container');
             container.innerHTML = '';
 
-            MAPPING_TYPES.forEach(type => {
+            const mappingOrder = context === 'alternate' ? ['image', 'image2', 'prompt', 'resolution', 'seed', 'duration', 'outputText'] : MAPPING_TYPES;
+            mappingOrder.forEach(type => {
+                if (type === 'resolution' ? !(mappings.width || mappings.height) : !mappings[type]) return;
                 let mapData, isEnabled, fieldUI, extraUI = '';
 
                 if (type === 'resolution') {
@@ -1517,62 +1521,33 @@ lucide.createIcons();
                     fieldUI = `
                         <div class="flex-1">
                             <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Width Field</label>
-                            <input type="text" id="map-res-wfield" value="${mapData.wField}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" ${!isEnabled ? 'disabled' : ''}>
+                            <input type="text" id="${prefix}map-res-wfield" value="${mapData.wField}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" ${!isEnabled ? 'disabled' : ''}>
                         </div>
                         <div class="flex-1">
                             <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Height Field</label>
-                            <input type="text" id="map-res-hfield" value="${mapData.hField}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" ${!isEnabled ? 'disabled' : ''}>
+                            <input type="text" id="${prefix}map-res-hfield" value="${mapData.hField}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" ${!isEnabled ? 'disabled' : ''}>
                         </div>
                     `;
 
-                    const tool = appConfig.tools[editingToolIndex] || {};
-                    const ar = tool.aspectRatios || {};
-                    const hasCustomAR = !!tool.aspectRatios;
-
-                    extraUI = `
-                    <div class="mt-4 pt-3 border-t border-zinc-700/50">
-                        <div class="flex justify-between items-center mb-2">
-                            <label class="text-xs text-zinc-300 font-medium flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" id="map-res-custom-ar" ${hasCustomAR ? 'checked' : ''} class="rounded bg-zinc-900 border-zinc-700 text-orange-500 focus:ring-orange-500" ${!isEnabled ? 'disabled' : ''} onchange="document.getElementById('ar-inputs').classList.toggle('hidden');">
-                                Override Default Aspect Ratios
-                            </label>
-                        </div>
-                        <div id="ar-inputs" class="grid grid-cols-3 gap-2 ${(!hasCustomAR || !isEnabled) ? 'hidden' : ''}">
-                            ${Object.keys(appConfig.aspectRatios || {}).map(r => `
-                                <div class="bg-zinc-900/50 p-2 rounded border border-zinc-800">
-                                    <div class="text-[10px] text-zinc-500 mb-2 text-center font-bold">${r}</div>
-                                    <div class="flex items-center gap-1 mb-1">
-                                        <span class="text-[10px] text-zinc-500 font-medium w-4 text-center">H</span>
-                                        <input type="number" id="ar-${r.replace(':', '')}-h" value="${ar[r]?.height || ''}" class="w-full bg-zinc-950 border border-zinc-800 text-xs p-1 rounded text-center text-zinc-300 outline-none focus:border-orange-500" ${!isEnabled ? 'disabled' : ''}>
-                                    </div>
-                                    <div class="flex items-center gap-1">
-                                        <span class="text-[10px] text-zinc-500 font-medium w-4 text-center">W</span>
-                                        <input type="number" id="ar-${r.replace(':', '')}-w" value="${ar[r]?.width || ''}" class="w-full bg-zinc-950 border border-zinc-800 text-xs p-1 rounded text-center text-zinc-300 outline-none focus:border-orange-500" ${!isEnabled ? 'disabled' : ''}>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                    `;
                 } else {
                     mapData = mappings[type] || { nodeId: '', field: '' };
                     isEnabled = !!mappings[type];
                     fieldUI = `
                         <div class="flex-1">
                             <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Field Name</label>
-                            <input type="text" id="map-${type}-field" value="${mapData.field || ''}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" placeholder="Input param" ${!isEnabled ? 'disabled' : ''}>
+                            <input type="text" id="${prefix}map-${type}-field" value="${mapData.field || ''}" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" placeholder="Input param" ${!isEnabled ? 'disabled' : ''}>
                         </div>
                     `;
-                    extraUI = type === 'seed' ? `<label class="flex items-center gap-2 mt-2 text-xs text-zinc-400"><input type="checkbox" id="map-seed-rand" ${mapData.generateRandom ? 'checked' : ''} class="rounded bg-zinc-900 border-zinc-700 text-orange-500 focus:ring-orange-500" ${!isEnabled ? 'disabled' : ''}> Generate Random</label>` : '';
+                    extraUI = type === 'seed' ? `<label class="flex items-center gap-2 mt-2 text-xs text-zinc-400"><input type="checkbox" id="${prefix}map-seed-rand" ${mapData.generateRandom ? 'checked' : ''} class="rounded bg-zinc-900 border-zinc-700 text-orange-500 focus:ring-orange-500" ${!isEnabled ? 'disabled' : ''}> Generate Random</label>` : '';
                 }
 
                 container.innerHTML += `
-                    <div class="bg-zinc-800/40 border border-zinc-700/50 p-4 rounded-xl transition-all ${!isEnabled ? 'opacity-50 grayscale' : ''}" id="map-${type}-container">
+                    <div class="bg-zinc-800/40 border border-zinc-700/50 p-4 rounded-xl transition-all ${!isEnabled ? 'opacity-50 grayscale' : ''}" id="${prefix}map-${type}-container">
                         <div class="font-medium text-sm text-zinc-200 capitalize mb-3 flex justify-between items-center">
-                            <span class="flex items-center gap-2"><i data-lucide="link" class="w-3 h-3 text-orange-500"></i> ${type} Input</span>
+                            <span class="flex items-center gap-2"><i data-lucide="link" class="w-3 h-3 text-orange-500"></i> ${({image:'Source image',image2:'Reference image',duration:'Video length',seed:'Random seed',outputText:'Text output',resolution:'Resolution',prompt:'Prompt'})[type]}</span>
                             <label class="flex items-center cursor-pointer">
                                 <div class="relative">
-                                    <input type="checkbox" id="map-${type}-enable" class="sr-only" ${isEnabled ? 'checked' : ''} onchange="toggleMapping('${type}')">
+                                    <input type="checkbox" id="${prefix}map-${type}-enable" class="sr-only" ${isEnabled ? 'checked' : ''} onchange="toggleMapping('${type}', '${prefix}')">
                                     <div class="block bg-zinc-700 w-8 h-5 rounded-full"></div>
                                     <div class="dot absolute left-1 top-1 ${isEnabled ? 'bg-orange-500 translate-x-3' : 'bg-white'} w-3 h-3 rounded-full transition transform"></div>
                                 </div>
@@ -1581,7 +1556,7 @@ lucide.createIcons();
                         <div class="flex gap-3">
                             <div class="flex-1">
                                 <label class="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Node ID</label>
-                                <input type="text" id="map-${type}-node" value="${mapData.nodeId || ''}" list="nodes-list" oninput="autoDetectField('${type}', this.value)" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" placeholder="Node ID" ${!isEnabled ? 'disabled' : ''}>
+                                <input type="text" id="${prefix}map-${type}-node" value="${mapData.nodeId || ''}" list="nodes-list"  class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono" placeholder="Node ID" ${!isEnabled ? 'disabled' : ''}>
                             </div>
                             ${fieldUI}
                         </div>
@@ -1590,7 +1565,27 @@ lucide.createIcons();
                 `;
             });
             
+            const add = document.createElement('select');
+            add.className = 'w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-xs text-zinc-300';
+            add.setAttribute('aria-label', 'Add an input mapping');
+            const placeholder = document.createElement('option'); placeholder.value = ''; placeholder.textContent = 'Add input…'; add.append(placeholder);
+            for (const type of MAPPING_TYPES) {
+                if (type === 'resolution' ? (mappings.width || mappings.height) : mappings[type]) continue;
+                const option = document.createElement('option'); option.value = type;
+                option.textContent = ({image: 'Source image', image2: 'Reference image', duration: 'Video length', outputText: 'Text output', seed: 'Random seed', resolution: 'Resolution', prompt: 'Prompt'})[type]; add.append(option);
+            }
+            add.addEventListener('change', () => {
+                if (!add.value) return;
+                const next = ToolInputEditor.currentMapping(context);
+                if (add.value === 'resolution') { next.width = {nodeId: '', field: 'width'}; next.height = {nodeId: '', field: 'height'}; }
+                else next[add.value] = {nodeId: '', field: ({image2:'image',prompt:'text',seed:'noise_seed',duration:'value'})[add.value] || add.value};
+                for (const id of ['tool-timing-settings', 'tool-resolution-settings']) { const panel = document.getElementById(id); if (panel) document.getElementById('tool-input-options').append(panel); }
+                renderMappings(next, context); ToolInputEditor.refreshMappings(context);
+            });
+            container.append(add);
+
             // Show tool overrides container if prompt input is enabled
+            if (context === 'alternate') { lucide.createIcons(); return; }
             const promptMap = mappings.prompt;
             const overrides = document.getElementById('tool-llm-overrides-container');
             if (promptMap) {
@@ -1632,7 +1627,7 @@ lucide.createIcons();
 
         document.getElementById('save-tool-btn').addEventListener('click', async () => {
             if (editingToolIndex === -1) return;
-            const tool = appConfig.tools[editingToolIndex];
+            const tool = structuredClone(appConfig.tools[editingToolIndex]);
             tool.id = document.getElementById('edit-tool-id').value.trim();
             tool.name = document.getElementById('edit-tool-name').value.trim();
             const outputType = document.getElementById('edit-tool-output-type').value;
@@ -1642,17 +1637,10 @@ lucide.createIcons();
                 delete tool.outputType; // default is image, no need to store
             }
 
-            const durationMapping = tool.outputType === 'video' ? tool.nodeMapping?.duration : null;
-            tool.nodeMapping = durationMapping ? {duration: durationMapping} : {};
-            if (tool.outputType !== 'video') {
-                delete tool.duration;
-                delete tool.imageVariant;
-            }
-            delete tool.aspectRatios;
-
+            tool.nodeMapping = {};
             MAPPING_TYPES.forEach(type => {
-                const isEnabled = document.getElementById(`map-${type}-enable`).checked;
-                const nodeVal = document.getElementById(`map-${type}-node`).value.trim();
+                const isEnabled = Boolean(document.getElementById(`map-${type}-enable`)?.checked);
+                const nodeVal = document.getElementById(`map-${type}-node`)?.value.trim() || '';
 
                 if (isEnabled && nodeVal) {
                     if (type === 'resolution') {
@@ -1661,21 +1649,6 @@ lucide.createIcons();
                         tool.nodeMapping.width = { nodeId: nodeVal, field: wField };
                         tool.nodeMapping.height = { nodeId: nodeVal, field: hField };
 
-                        if (document.getElementById('map-res-custom-ar').checked) {
-                            tool.aspectRatios = {};
-                            Object.keys(appConfig.aspectRatios || {}).forEach(r => {
-                                const idSuffix = r.replace(':', '');
-                                const wEl = document.getElementById(`ar-${idSuffix}-w`);
-                                const hEl = document.getElementById(`ar-${idSuffix}-h`);
-                                if (wEl && hEl) {
-                                    const w = parseInt(wEl.value);
-                                    const h = parseInt(hEl.value);
-                                    if (!isNaN(w) && !isNaN(h)) {
-                                        tool.aspectRatios[r] = { width: w, height: h };
-                                    }
-                                }
-                            });
-                        }
                     } else {
                         const fieldVal = document.getElementById(`map-${type}-field`).value.trim();
                         if (fieldVal) {
@@ -1688,8 +1661,11 @@ lucide.createIcons();
                 }
             });
 
+            try { ToolInputEditor.apply(tool); }
+            catch (error) { alert(error.message); return; }
+
             // Save tool LLM overrides (only if prompt is mapped)
-            const promptEnabled = document.getElementById('map-prompt-enable').checked;
+            const promptEnabled = Boolean(tool.nodeMapping.prompt);
             let systemPromptOverride = '';
             if (promptEnabled) {
                 const modelSelectVal = document.getElementById('edit-tool-llm-model').value;
@@ -1709,6 +1685,8 @@ lucide.createIcons();
             } else {
                 delete tool.promptEnhance;
             }
+
+            appConfig.tools[editingToolIndex] = tool;
 
             // Save the prompt text file first
             try {

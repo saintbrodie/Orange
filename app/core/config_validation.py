@@ -289,19 +289,28 @@ def validate_config(config: Any) -> dict:
             valid = valid and bool(control_mapping.get("duration")) and tool.get("outputType") == "video"
             if not valid:
                 errors.append(_issue(f"{path}.duration", "duration_invalid", "Video duration needs positive integer options, a matching default, frameRate, frameMultiple, and a duration mapping."))
-        variant = tool.get("imageVariant")
-        if variant is not None:
-            if not isinstance(variant, dict) or "imageVariant" in variant:
-                errors.append(_issue(f"{path}.imageVariant", "image_variant_invalid", "First-frame configuration must be a single workflow variant."))
+        variant_keys = ("imageVariant", "referenceVariant")
+        if all(tool.get(key) is not None for key in variant_keys):
+            errors.append(_issue(path, "input_variants_conflict", "A tool may have one optional input variant."))
+        for variant_key in variant_keys:
+            variant = tool.get(variant_key)
+            if variant is None:
+                continue
+            if not isinstance(variant, dict) or any(key in variant for key in variant_keys):
+                errors.append(_issue(f"{path}.{variant_key}", "image_variant_invalid", "Optional input configuration must be a single workflow variant."))
                 continue
             variant_tool = {**tool, **variant}
-            variant_tool.pop("imageVariant", None)
+            for key in variant_keys:
+                variant_tool.pop(key, None)
             variant_mapping = variant_tool.get("nodeMapping") if isinstance(variant_tool.get("nodeMapping"), dict) else {}
             if not variant_mapping.get("image"):
-                errors.append(_issue(f"{path}.imageVariant", "image_variant_no_image", "First-frame workflow must expose an image mapping."))
+                errors.append(_issue(f"{path}.{variant_key}", "image_variant_no_image", "Alternate workflow must expose an image mapping."))
+            if variant_key == "referenceVariant":
+                if not control_mapping.get("image") or control_mapping.get("image2") or not variant_mapping.get("image2"):
+                    errors.append(_issue(f"{path}.{variant_key}", "reference_variant_invalid", "Optional reference needs a single-image base and a two-image alternate workflow."))
             checked = validate_config({"tools": [variant_tool]})
             for issue in checked["errors"]:
-                errors.append({**issue, "path": issue["path"].replace("tools[0]", f"{path}.imageVariant", 1)})
+                errors.append({**issue, "path": issue["path"].replace("tools[0]", f"{path}.{variant_key}", 1)})
 
     modify_tool = config.get("modifyTool")
     if modify_tool:

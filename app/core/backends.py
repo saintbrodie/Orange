@@ -46,6 +46,7 @@ class BackendManager:
         self._poll_task: Optional[asyncio.Task] = None
         self._refresh_lock = asyncio.Lock()
         self._workflow_compatibility: Dict[str, Dict[str, bool]] = {}
+        self._compatibility_checked: Dict[tuple[str, str], float] = {}
 
     def _sync_servers(self) -> None:
         configured = []
@@ -196,6 +197,17 @@ class BackendManager:
             if not url or not result.get("reachable"):
                 continue
             compatibility[url] = not bool(result.get("errors"))
+            self._compatibility_checked[(compatibility_key, url)] = time.monotonic()
+
+    def invalidate_compatibility(self, url: str) -> None:
+        from app.core.model_bindings import normalize_backend
+
+        normalized = normalize_backend(url)
+        for key, compatibility in self._workflow_compatibility.items():
+            for backend in list(compatibility):
+                if normalize_backend(backend) == normalized:
+                    del compatibility[backend]
+                    self._compatibility_checked.pop((key, backend), None)
 
     def _eligible_states(
         self,
@@ -212,7 +224,10 @@ class BackendManager:
                 continue
             if not state.healthy or state.circuit_open_until > now:
                 continue
-            if compatibility.get(state.url) is False:
+            # Model files can move or be installed while Orange is running.
+            # Never let a cached incompatibility block a backend indefinitely.
+            checked = self._compatibility_checked.get((compatibility_key or "", state.url), now)
+            if compatibility.get(state.url) is False and now - checked < 60.0:
                 continue
             eligible.append(state)
         return eligible

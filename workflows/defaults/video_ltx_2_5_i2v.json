@@ -346,8 +346,8 @@
   "405:356": {
     "inputs": {
       "batch_size": 1,
-      "width": 384,
-      "height": 256,
+      "width": 576,
+      "height": 384,
       "length": [
         "video_frames",
         0

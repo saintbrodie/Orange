@@ -5,6 +5,37 @@
   let inspectionDiskSpace = null;
   let jobByKey = new Map();
   let pollTimer = null;
+  let selectedTag = 'all';
+  const defaultTags = ['image', 'edit', 'video', 'tools'];
+
+  function packTags(pack) {
+    return [...new Set((Array.isArray(pack.tags) ? pack.tags : [])
+      .filter(tag => typeof tag === 'string')
+      .map(tag => tag.trim().toLowerCase())
+      .filter(tag => tag && tag !== 'all' && (tag !== 'image' || pack.type === 'text-to-image')))];
+  }
+
+  function renderTagFilters(packs) {
+    const filters = document.getElementById('curated-tag-filters');
+    if (!filters) return;
+    const extraTags = [...new Set(packs.flatMap(packTags))]
+      .filter(tag => !defaultTags.includes(tag)).sort();
+    const tags = ['all', ...defaultTags, ...extraTags];
+    if (!tags.includes(selectedTag)) selectedTag = 'all';
+    filters.innerHTML = tags.map(tag => {
+      const active = tag === selectedTag;
+      const count = tag === 'all' ? packs.length : packs.filter(pack => packTags(pack).includes(tag)).length;
+      return `<button type="button" data-library-tag="${escapeHtml(tag)}" aria-pressed="${active}" class="px-3 py-2 rounded-full border text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-400 ${active ? 'bg-orange-500/15 border-orange-500/50 text-orange-300' : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'}">${escapeHtml(tag.charAt(0).toUpperCase() + tag.slice(1))}<span class="ml-1.5 opacity-60">${count}</span></button>`;
+    }).join('');
+    filters.querySelectorAll('[data-library-tag]').forEach(button => {
+      button.addEventListener('click', () => {
+        selectedTag = button.dataset.libraryTag;
+        renderCatalog();
+        [...filters.querySelectorAll('[data-library-tag]')]
+          .find(item => item.dataset.libraryTag === selectedTag)?.focus();
+      });
+    });
+  }
 
   function authFetch(url, options = {}) {
     const key = localStorage.getItem('orange_admin_key');
@@ -277,6 +308,10 @@
           <div id="curated-tools-status" class="text-xs text-zinc-500 min-h-5" aria-live="polite"></div>
           <div id="curated-summary" class="flex items-center flex-wrap gap-1.5"></div>
         </div>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div id="curated-tag-filters" role="group" aria-label="Filter workflows by tag" class="flex flex-wrap gap-2"></div>
+          <span id="curated-filter-count" class="text-[11px] text-zinc-500 shrink-0" aria-live="polite"></span>
+        </div>
         <div id="curated-tools-list" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
       </section>
     `;
@@ -339,6 +374,7 @@
     if ((job?.state === 'queued' || job?.state === 'running') && job?.cancelRequested) return 'canceling';
     if (job?.state === 'queued' || job?.state === 'running') return 'working';
     if (job?.state === 'failed' || job?.state === 'interrupted') return 'failed';
+    if (inspection?.activeWorkflowReady === false) return 'failed';
     if (inspection?.missingNodes?.length || inspection?.unknownModels?.length) return 'blocked';
     if (inspection?.ready) return 'ready';
     if (inspection) return 'download';
@@ -361,6 +397,9 @@
   }
 
   function inspectionStatus(pack, inspection, job) {
+    if (inspection?.activeWorkflowReady === false && !['queued', 'running'].includes(job?.state)) {
+      return `<div class="text-xs text-amber-300">The active tool needs attention on this backend.</div>${(inspection.activeWorkflowIssues || []).slice(0, 3).map(issue => `<p class="mt-1 text-[11px] text-zinc-400">${escapeHtml(issue.message)}</p>`).join('')}`;
+    }
     if (job?.state === 'queued' || job?.state === 'running') {
       const files = job.files?.length ? job.files : job.downloadPlan;
       return `
@@ -410,6 +449,7 @@
       `;
     }
     if (inspection.unknownModels?.length) {
+      if (inspection.modelBindings?.length) return '<div class="text-xs text-amber-300">Duplicate model filenames need a backend path. Save the model bindings below, then Orange will check again.</div>';
       return '<div class="text-xs text-amber-300 flex items-start gap-2"><i data-lucide="help-circle" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Orange cannot safely verify this workflow’s model inventory on this ComfyUI build.</span></div>';
     }
     const count = inspection.downloadPlan?.length || 0;
@@ -438,7 +478,7 @@
     packs.forEach((pack) => {
       const inspection = inspectionByPack.get(pack.id);
       if (!inspection) return;
-      if (inspection.missingNodes?.length || inspection.unknownModels?.length) blocked += 1;
+      if (inspection.activeWorkflowReady === false || inspection.missingNodes?.length || inspection.unknownModels?.length) blocked += 1;
       else if (inspection.ready) ready += 1;
       else downloads += 1;
     });
@@ -456,9 +496,10 @@
     const busy = job?.state === 'queued' || job?.state === 'running';
     const retryable = job?.state === 'failed' || job?.state === 'interrupted';
     if (busy) return {label: job?.cancelRequested ? 'Canceling…' : 'Cancel setup', disabled: Boolean(job?.cancelRequested), primary: false, danger: !job?.cancelRequested, icon: job?.cancelRequested ? 'loader-2' : 'circle-stop', spin: Boolean(job?.cancelRequested)};
+    if (inspection?.activeWorkflowReady === false) return {label: 'Review workflow', disabled: false, primary: false, icon: 'settings-2'};
     if (retryable) return {label: 'Retry setup', disabled: false, primary: true, icon: 'rotate-ccw'};
     if (inspection?.missingNodes?.length) return {label: 'Required nodes missing', disabled: true, primary: false, icon: 'blocks'};
-    if (inspection?.unknownModels?.length) return {label: 'Can’t verify models', disabled: true, primary: false, icon: 'help-circle'};
+    if (inspection?.unknownModels?.length) return {label: inspection.modelBindings?.length ? 'Choose model paths below' : 'Can’t verify models', disabled: true, primary: false, icon: 'help-circle'};
     if (inspection?.insufficientDiskSpace) return {label: 'Not enough disk space', disabled: true, primary: false, icon: 'hard-drive'};
     if (inspection?.ready && pack.installed) return {label: 'Verify setup', disabled: false, primary: false, icon: 'shield-check'};
     if (inspection?.ready) return {label: 'Add to Orange', disabled: false, primary: true, icon: 'plus'};
@@ -479,6 +520,12 @@
     const list = document.getElementById('curated-tools-list');
     if (!serverSelect || !list || !catalog) return;
 
+    const packs = catalog.packs || [];
+    renderTagFilters(packs);
+    const visiblePacks = selectedTag === 'all' ? packs : packs.filter(pack => packTags(pack).includes(selectedTag));
+    const filterCount = document.getElementById('curated-filter-count');
+    if (filterCount) filterCount.textContent = `Showing ${visiblePacks.length} of ${packs.length} workflows`;
+
     const servers = catalog.servers || [];
     if (!servers.length) {
       list.innerHTML = `
@@ -496,7 +543,7 @@
     }
 
     const serverUrl = serverSelect.value;
-    list.innerHTML = (catalog.packs || []).map((pack) => {
+    list.innerHTML = visiblePacks.map((pack) => {
       const inspection = inspectionByPack.get(pack.id);
       const job = jobByKey.get(installKey(serverUrl, pack.id));
       const action = actionForPack(pack, inspection, job);
@@ -536,6 +583,7 @@
           </div>
 
           <div class="min-h-6">${inspectionStatus(pack, inspection, job)}</div>
+          <div data-model-bindings="${escapeHtml(pack.id)}"></div>
 
           <div class="mt-auto flex items-center gap-2 pt-1">
             <button data-pack-id="${escapeHtml(pack.id)}" ${action.disabled ? 'disabled' : ''} class="flex-1 justify-center ${buttonClass} px-3 py-2.5 rounded-xl text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
@@ -546,8 +594,17 @@
       `;
     }).join('');
 
+    if (!visiblePacks.length) {
+      list.innerHTML = '<div class="lg:col-span-2 border border-dashed border-zinc-800 rounded-2xl p-8 text-center text-sm text-zinc-500">No workflows with this tag yet. Choose All to browse the library.</div>';
+    }
     list.querySelectorAll('[data-pack-id]').forEach((button) => {
       button.addEventListener('click', () => runPackAction(button.dataset.packId));
+    });
+    list.querySelectorAll('[data-model-bindings]').forEach(container => {
+      const inspection = inspectionByPack.get(container.dataset.modelBindings);
+      window.ModelBindings?.render(container, serverUrl, inspection?.workflowFile, inspection?.modelBindings, async () => {
+        if (document.getElementById('curated-server')?.value === serverUrl) await inspectServer();
+      });
     });
     renderSummary();
     if (window.lucide) lucide.createIcons();
@@ -655,8 +712,8 @@
       if (data.modelsRoot && !document.getElementById('curated-models-root').value.trim()) {
         document.getElementById('curated-models-root').value = data.modelsRoot;
       }
-      const ready = (data.packs || []).filter((pack) => pack.ready).length;
-      const blocked = (data.packs || []).filter((pack) => pack.missingNodes?.length || pack.unknownModels?.length).length;
+      const ready = (data.packs || []).filter((pack) => pack.ready && pack.activeWorkflowReady !== false).length;
+      const blocked = (data.packs || []).filter((pack) => pack.activeWorkflowReady === false || pack.missingNodes?.length || pack.unknownModels?.length).length;
       const downloads = (data.packs || []).length - ready - blocked;
       const pieces = [];
       if (ready) pieces.push(`${ready} ready now`);
@@ -747,6 +804,12 @@
     }
     if ((existingJob?.state === 'queued' || existingJob?.state === 'running') && !existingJob?.cancelRequested) {
       await cancelJob(existingJob.id);
+      return;
+    }
+    if (inspection?.activeWorkflowReady === false) {
+      const pack = (catalog.packs || []).find(item => item.id === packId);
+      const index = typeof appConfig !== 'undefined' ? appConfig?.tools?.findIndex(tool => tool.id === pack?.tool?.id) : -1;
+      if (index >= 0) { setToolsSubtab('editor'); await window.selectTool(index); }
       return;
     }
     if (!inspection?.ready && !modelsRoot) {

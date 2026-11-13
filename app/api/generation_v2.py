@@ -4,6 +4,8 @@ import mimetypes
 import os
 import random
 import uuid
+import httpx
+from app.core.model_bindings import backend_inventory, invalidate_inventory, resolve_models
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
@@ -86,7 +88,7 @@ async def generate_v2(
     if not tool:
         raise HTTPException(status_code=400, detail="Invalid tool ID")
 
-    tool = select_input_variant(tool, bool(image))
+    tool = select_input_variant(tool, bool(image), bool(image2))
     mapping = tool.get("nodeMapping", {})
     workflow_file = tool.get("workflowFile")
     try:
@@ -149,12 +151,15 @@ async def generate_v2(
     client_id = str(uuid.uuid4())
     exclude_urls = []
     last_failure = None
+    retry_target = None
+    refreshed_rejections = set()
 
     while True:
-        target_url = await get_best_backend(
+        target_url = retry_target or await get_best_backend(
             exclude_urls=exclude_urls,
             compatibility_key=compatibility_key,
         )
+        retry_target = None
         if not target_url:
             technical = str(last_failure) if last_failure else "No healthy compatible backend was available."
             log_usage(
@@ -166,7 +171,7 @@ async def generate_v2(
                 error=technical,
             )
             detail = (
-                "All compatible generation backends failed to accept the request."
+                last_failure.public_message
                 if last_failure
                 else "No healthy compatible ComfyUI servers are available."
             )
@@ -176,7 +181,26 @@ async def generate_v2(
         queued = False
         client = await get_backend_client()
         try:
-            workflow = copy.deepcopy(base_workflow)
+            try:
+                inventory = await backend_inventory(client, target_url)
+                resolution = resolve_models(base_workflow, inventory, target_url, mapping)
+                if resolution["errors"]:
+                    # A model may have been installed or moved since the last scan.
+                    inventory = await backend_inventory(client, target_url, refresh=True)
+                    resolution = resolve_models(base_workflow, inventory, target_url, mapping)
+            except (httpx.HTTPError, ValueError) as exc:
+                raise SubmissionFailure(
+                    public_message="Could not read this backend's model inventory.",
+                    technical_message=f"Model inventory unavailable: {exc}",
+                    retryable=True, mark_backend_failed=True,
+                ) from exc
+            if resolution["errors"]:
+                raise SubmissionFailure(
+                    public_message="Model bindings need attention. Run Workflow Preflight in the tool editor.",
+                    technical_message="; ".join(e["message"] for e in resolution["errors"]),
+                    status_code=422, retryable=True,
+                )
+            workflow = resolution["workflow"]
             apply_duration(workflow, tool, duration_value)
             await _stage_assets(workflow, asset_references, asset_payloads, target_url, client)
 
@@ -226,6 +250,20 @@ async def generate_v2(
 
         except SubmissionFailure as exc:
             last_failure = exc
+            invalidate_inventory(target_url)
+            if exc.technical_message.startswith("ComfyUI rejected /prompt with HTTP 4") and target_url not in refreshed_rejections:
+                # An explicit rejection confirms nothing was queued. Retry this
+                # backend once only when a fresh scan changes the model paths.
+                refreshed_rejections.add(target_url)
+                try:
+                    fresh_info = await backend_inventory(client, target_url, refresh=True)
+                    fresh = resolve_models(base_workflow, fresh_info, target_url, mapping)
+                    old_paths = [m["resolved"] for m in resolution["models"]]
+                    if not fresh["errors"] and [m["resolved"] for m in fresh["models"]] != old_paths:
+                        retry_target = target_url
+                        continue
+                except (httpx.HTTPError, ValueError):
+                    pass
             if exc.mark_backend_failed:
                 report_backend_failure(target_url, exc.technical_message)
 

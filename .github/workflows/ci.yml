@@ -37,6 +37,9 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check static/preflight.js
+          node --check static/model-bindings.js
+          node --check static/tool-config-layout.js
+          node --check static/tool-input-editor.js
           node --check static/backend-status.js
           node --check static/tool-ratios.js
           node --check static/result-actions.js
@@ -90,3 +93,5 @@ jobs:
           for manifest in workflow-packs/*/manifest.json; do python -m json.tool "$manifest" >/dev/null; done
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Verify Tool Editor configuration round trips
+        run: node tests/test_tool_input_editor.cjs

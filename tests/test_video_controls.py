@@ -81,6 +81,7 @@ class VideoSubmissionTests(unittest.IsolatedAsyncioTestCase):
               patch.object(generation_v2, "load_config", return_value={}),
               patch.object(generation_v2, "get_best_backend", AsyncMock(return_value="http://comfy")),
               patch.object(generation_v2, "get_backend_client", AsyncMock(return_value=object())),
+              patch.object(generation_v2, "backend_inventory", AsyncMock(return_value={})),
               patch.object(generation_v2, "upload_image_bytes", AsyncMock(return_value="uploaded.png")) as upload,
               patch.object(generation_v2, "submit_prompt", submit),
               patch.object(generation_v2, "get_comfy_servers", return_value=[{"url": "http://comfy", "priority": 1}]),

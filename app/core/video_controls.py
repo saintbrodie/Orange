@@ -1,21 +1,27 @@
-"""Optional video inputs shared by submission, installation, and verification."""
+"""Optional media inputs shared by submission, installation, and verification."""
 import math
 
 
 def tool_variants(tool):
     variants = [tool]
-    image_variant = tool.get("imageVariant")
-    if isinstance(image_variant, dict):
-        variant = {**tool, **image_variant}
-        variant.pop("imageVariant", None)
-        variant["id"] = str(tool.get("id", "")) + "-first-frame"
-        variant["name"] = str(tool.get("name", "")) + " (first frame)"
-        variants.append(variant)
+    for key, suffix, label in (("imageVariant", "first-frame", "first frame"),
+                               ("referenceVariant", "reference", "with reference")):
+        if isinstance(tool.get(key), dict):
+            variant = {**tool, **tool[key]}
+            variant.pop("imageVariant", None)
+            variant.pop("referenceVariant", None)
+            variant["id"] = str(tool.get("id", "")) + "-" + suffix
+            variant["name"] = str(tool.get("name", "")) + " (" + label + ")"
+            variants.append(variant)
     return variants
 
 
-def select_input_variant(tool, has_image):
-    return tool_variants(tool)[-1] if has_image and isinstance(tool.get("imageVariant"), dict) else tool
+def select_input_variant(tool, has_image, has_image2=False):
+    if has_image2 and isinstance(tool.get("referenceVariant"), dict):
+        return next(v for v in tool_variants(tool)[1:] if v["id"].endswith("-reference"))
+    if has_image and isinstance(tool.get("imageVariant"), dict):
+        return tool_variants(tool)[1]
+    return tool
 
 
 def apply_duration(workflow, tool, seconds=None):
