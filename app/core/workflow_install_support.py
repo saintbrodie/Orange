@@ -5,6 +5,8 @@ from copy import deepcopy
 
 import httpx
 
+from app.core.huggingface import auth_headers
+
 DOWNLOAD_SPACE_BUFFER_BYTES = 512 * 1024 * 1024
 _size_cache: dict[str, int | None] = {}
 
@@ -16,14 +18,16 @@ async def _remote_size(client: httpx.AsyncClient, url: str) -> int | None:
         return _size_cache[url]
     size = None
     try:
-        response = await client.head(url)
+        response = await client.head(url, headers=auth_headers(url))
         if response.is_success:
             raw = response.headers.get("Content-Length")
             if raw:
                 size = int(raw)
     except (httpx.HTTPError, TypeError, ValueError):
         size = None
-    _size_cache[url] = size
+    # Access can change after saving a token or accepting model terms.
+    if size is not None:
+        _size_cache[url] = size
     return size
 
 

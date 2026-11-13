@@ -42,7 +42,7 @@ async def lifespan(_app: FastAPI):
         await backend_manager.stop()
 
 
-app = FastAPI(title="ComfyUI Minimal Frontend - Orange", lifespan=lifespan)
+app = FastAPI(title="ComfyUI Minimal Frontend - Orange", version="1.1.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -155,10 +155,6 @@ def serve_admin():
         with open(os.path.join(STATIC_DIR, "admin.html"), "r", encoding="utf-8") as f:
             content = f.read()
         content = content.replace(
-            "/static/workflow-pack-library.js?v=3",
-            "/static/workflow-pack-library.js?v=8",
-        )
-        content = content.replace(
             "</head>",
             THEME_HEAD
             + '    <link rel="stylesheet" href="/static/mobile-navigation.css?v=3">\n'
@@ -166,7 +162,8 @@ def serve_admin():
         )
         content = content.replace(
             "</body>",
-            '    <script src="/static/preflight.js?v=2"></script>\n'
+            '    <script src="/static/model-bindings.js?v=1"></script>\n'
+            '    <script src="/static/preflight.js?v=4"></script>\n'
             '    <script src="/static/backend-status.js?v=3"></script>\n'
             '    <script src="/static/tool-ratios.js?v=1"></script>\n'
             '    <script src="/static/workflow-assets.js?v=2"></script>\n'

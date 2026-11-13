@@ -75,6 +75,15 @@ class BackendManagerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(selected, "http://server-b:8188")
 
+    async def test_model_rescan_invalidates_compatibility_and_rejections_expire(self):
+        self.manager.record_preflight("wf", [{"url": "http://server-a:8188", "reachable": True, "errors": ["missing"]}])
+        self.assertEqual(await self.manager.get_best_backend(compatibility_key="wf"), "http://server-b:8188")
+        self.manager.invalidate_compatibility("http://server-a:8188/")
+        self.assertEqual(await self.manager.get_best_backend(compatibility_key="wf"), "http://server-a:8188")
+        self.manager.record_preflight("wf", [{"url": "http://server-a:8188", "reachable": True, "errors": ["missing"]}])
+        self.manager._compatibility_checked[("wf", "http://server-a:8188")] -= 61
+        self.assertEqual(await self.manager.get_best_backend(compatibility_key="wf"), "http://server-a:8188")
+
     def test_workflow_fingerprint_changes_when_mapping_changes(self):
         workflow = {"1": {"class_type": "Example", "inputs": {"text": "hello"}}}
         first = workflow_compatibility_key(

@@ -22,8 +22,9 @@ Orange separates **workflow engineering** from **generation UX**.
 
 - prompt
 - image/reference image
-- second image when genuinely required
+- optional first-frame or second reference image, with automatic workflow selection
 - curated aspect ratio/resolution
+- curated video length choices
 - Generate
 - the appropriate output presentation
 
@@ -86,6 +87,8 @@ Orange/
 │       ├── workflow_packs.py      # dependency manifests, hardware selection, materialization
 │       ├── backends.py            # health, queue-aware selection, compatibility cache
 │       ├── preflight.py           # workflow/object_info validation
+│       ├── model_bindings.py      # portable model resolution and backend bindings
+│       ├── video_controls.py      # duration conversion and optional-input variants
 │       ├── submission.py          # safe Comfy request classification
 │       ├── workflow_assets.py     # managed fixed-image discovery/storage
 │       ├── outputs.py             # output normalization helpers
@@ -101,6 +104,9 @@ Orange/
 │   ├── setup.html / setup.js      # first-run browser wizard
 │   ├── index.html / app.js
 │   ├── admin.html / admin.js
+│   ├── tool-input-editor.js       # shared input/mode configuration
+│   ├── tool-config-layout.js      # Overview / Inputs / Check & save
+│   ├── model-bindings.js          # backend model-location controls
 │   ├── preflight.js
 │   ├── backend-status.js
 │   ├── workflow-assets.js
@@ -154,8 +160,11 @@ Current curated packs are:
 
 - **Z-Image Turbo** — recommended starter text-to-image
 - **Krea 2 Turbo** — advanced text-to-image; intentionally keeps `wan_2.1_vae.safetensors`
-- **Klein 9B Turbo** — instruction-based image editing
+- **Klein 9B Turbo** — instruction-based editing with an optional second reference
 - **SeedVR2 7B Upscale** — native-node SeedVR2 image upscaling
+- **LTX 2.5 Video** — text or first-frame video with synchronized audio and duration choices
+- **Qwen Image 2.1 Turbo Edit** — eight-step editing with a texture-fix VAE and optional reference
+- **MOSS-Image** — SFT text-to-image generation, including posters and lettering
 
 All curated packs are optional. A fresh install can finish setup without installing any of them.
 
@@ -197,7 +206,7 @@ The active submission path is `app/api/generation_v2.py`.
 
 ### 1. Resolve tool and workflow
 
-Orange loads the tool configuration, API workflow, and `nodeMapping`. It calculates a **workflow compatibility key** from the workflow filename, workflow JSON, and mapping. Changing the workflow or mapping changes the key.
+Orange loads the tool configuration and automatically selects its base or alternate workflow from the presence of an optional first or second image. It then loads that graph and its complete `nodeMapping`. It calculates a **workflow compatibility key** from the workflow filename, workflow JSON, and mapping. Changing the workflow or mapping changes the key.
 
 ### 2. Validate/read user inputs once
 
@@ -221,9 +230,11 @@ Healthy compatible candidates are scored primarily by effective queue depth, the
 
 The short-lived `active_requests` reservation bridges the gap between Orange accepting a request and ComfyUI's next `/queue` response, reducing burst pileups on one apparently empty backend.
 
-### 4. Stage fixed and user media
+### 4. Resolve models and stage media
 
-Orange starts every backend attempt from a fresh deep copy of the base workflow.
+Orange starts every backend attempt from a fresh deep copy of the base workflow. `app/core/model_bindings.py` resolves model selectors against that backend's `/object_info` loader inventories: a saved backend binding, an exact path, or a unique exact filename. Missing or ambiguous files block that backend before media upload/submission. Similar filenames and alternate precisions are not substituted.
+
+Bindings are keyed by normalized backend URL and model category/filename, and stored atomically in `workflows/.runtime/model-bindings.json`. They never rewrite shared workflow files. Preflight and library scans use the same resolver and refresh inventories; generation caches inventory for up to 60 seconds. Scans/binding saves invalidate routing compatibility, and negative compatibility expires after 60 seconds.
 
 - **Workflow Assets** are Orange-managed fixed files required by unmapped image nodes. They are uploaded to the backend chosen for the attempt.
 - **User images** are uploaded to that same backend.
@@ -243,7 +254,7 @@ Examples:
 
 - connection failure before submission: retryable, backend health failure
 - backend HTTP 5xx: retryable, backend health failure
-- explicit workflow rejection/4xx: retryable on another backend, does **not** make the server globally unhealthy
+- explicit workflow rejection/4xx: one inventory refresh can retry the same backend if model paths changed; otherwise safe failover can try another backend, without marking the server globally unhealthy
 - read timeout after a request may have been accepted: not blindly retried because a second submission could duplicate the generation
 
 A successful response must contain a `prompt_id`.
@@ -270,10 +281,10 @@ It detects issues such as:
 
 A backend can be healthy but unable to run one workflow.
 
-For example, `value_unavailable` such as a missing checkpoint remains a **yellow Admin warning** because the server itself is not broken. The compatibility cache still excludes that backend when routing that workflow.
+Missing or ambiguous models are workflow errors (`model_missing` / `model_ambiguous`); an unavailable non-model enum can remain a yellow `value_unavailable` warning. Both exclude that backend for this workflow while leaving server health separate.
 
 ```text
-Backend 1: healthy, missing model X  -> warning, not routable for Workflow A
+Backend 1: healthy, missing model X  -> model_missing, not routable for Workflow A
 Backend 2: healthy, has model X      -> routable for Workflow A
 ```
 
@@ -319,6 +330,7 @@ Examples include:
 - `workflows/personalization.json`
 - `workflows/branding/`
 - Workflow Assets
+- `workflows/.runtime/model-bindings.json`
 
 Configuration validation rejects malformed backend URLs, unsafe workflow paths, duplicate tool IDs, invalid mappings, and other broken shapes.
 

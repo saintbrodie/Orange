@@ -2,12 +2,16 @@
   "id": "krea-2-turbo",
   "name": "Krea 2 Turbo",
   "type": "text-to-image",
-  "description": "Advanced 8-step text-to-image generation with Krea 2 Turbo.",
-  "tagline": "Detailed 8-step image generation for prompts that need a little more control.",
-  "highlights": ["Text to image", "8 steps", "Detail-focused"],
-  "thumbnail": "/static/curated-thumbnails/krea-2-turbo.png",
-  "thumbnailAlt": "Krea 2 Turbo example image",
-  "thumbnailSource": "Comfy-Org/workflow_templates: thumbnail/image_krea2_turbo_int8_image_style_reference.png",
+  "description": "Expressive image generation for imaginative scenes, concept art, and polished visual ideas. Detailed descriptions of materials, lighting, and atmosphere support rich textures and a distinctive look, from miniature worlds to cinematic scenes.",
+  "tagline": "Imaginative scenes and concept art with rich textures, expressive lighting, and a distinctive look. Detailed prompts help shape materials and atmosphere.",
+  "highlights": [
+    "Creative scenes",
+    "Rich textures",
+    "Concept art"
+  ],
+  "thumbnail": "/static/curated-thumbnails/krea-2-turbo-tortoise-village.jpg",
+  "thumbnailAlt": "A miniature lantern-lit Japanese village riding on a tortoise, generated with Krea 2 Turbo",
+  "thumbnailSource": "Orange local Krea 2 Turbo generation, 2026-11-12",
   "recommended": false,
   "workflowFile": "image_krea2_turbo_t2i_int8.json",
   "tool": {
@@ -15,10 +19,23 @@
     "name": "Detailed Generation",
     "workflowFile": "image_krea2_turbo_t2i_int8.json",
     "nodeMapping": {
-      "prompt": {"nodeId": "52", "field": "text"},
-      "width": {"nodeId": "53", "field": "width"},
-      "height": {"nodeId": "53", "field": "height"},
-      "seed": {"nodeId": "54", "field": "seed", "generateRandom": true}
+      "prompt": {
+        "nodeId": "52",
+        "field": "text"
+      },
+      "width": {
+        "nodeId": "53",
+        "field": "width"
+      },
+      "height": {
+        "nodeId": "53",
+        "field": "height"
+      },
+      "seed": {
+        "nodeId": "54",
+        "field": "seed",
+        "generateRandom": true
+      }
     }
   },
   "models": [
@@ -71,8 +88,23 @@
     }
   ],
   "bindings": [
-    {"modelId": "diffusion", "nodeId": "56", "field": "unet_name"},
-    {"modelId": "text_encoder", "nodeId": "57", "field": "clip_name"},
-    {"modelId": "vae", "nodeId": "58", "field": "vae_name"}
+    {
+      "modelId": "diffusion",
+      "nodeId": "56",
+      "field": "unet_name"
+    },
+    {
+      "modelId": "text_encoder",
+      "nodeId": "57",
+      "field": "clip_name"
+    },
+    {
+      "modelId": "vae",
+      "nodeId": "58",
+      "field": "vae_name"
+    }
+  ],
+  "tags": [
+    "image"
   ]
 }

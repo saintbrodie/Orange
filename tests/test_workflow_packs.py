@@ -14,7 +14,7 @@ class WorkflowPackTests(unittest.TestCase):
         packs = {pack["id"]: pack for pack in catalog}
         self.assertEqual(
             set(packs),
-            {"z-image-turbo", "krea-2-turbo", "klein-9b-edit", "seedvr2-7b-upscale"},
+            {"z-image-turbo", "krea-2-turbo", "klein-9b-edit", "seedvr2-7b-upscale", "ltx-2.5-t2v", "qwen-image-2.1-edit", "moss-image"},
         )
         self.assertEqual(catalog[0]["id"], "z-image-turbo")
         self.assertTrue(packs["z-image-turbo"]["recommended"])
@@ -164,6 +164,7 @@ class WorkflowPackTests(unittest.TestCase):
             "devices": [{"name": "NVIDIA RTX 5000 Ada", "type": "cuda", "vram_total": 32 * 1024**3}],
         }
         selected = workflow_packs.select_model_dependencies("z-image-turbo", stats)
+        selected[0]["filename"] = "backend-folder\\" + selected[0]["filename"]
 
         with tempfile.TemporaryDirectory() as tmp:
             with mock.patch.object(workflow_packs, "ACTIVE_WORKFLOWS_DIR", tmp):

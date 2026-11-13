@@ -2,9 +2,13 @@
   "id": "klein-9b-edit",
   "name": "Klein 9B Turbo",
   "type": "image-to-image",
-  "description": "Fast instruction-based image editing with FLUX.2 Klein 9B.",
-  "tagline": "Prompt-driven image editing for targeted changes without rebuilding the whole workflow.",
-  "highlights": ["Image editing", "Instruction-based", "FLUX.2"],
+  "description": "Fast instruction-based editing for color changes, background swaps, restyling, and visual variations. An optional second image provides a reference for the look or object to incorporate into the result.",
+  "tagline": "Fast color changes, background swaps, restyling, and visual variations. An optional reference image guides the look or object to incorporate.",
+  "highlights": [
+    "Quick everyday edits",
+    "Visual variations",
+    "Optional reference"
+  ],
   "thumbnail": "/static/curated-thumbnails/klein-9b-edit.png",
   "thumbnailAlt": "FLUX.2 Klein 9B image editing example",
   "thumbnailSource": "Comfy-Org/workflow_templates: thumbnail/image_flux2_klein_image_edit_9b_base.png",
@@ -15,9 +19,41 @@
     "name": "Modify Image",
     "workflowFile": "Klein Edit.json",
     "nodeMapping": {
-      "image": {"nodeId": "734", "field": "image"},
-      "prompt": {"nodeId": "756", "field": "text"},
-      "seed": {"nodeId": "748", "field": "noise_seed", "generateRandom": true}
+      "image": {
+        "nodeId": "734",
+        "field": "image"
+      },
+      "prompt": {
+        "nodeId": "756",
+        "field": "text"
+      },
+      "seed": {
+        "nodeId": "748",
+        "field": "noise_seed",
+        "generateRandom": true
+      }
+    },
+    "referenceVariant": {
+      "workflowFile": "Klein Edit Reference.json",
+      "nodeMapping": {
+        "prompt": {
+          "nodeId": "807",
+          "field": "text"
+        },
+        "image": {
+          "nodeId": "734",
+          "field": "image"
+        },
+        "image2": {
+          "nodeId": "735",
+          "field": "image"
+        },
+        "seed": {
+          "nodeId": "816",
+          "field": "noise_seed",
+          "generateRandom": true
+        }
+      }
     }
   },
   "models": [
@@ -55,8 +91,23 @@
     }
   ],
   "bindings": [
-    {"modelId": "diffusion", "nodeId": "760", "field": "unet_name"},
-    {"modelId": "text_encoder", "nodeId": "749", "field": "clip_name"},
-    {"modelId": "vae", "nodeId": "750", "field": "vae_name"}
+    {
+      "modelId": "diffusion",
+      "nodeId": "760",
+      "field": "unet_name"
+    },
+    {
+      "modelId": "text_encoder",
+      "nodeId": "749",
+      "field": "clip_name"
+    },
+    {
+      "modelId": "vae",
+      "nodeId": "750",
+      "field": "vae_name"
+    }
+  ],
+  "tags": [
+    "edit"
   ]
 }

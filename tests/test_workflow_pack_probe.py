@@ -1,8 +1,11 @@
 import json
 import unittest
+import tempfile
+from unittest.mock import patch
 from pathlib import Path
 
 from app.core import workflow_pack_probe
+from app.core import model_bindings
 
 
 class WorkflowPackProbeTests(unittest.TestCase):
@@ -60,6 +63,23 @@ class WorkflowPackProbeTests(unittest.TestCase):
         self.assertTrue(by_id["text_encoder"]["reuseExisting"])
         self.assertEqual(by_id["vae"]["filename"], "ae.safetensors")
         self.assertFalse(by_id["vae"].get("reuseExisting", False))
+
+    def test_duplicate_inventory_files_require_binding_instead_of_download(self):
+        inventory = self._z_object_info()
+        inventory["VAELoader"]["input"]["required"]["vae_name"] = [["a/ae.safetensors", "b/ae.safetensors"]]
+        with tempfile.TemporaryDirectory() as tmp, patch.object(model_bindings, "BINDINGS_PATH", str(Path(tmp) / "bindings.json")):
+            inspection = workflow_pack_probe.inspect_workflow_pack("z-image-turbo", inventory, self._modern_nvidia(), backend_url="http://one")
+            self.assertFalse(inspection["ready"])
+            self.assertEqual(inspection["missingModels"], [])
+            self.assertEqual(inspection["recommendedDownloads"], [])
+            self.assertTrue(inspection["unknownModels"])
+            self.assertEqual(len(inspection["modelBindings"]), 1)
+            reference = inspection["modelBindings"][0]
+            model_bindings.save_binding("http://one", reference, "b/ae.safetensors")
+            ready = workflow_pack_probe.inspect_workflow_pack("z-image-turbo", inventory, self._modern_nvidia(), backend_url="http://one")
+            self.assertTrue(ready["ready"])
+            self.assertEqual(next(m for m in ready["selectedModels"] if m["id"] == "vae")["filename"], "b/ae.safetensors")
+            self.assertFalse(workflow_pack_probe.inspect_workflow_pack("z-image-turbo", inventory, self._modern_nvidia(), backend_url="http://two")["ready"])
 
 
 if __name__ == "__main__":

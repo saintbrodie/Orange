@@ -49,6 +49,35 @@ def _load_image_info(files=None):
 
 
 class WorkflowPreflightTests(unittest.TestCase):
+    def test_autogrow_images_use_serialized_slots_instead_of_parent(self):
+        info = {"TextEncodeQwenImage21": {"input": {"required": {
+            "images": ["COMFY_AUTOGROW_V3", {"template": {
+                "names": ["image_1", "image_2"], "min": 0,
+                "input": {"required": {"image": ["IMAGE", {}]}},
+            }}],
+        }}}}
+        workflow = {"1": {"class_type": "TextEncodeQwenImage21", "inputs": {"images.image_1": ["2", 0]}}}
+        mapping = {"image": {"nodeId": "1", "field": "images.image_1"}}
+        self.assertEqual(validate_backend(workflow, mapping, info)["errors"], [])
+        template = info["TextEncodeQwenImage21"]["input"]["required"]["images"][1]["template"]
+        template["min"] = 1
+        self.assertEqual(validate_backend(workflow, {}, info)["errors"], [])
+        workflow["1"]["inputs"] = {}
+        self.assertTrue(any(e["code"] == "required_input_missing" for e in validate_backend(workflow, {}, info)["errors"]))
+        template["min"] = 0
+        self.assertEqual(validate_backend(workflow, {}, info)["errors"], [])
+
+    def test_typed_combo_inventory_blocks_unavailable_model(self):
+        info = _object_info()
+        info["CheckpointLoaderSimple"]["input"]["required"]["ckpt_name"] = [
+            "COMBO", {"options": ["other.safetensors"]},
+        ]
+        result = validate_backend(_workflow(), {}, info)
+        self.assertTrue(any(w["code"] == "value_unavailable" for w in result["warnings"]))
+        info["CheckpointLoaderSimple"]["input"]["required"]["ckpt_name"][1]["options"].append("model.safetensors")
+        result = validate_backend(_workflow(), {}, info)
+        self.assertFalse(any(w["code"] == "value_unavailable" for w in result["warnings"]))
+
     def test_ui_workflow_format_is_rejected(self):
         result = validate_workflow_structure({"nodes": [], "links": []})
         self.assertTrue(result["errors"])

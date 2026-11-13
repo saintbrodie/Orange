@@ -3,10 +3,11 @@ import os
 import re
 import shutil
 import tempfile
-import urllib.request
 from copy import deepcopy
 
 from app.core.config import PROJECT_ROOT
+from app.core.huggingface import open_model_download
+from app.core.video_controls import tool_variants
 
 PACKS_DIR = os.path.join(PROJECT_ROOT, "workflow-packs")
 ACTIVE_WORKFLOWS_DIR = os.path.join(PROJECT_ROOT, "workflows")
@@ -18,6 +19,9 @@ _PACK_DISPLAY_ORDER = {
     "krea-2-turbo": 10,
     "klein-9b-edit": 20,
     "seedvr2-7b-upscale": 30,
+    "ltx-2.5-t2v": 40,
+    "qwen-image-2.1-edit": 50,
+    "moss-image": 60,
 }
 
 
@@ -215,9 +219,15 @@ def _selected_lookup(selected_models: list[dict]) -> dict[str, dict]:
 
 
 def materialize_workflow_pack(pack_id: str, selected_models: list[dict]) -> str:
-    """Copy a curated workflow into active state and bind selected model filenames."""
+    """Keep selected model variants portable; backend folders are resolved at run time."""
     manifest = get_workflow_pack(pack_id)
-    workflow_file = os.path.basename(str(manifest.get("workflowFile") or "").strip())
+    variants = tool_variants(manifest.get("tool") or {"workflowFile": manifest.get("workflowFile")})
+    paths = [_materialize_workflow(pack_id, manifest, variant["workflowFile"], selected_models) for variant in variants]
+    return paths[0]
+
+
+def _materialize_workflow(pack_id, manifest, workflow_file, selected_models):
+    workflow_file = os.path.basename(str(workflow_file or "").strip())
     if not workflow_file or not workflow_file.lower().endswith(".json"):
         raise ValueError(f"Workflow pack '{pack_id}' has an invalid workflowFile")
 
@@ -239,7 +249,7 @@ def materialize_workflow_pack(pack_id: str, selected_models: list[dict]) -> str:
         node = workflow.get(node_id)
         if not isinstance(node, dict) or not isinstance(node.get("inputs"), dict) or not field:
             raise ValueError(f"Invalid model binding in pack '{pack_id}': {binding}")
-        node["inputs"][field] = model["filename"]
+        node["inputs"][field] = str(model["filename"]).replace("\\", "/").rsplit("/", 1)[-1]
 
     os.makedirs(ACTIVE_WORKFLOWS_DIR, exist_ok=True)
     destination = os.path.join(ACTIVE_WORKFLOWS_DIR, workflow_file)
@@ -348,8 +358,7 @@ def _download_file(url: str, destination: str) -> None:
     try:
         if os.path.exists(part_path):
             os.remove(part_path)
-        request = urllib.request.Request(url, headers={"User-Agent": "Orange/1.0"})
-        with urllib.request.urlopen(request) as response, open(part_path, "wb") as output:
+        with open_model_download(url) as response, open(part_path, "wb") as output:
             shutil.copyfileobj(response, output, length=1024 * 1024)
             output.flush()
             os.fsync(output.fileno())

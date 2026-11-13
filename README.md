@@ -14,10 +14,16 @@ ComfyUI is where the workflow gets built. Orange is where people use it.
 
 - **Simple generation UI.** Show people the controls they actually need, like a prompt, reference image, or aspect ratio.
 - **Bring your own workflows.** Orange works with image generation, editing, upscaling, video, audio, and text workflows exported from ComfyUI.
-- **Preflight and routing.** Check nodes, models, mappings, and assets before a tool is used, then route jobs to compatible ComfyUI backends.
-- **Optional curated tools.** Orange includes a small set of tested workflows and can reuse compatible models that are already installed.
+- **Preflight and portable models.** Check nodes, mappings, and assets; resolve model folders per backend and remember explicit choices for duplicate filenames.
+- **Optional curated tools.** Filter image, editing, video, and utility workflows. Reuse compatible installed models and add optional first-frame or reference uploads to your own tools too.
 - **Prompt enhancement and personalization.** Add local or cloud LLM prompt enhancement, themes, and white-label branding when you want them.
 - **Run it your way.** Connect to an existing ComfyUI setup, or use the Pinokio launcher to install Orange and ComfyUI together.
+
+## New in v1.1
+
+LTX 2.5 brings video with synchronized audio and an optional first frame. Qwen Image 2.1 Turbo Edit adds eight-step editing with an optional reference, and MOSS-Image adds text-focused image generation. The redesigned Tool Editor exposes the same configuration used by curated tools, while backend-specific model bindings keep workflows portable between machines.
+
+See the [v1.1.0 release notes](CHANGELOG.md#v110---2026-11-13) for details. To upgrade, update the checkout and restart through the launcher so dependencies sync, then run **Check Workflow** on your tools. Existing local configuration and workflows remain separate from tracked defaults.
 
 ## Install
 

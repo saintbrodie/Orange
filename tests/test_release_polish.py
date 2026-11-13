@@ -16,7 +16,8 @@ class ReleasePolishTests(unittest.TestCase):
     def test_curated_manifests_point_to_real_local_thumbnails(self):
         root = Path(__file__).resolve().parents[1]
         expected = {
-            "z-image-turbo": "z-image-turbo.jpg",
+            "z-image-turbo": "z-image-turbo-capybara-ramen.jpg",
+            "krea-2-turbo": "krea-2-turbo-tortoise-village.jpg",
             "seedvr2-7b-upscale": "seedvr2-7b-upscale.jpg",
         }
         for pack_id, filename in expected.items():

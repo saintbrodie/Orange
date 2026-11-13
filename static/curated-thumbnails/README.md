@@ -4,8 +4,17 @@ This directory contains representative artwork for Orange's Curated Library.
 
 Orange-provided examples:
 
+- `krea-2-turbo-tortoise-village.jpg` - local Krea 2 Turbo render of a lantern-lit village on a tortoise; 2026-11-12, INT8 diffusion, original curated 8-step workflow, 1344x768 source.
+- `z-image-turbo-capybara-ramen.jpg` - local Z-Image Turbo render of a capybara in an orange raincoat at a ramen counter; 2026-11-12, INT8 diffusion, original curated workflow, 1344x768 source.
+- `moss-image-poster.jpg` - local MOSS-Image SFT render of a coastal travel poster with MOSS lettering; 2026-11-12, INT8 diffusion and W4A8 text encoder, 25 steps, 1344x768 source.
+- `qwen-image-2.1-turbo-edit-mug-executive.jpg` - before/after comparison using a local Qwen Image 2.1 Turbo edit that transforms an orange mug into a moustached executive holding a tiny coffee; 2026-11-12, INT8 diffusion/text encoder, texture-fix VAE, eight steps.
+
+Artwork is fitted for the library cards. Older preview assets below are retained for provenance.
+
 - `z-image-turbo.webp` — user-provided Z-Image example, optimized for the library card
 - `seedvr2-7b-upscale.webp` — user-provided SeedVR2 before/after example, optimized for the library card
+- `moss-image.jpg` — local MOSS-Image SFT generation, 2026-11-12, INT8 diffusion, 25 steps
+- `qwen-image-2.1-edit.jpg` — local Qwen Image 2.1 edit of the MOSS example, changing the mug to green, 2026-11-12, INT8 diffusion/text encoder, 8 steps
 
 Comfy-Org sources:
 

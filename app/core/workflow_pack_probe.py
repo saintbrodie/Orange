@@ -3,6 +3,8 @@ import os
 from copy import deepcopy
 
 from app.core.config import PROJECT_ROOT
+from app.core.model_bindings import matching_option, model_category, model_filename, saved_binding
+from app.core.video_controls import tool_variants
 from app.core.workflow_packs import (
     get_workflow_pack,
     select_model_dependencies,
@@ -33,8 +35,13 @@ def _input_options(node_def: dict, field: str) -> list | None:
         if not isinstance(section, dict):
             continue
         spec = section.get(field)
-        if isinstance(spec, (list, tuple)) and spec and isinstance(spec[0], list):
-            return spec[0]
+        if isinstance(spec, (list, tuple)) and spec:
+            if isinstance(spec[0], list):
+                return spec[0]
+            if spec[0] == "COMBO" and len(spec) > 1 and isinstance(spec[1], dict):
+                options = spec[1].get("options")
+                if isinstance(options, list):
+                    return options
     return None
 
 
@@ -63,15 +70,7 @@ def _supported_variant(variant: dict, hardware: dict) -> bool:
 
 
 def _matching_option(options: list, filename: str | None) -> str | None:
-    target = str(filename or "").replace("\\", "/")
-    if not target:
-        return None
-    target_base = target.rsplit("/", 1)[-1]
-    for option in options:
-        value = str(option or "").replace("\\", "/")
-        if value == target or value.rsplit("/", 1)[-1] == target_base:
-            return str(option)
-    return None
+    return matching_option(options, filename)[0] if filename else None
 
 
 def plan_selected_models(selected_models: list[dict], models_root: str | None = None) -> list[dict]:
@@ -113,9 +112,13 @@ def selection_for_install(inspection: dict) -> list[dict]:
     return selected
 
 
-def inspect_workflow_pack(pack_id: str, object_info: dict, system_stats: dict | None = None) -> dict:
+def inspect_workflow_pack(pack_id: str, object_info: dict, system_stats: dict | None = None, backend_url: str = "") -> dict:
     manifest = get_workflow_pack(pack_id)
     workflow = _load_curated_workflow(manifest)
+    graphs = [workflow] + [
+        _load_curated_workflow({"workflowFile": variant["workflowFile"]})
+        for variant in tool_variants(manifest.get("tool") or {})[1:]
+    ]
     hardware = summarize_system_stats(system_stats)
     preferred = {
         str(item.get("id")): item
@@ -126,7 +129,7 @@ def inspect_workflow_pack(pack_id: str, object_info: dict, system_stats: dict | 
     missing_nodes = sorted(
         {
             str(node.get("class_type"))
-            for node in workflow.values()
+            for graph in graphs for node in graph.values()
             if isinstance(node, dict)
             and node.get("class_type")
             and not isinstance(object_info.get(str(node.get("class_type"))), dict)
@@ -141,6 +144,7 @@ def inspect_workflow_pack(pack_id: str, object_info: dict, system_stats: dict | 
     selected_existing = []
     missing_models = []
     unknown_models = []
+    model_bindings = []
 
     for model in manifest.get("models", []):
         if not isinstance(model, dict) or not model.get("id"):
@@ -174,8 +178,21 @@ def inspect_workflow_pack(pack_id: str, object_info: dict, system_stats: dict | 
             continue
 
         existing = []
+        ambiguous = []
+        ambiguous_bindings = []
         for variant in variants:
-            matched = _matching_option(options, variant.get("filename"))
+            filename = variant.get("filename")
+            category = model_category(class_type, field)
+            bound_path = saved_binding(backend_url, category, model_filename(filename)) if backend_url else None
+            matched, reason = matching_option(options, filename, bound_path)
+            if reason == "ambiguous":
+                ambiguous.append({"id": model_id, "folder": model.get("folder"),
+                                  "reason": f"Multiple paths contain '{filename}'. Select a model binding in Workflow Preflight."})
+                ambiguous_bindings.append({"node_id": node_id, "class_type": class_type, "field": field,
+                                       "category": category, "filename": model_filename(filename),
+                                       "requested": filename, "resolved": None, "reason": reason,
+                                       "binding": bound_path, "stale_binding": bool(bound_path),
+                                       "options": sorted({o for o in options if isinstance(o, str) and model_filename(o) == model_filename(filename)})})
             if not matched:
                 continue
             bound = deepcopy(variant)
@@ -202,6 +219,11 @@ def inspect_workflow_pack(pack_id: str, object_info: dict, system_stats: dict | 
             selected_existing.append(chosen)
             continue
 
+        if ambiguous:
+            unknown_models.extend(ambiguous)
+            model_bindings.extend(ambiguous_bindings)
+            continue
+
         candidate_names = [item.get("filename") for item in variants if item.get("filename")]
         recommended = preferred_model or (variants[0] if variants else None)
         missing_models.append(
@@ -223,5 +245,7 @@ def inspect_workflow_pack(pack_id: str, object_info: dict, system_stats: dict | 
         "missingModels": missing_models,
         "missingNodes": missing_nodes,
         "unknownModels": unknown_models,
+        "modelBindings": model_bindings,
+        "workflowFile": manifest["workflowFile"],
         "recommendedDownloads": [item["recommendedDownload"] for item in missing_models if item.get("recommendedDownload")],
     }

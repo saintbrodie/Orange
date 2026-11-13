@@ -118,6 +118,15 @@ document.addEventListener("DOMContentLoaded", () => {
             else iconClass += "w-5 h-3";
 
             btn.innerHTML = `<div class="${iconClass}"></div> ${ratio}`;
+            if (tool.outputScale) {
+                const size = ratiosObj[ratio];
+                const outputSize = `${size.width * tool.outputScale}×${size.height * tool.outputScale}`;
+                btn.title = `${outputSize} output`;
+                const dimensions = document.createElement('span');
+                dimensions.className = 'ml-2 text-[10px] opacity-70';
+                dimensions.textContent = outputSize;
+                btn.appendChild(dimensions);
+            }
             btn.onclick = () => {
                 selectedAspectRatio = ratio;
                 renderAspectRatios();
@@ -139,8 +148,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const mapping = tool.nodeMapping;
         
+        const imageLabel = document.getElementById('image1-label');
+        if (imageLabel) imageLabel.textContent = tool.firstFrame ? 'First frame (optional)' : 'Image 1';
+        const image2Label = document.getElementById('image2-label');
+        if (image2Label) image2Label.textContent = tool.optionalReference ? 'Reference image (optional)' : 'Image 2';
+        const durationContainer = document.getElementById('duration-container');
+        const durationInput = document.getElementById('duration-input');
+        durationContainer.classList.toggle('hidden', !tool.duration);
+        durationInput.replaceChildren();
+        if (tool.duration) {
+            tool.duration.options.forEach(seconds => {
+                const option = document.createElement('option');
+                option.value = String(seconds);
+                option.textContent = `${seconds} seconds`;
+                durationInput.appendChild(option);
+            });
+            durationInput.value = String(tool.duration.default);
+        }
+
         // Image 1
-        if(mapping.image) {
+        if(mapping.image || tool.firstFrame) {
             imageUploadContainer.classList.remove('hidden');
             image1Box.classList.remove('hidden');
         } else {
@@ -150,7 +177,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // Image 2
-        if(mapping.image2) {
+        if(mapping.image2 || tool.optionalReference) {
             imageUploadContainer.classList.remove('hidden');
             image2Box.classList.remove('hidden');
         } else {
@@ -159,7 +186,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // If neither image mapping, hide the whole container
-        if(!mapping.image && !mapping.image2) {
+        if(!mapping.image && !mapping.image2 && !tool.firstFrame && !tool.optionalReference) {
             imageUploadContainer.classList.add('hidden');
         }
 
@@ -388,8 +415,9 @@ document.addEventListener("DOMContentLoaded", () => {
         formData.append("tool_id", selectedToolId);
         if(tool.nodeMapping.prompt) formData.append("prompt", promptInput.value.trim());
         if(tool.nodeMapping.width && tool.nodeMapping.height) formData.append("aspect_ratio", selectedAspectRatio);
-        if(tool.nodeMapping.image) formData.append("image", selectedImageFile);
-        if(tool.nodeMapping.image2) formData.append("image2", selectedImage2File);
+        if((tool.nodeMapping.image || tool.firstFrame) && selectedImageFile) formData.append("image", selectedImageFile);
+        if(tool.duration) formData.append("duration", document.getElementById("duration-input").value);
+        if((tool.nodeMapping.image2 || tool.optionalReference) && selectedImage2File) formData.append("image2", selectedImage2File);
 
         // UI Reset
         uiContainer.classList.add('hidden');

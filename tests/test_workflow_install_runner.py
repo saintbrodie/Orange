@@ -39,7 +39,7 @@ class WorkflowInstallRunnerTests(unittest.TestCase):
                 progress.append((filename, kwargs))
                 return {}
 
-            with mock.patch.object(runner.urllib.request, "urlopen", return_value=_Response(payload)), mock.patch.object(
+            with mock.patch.object(runner, "open_model_download", return_value=_Response(payload)), mock.patch.object(
                 runner, "update_file_progress", side_effect=record
             ), mock.patch.object(runner, "get_workflow_pack", return_value={"id": "pack"}), mock.patch.object(
                 runner, "materialize_workflow_pack", return_value="/workflow.json"

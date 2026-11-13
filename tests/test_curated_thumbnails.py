@@ -24,19 +24,19 @@ class CuratedThumbnailTests(unittest.TestCase):
 
         self.assertEqual(
             set(thumbnail_packs),
-            {"z-image-turbo", "krea-2-turbo", "klein-9b-edit", "seedvr2-7b-upscale"},
+            {"z-image-turbo", "krea-2-turbo", "klein-9b-edit", "seedvr2-7b-upscale", "ltx-2.5-t2v", "qwen-image-2.1-edit", "moss-image"},
         )
 
     def test_imported_comfy_thumbnails_are_pngs(self):
         root = Path(__file__).resolve().parents[1]
         png_signature = b"\x89PNG\r\n\x1a\n"
-        for filename in ("krea-2-turbo.png", "klein-9b-edit.png"):
+        for filename in ("klein-9b-edit.png",):
             with (root / "static" / "curated-thumbnails" / filename).open("rb") as handle:
                 self.assertEqual(handle.read(8), png_signature)
 
     def test_orange_provided_thumbnails_are_jpegs(self):
         root = Path(__file__).resolve().parents[1]
-        for filename in ("z-image-turbo.jpg", "seedvr2-7b-upscale.jpg"):
+        for filename in ("z-image-turbo-capybara-ramen.jpg", "krea-2-turbo-tortoise-village.jpg", "seedvr2-7b-upscale.jpg", "qwen-image-2.1-turbo-edit-mug-executive.jpg", "moss-image-poster.jpg"):
             data = (root / "static" / "curated-thumbnails" / filename).read_bytes()
             self.assertGreater(len(data), 1000)
             self.assertEqual(data[:3], b"\xff\xd8\xff")

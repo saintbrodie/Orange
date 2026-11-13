@@ -37,13 +37,25 @@ Orange intentionally preserves the curated workflow's use of `wan_2.1_vae.safete
 
 ### Klein 9B Turbo
 
-Instruction-based image editing using the existing native-node Orange Klein workflow.
+Instruction-based image editing using the existing native-node Orange Klein workflow. Modify Image accepts an optional second reference image, replacing the separate Multi-Image Reference tool.
 
 Comfy-Org-hosted dependencies are used where available. The licensed FLUX.2 Klein 9B diffusion checkpoint remains sourced from Black Forest Labs when it is not redistributed by Comfy-Org.
 
 ### SeedVR2 7B Upscale
 
 4× image upscaling using ComfyUI's current native SeedVR2 preprocess, conditioning, and post-processing nodes. This replaces the older custom-plugin implementation for the curated Orange pack.
+
+### LTX 2.5 Video
+
+Text-to-video with synchronized audio and an optional first-frame image in the same tool. Choose an aspect ratio and 2–12 seconds; Orange selects the image-conditioned graph when a frame is uploaded. Prompt enhancement runs through Orange. See [the pack guide](../workflow-packs/ltx-2.5-t2v/README.md) for gated model setup and validation.
+
+### Qwen Image 2.1 Turbo Edit
+
+Eight-step Turbo image editing with one source image, an optional second reference image, and a text instruction. Uses madebyollin's texture-fix VAE for encoding and decoding. The source determines the output aspect ratio. The separate ComfyUI prompt refiner is removed; Orange provides optional instruction enhancement. See [the pack guide](../workflow-packs/qwen-image-2.1-edit/README.md).
+
+### MOSS-Image
+
+Native text-to-image generation with the SFT checkpoint, three aspect ratios, and optional Orange prompt enhancement. Keeps the native template's sampling defaults and removes its upsampler and unused SLG branch. See [the pack guide](../workflow-packs/moss-image/README.md).
 
 ## Pack Layout
 
@@ -125,7 +137,7 @@ Orange:
 1. loads the curated API workflow
 2. resolves each model binding to either an existing compatible ComfyUI option or a selected missing-file download
 3. rewrites only explicitly declared model filename bindings
-4. preserves the exact subfolder path when ComfyUI reports one
+4. stores the selected model filename without backend-specific folders; the per-backend resolver supplies those at submission
 5. writes/materializes the active workflow
 6. runs Workflow Preflight against the target backend
 
@@ -135,7 +147,7 @@ Known-good graph choices are preserved. For example, Krea keeps the Wan 2.1 VAE 
 
 Fresh Orange installs may finish with no curated tools at all.
 
-The setup wizard presents Z-Image Turbo, Krea 2 Turbo, Klein 9B Turbo, and SeedVR2 7B Upscale as optional packs. Z-Image is visually recommended for newcomers but is not selected or required.
+The setup wizard presents every included curated pack as optional. Z-Image is visually recommended for newcomers but is not selected or required.
 
 After connecting ComfyUI, setup:
 
@@ -203,3 +215,56 @@ When promoting a workflow into Orange's curated library:
 10. Run Preflight against a real target ComfyUI build before treating the pack as production-ready.
 
 Do not turn a curated pack into a generic model/node configuration UI. The point is to package a good workflow, not expose its internals.
+
+## Library filter tags
+
+Each pack manifest declares a `tags` array, for example `"tags": ["edit"]`.
+The Curated Library offers All, Image, Edit, Video, and Tools filters. A pack can
+appear under multiple filters, but Image is reserved for `text-to-image` packs.
+Editors use Edit; upscalers use Tools. All includes every pack. Filtering only changes the visible cards;
+backend inspection and installation continue across the complete catalog.
+
+Add another tag to a pack's array to create a new filter automatically. Tags are
+trimmed and matched without case sensitivity. Reserve `all` for the built-in
+filter; it does not need to be added to manifests. New filters appear after the
+standard filters in alphabetical order.
+
+
+For installed tools, library scans also validate the active workflow and every
+optional-input variant against the selected backend. Existing model inventory
+can be ready while an active file needs an unavailable or ambiguous model; this
+is shown as Needs attention with the affected input. Review workflow
+opens the tool editor. The scan does not overwrite user workflows.
+
+## Portable model locations
+
+Curated installs keep the selected model's filename in the workflow, without a
+backend-specific subfolder. Imported workflows may keep their original paths.
+Before submitting a job, Orange resolves a temporary copy against the selected
+backend's loader options from `/object_info`. These options include the folders
+ComfyUI exposes for that loader, including nested and configured extra model
+paths; Orange does not need access to the backend's filesystem.
+
+An exact path is retained, with separators translated to the backend's spelling.
+Otherwise, an exact filename match is used only when unique. Orange never uses
+similar names or substitutes another precision/version. Duplicate matches need
+an explicit choice; missing files make that backend incompatible.
+
+In the tool editor, run **Check Workflow** and review **Model locations**.
+A unique match is displayed as **Automatic** and needs no save action, even when
+folders differ. Multiple matches show a path dropdown; select a duplicate path
+and click **Save model binding**. Existing saved bindings remain editable when
+matching files are available. Duplicate models in the
+library scan offer the same controls, including before a pack is installed.
+Bindings are scoped to the normalized backend URL and model category/filename,
+and apply across tools. They live in the local, untracked
+`workflows/.runtime/model-bindings.json`; saving one never rewrites a workflow.
+Select Automatic and save to remove a binding.
+
+Preflight, library readiness, and generation use the same resolution rules.
+Preflight and **Scan again** refresh the inventory. Generation caches inventories
+for up to 60 seconds. A moved bound file resolves automatically when its filename
+is still unique; stale bindings are displayed for review and are not silently
+overwritten. An explicit queue rejection triggers one fresh scan and retries the
+same backend only if its model paths changed. A connection loss after submission
+does not trigger a duplicate generation.

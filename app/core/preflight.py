@@ -5,6 +5,7 @@ from collections import defaultdict
 from typing import Any
 
 import httpx
+from app.core.model_bindings import backend_inventory, resolve_models
 
 from app.core.workflow_assets import managed_asset_values
 
@@ -149,7 +150,26 @@ def _enum_options(spec: Any) -> list | None:
     options = spec[0]
     if isinstance(options, list):
         return options
+    if options == "COMBO" and len(spec) > 1 and isinstance(spec[1], dict):
+        typed_options = spec[1].get("options")
+        if isinstance(typed_options, list):
+            return typed_options
     return None
+
+
+def _autogrow_slots(spec: Any) -> tuple[list[str], int] | None:
+    """V3 autogrow groups serialize as group.slot fields, not a parent input."""
+    if not isinstance(spec, (list, tuple)) or len(spec) < 2 or spec[0] != "COMFY_AUTOGROW_V3":
+        return None
+    options = spec[1]
+    template = options.get("template") if isinstance(options, dict) else None
+    if not isinstance(template, dict) or not isinstance(template.get("names"), list):
+        return None
+    names = [name for name in template["names"] if isinstance(name, str)]
+    minimum = template.get("min", 0)
+    if not isinstance(minimum, int) or minimum < 0:
+        return None
+    return names, minimum
 
 
 def _is_upload_selector(class_type: str, field: str, spec: Any) -> bool:
@@ -226,6 +246,14 @@ def validate_backend(
         available_fields = set(required) | set(optional) | set(hidden)
         node_inputs = node.get("inputs") if isinstance(node.get("inputs"), dict) else {}
         mapped_fields = mapped_fields_by_node.get(str(node_id), set())
+        autogrow = {}
+        for field, spec in {**required, **optional}.items():
+            slots = _autogrow_slots(spec)
+            if slots is not None:
+                names, minimum = slots
+                fields = {f"{field}.{name}" for name in names}
+                available_fields.update(fields)
+                autogrow[field] = (fields, minimum)
 
         for field in mapped_fields:
             if field not in available_fields:
@@ -240,6 +268,11 @@ def validate_backend(
                 )
 
         for required_field in required:
+            if required_field in autogrow:
+                fields, minimum = autogrow[required_field]
+                supplied = {field for field in fields if field in mapped_fields or node_inputs.get(field) is not None}
+                if len(supplied) >= minimum:
+                    continue
             if required_field not in node_inputs and required_field not in mapped_fields:
                 errors.append(
                     _issue(
@@ -327,21 +360,24 @@ async def _check_backend(
 
     started = time.perf_counter()
     try:
-        response = await client.get(f"{url}/object_info")
+        object_info = await backend_inventory(client, url, refresh=True)
         result["latency_ms"] = round((time.perf_counter() - started) * 1000)
-        response.raise_for_status()
-        object_info = response.json()
-        if not isinstance(object_info, dict):
-            raise ValueError("/object_info response was not an object")
     except (httpx.HTTPError, ValueError) as exc:
         result["errors"].append(_issue("backend_unreachable", f"Could not read /object_info: {exc}"))
         return result
 
     result["reachable"] = True
     result["available_node_classes"] = len(object_info)
-    validation = validate_backend(workflow, node_mapping, object_info, managed_asset_names)
-    result["errors"] = validation["errors"]
-    result["warnings"] = validation["warnings"]
+    from app.core.backends import backend_manager
+
+    backend_manager.invalidate_compatibility(url)
+    resolution = resolve_models(workflow, object_info, url, node_mapping)
+    validation = validate_backend(resolution["workflow"], node_mapping, object_info, managed_asset_names)
+    result["models"] = resolution["models"]
+    result["errors"] = resolution["errors"] + validation["errors"]
+    unresolved = {(m["node_id"], m["field"]) for m in resolution["models"] if m["resolved"] is None}
+    result["warnings"] = [w for w in validation["warnings"]
+                          if not (w["code"] == "value_unavailable" and (w.get("node_id"), w.get("field")) in unresolved)]
     if result["errors"]:
         result["status"] = "error"
     elif result["warnings"]:
@@ -369,7 +405,8 @@ async def run_preflight(workflow_file: str, workflow: dict, node_mapping: dict, 
                 )
             )
 
-    compatible_backends = sum(1 for backend in backend_results if backend["reachable"] and not backend["errors"])
+    compatible_backends = sum(1 for backend in backend_results if backend["reachable"] and not backend["errors"]
+                              and not any(w["code"] == "value_unavailable" for w in backend["warnings"]))
     total_backends = len(servers)
 
     if local_errors:
