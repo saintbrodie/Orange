@@ -1,39 +1,39 @@
 {
   "schemaVersion": 1,
-  "commit": "483dae4326356b81de05d27aca3f433dd323cc25",
-  "ref": "v0.42.5",
-  "checkedAt": "2026-10-26T17:04:47.504951+00:00",
-  "orangeCommit": "7cabe2d56b7596423bca0a4728a443baabc69bd7",
+  "commit": "2c75dc1b379a59e0880619d029607af5169a62ef",
+  "ref": "v0.44.0",
+  "checkedAt": "2026-11-09T09:08:01.465752+00:00",
+  "orangeCommit": "55fdb2cfeb8e985a832ac6d025c2746806589547",
   "passed": true,
   "system": {
-    "comfyui_version": "0.42.5",
+    "comfyui_version": "0.44.0",
     "python_version": "3.12.12 (main, Feb  3 2026, 22:54:57) [MSC v.1944 64 bit (AMD64)]",
     "pytorch_version": "2.13.0+cu130",
     "comfy_package_versions": [
       {
         "name": "comfyui-frontend-package",
-        "installed": "1.55.18",
-        "required": "1.55.18"
+        "installed": "1.57.6",
+        "required": "1.57.6"
       },
       {
         "name": "comfyui-workflow-templates",
-        "installed": "0.11.96",
-        "required": "0.11.96"
+        "installed": "0.11.101",
+        "required": "0.11.101"
       },
       {
         "name": "comfyui-embedded-docs",
-        "installed": "0.5.14",
-        "required": "0.5.14"
-      },
-      {
-        "name": "comfy-kitchen",
-        "installed": "0.2.39",
-        "required": "0.2.39"
+        "installed": "0.5.16",
+        "required": "0.5.16"
       },
       {
         "name": "comfy-aimdo",
-        "installed": "0.5.6",
-        "required": "0.5.6"
+        "installed": "0.6.0",
+        "required": "0.6.0"
+      },
+      {
+        "name": "comfy-kitchen",
+        "installed": "0.2.40",
+        "required": "0.2.40"
       }
     ]
   },
@@ -63,5 +63,19 @@
       "smokePassed": true
     }
   ],
-  "scope": "512px mapped generation sizes; 256px fixture for editing/upscaling; output retrieval and image decoding. No visual-quality or browser UI assessment."
+  "scope": "512px mapped generation sizes; 256px fixture for editing/upscaling; output retrieval and image decoding. No visual-quality or browser UI assessment.",
+  "unitTests": {
+    "focusedRuntime": {
+      "testsRun": 4,
+      "passed": true
+    },
+    "fullSuite": {
+      "testsRun": 195,
+      "failures": 1,
+      "errorEntries": 12,
+      "newRegressions": 0,
+      "baseline": "Existing Admin provider-label assertion and Windows SQLite temporary-file cleanup errors; see docs/MANAGED_COMFYUI.md."
+    }
+  },
+  "environmentNote": "Isolated checkout and Python environment; candidate requirement pins installed locally; existing GPU libraries and model files reused read-only. Not a clean Pinokio install test."
 }
