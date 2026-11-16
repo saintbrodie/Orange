@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "comfyui": {
     "repository": "https://github.com/Comfy-Org/ComfyUI.git",
-    "testedCommit": "2c75dc1b379a59e0880619d029607af5169a62ef",
-    "testedDate": "2026-11-09",
-    "note": "Preflight and GPU image smoke tests passed for all curated packs and configured tools. See docs/MANAGED_COMFYUI.md for scope.",
-    "testedVersion": "v0.44.0"
+    "testedCommit": "989d93d0d968e704c589ce0146bb18c77f6b50cc",
+    "testedDate": "2026-11-16",
+    "note": "Preflight and GPU media smoke tests passed for all curated packs and configured tools. See docs/MANAGED_COMFYUI.md for scope.",
+    "testedVersion": "v0.45.0"
   }
 }
