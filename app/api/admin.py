@@ -47,7 +47,7 @@ def _html_safe_log(row: dict | None) -> dict | None:
     if not row:
         return row
     safe = dict(row)
-    for key in ("prompt", "client_ip", "tool_id", "backend_url"):
+    for key in ("prompt", "client_ip", "tool_id", "backend_url", "provider", "model", "status"):
         value = safe.get(key)
         if isinstance(value, str):
             safe[key] = html.escape(value, quote=True)
@@ -101,8 +101,6 @@ def restart_server(_=Depends(verify_admin)):
 @router.get("/api/admin/media")
 async def get_admin_media(_=Depends(verify_admin)):
     servers = get_comfy_servers()
-    if not servers:
-        raise HTTPException(status_code=500, detail="No ComfyUI servers configured")
 
     async def fetch_history(url: str):
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -155,6 +153,12 @@ async def get_admin_media(_=Depends(verify_admin)):
                     }
                 )
 
+    from app.core.media_jobs import list_completed
+    for row in list_completed():
+        items = json.loads(row.pop("outputs"))
+        if items:
+            media_items.append({"prompt_id": row["prompt_id"], "filename": items[0]["filename"], "type": row["type"], "analytics": _html_safe_log(row)})
+    media_items.sort(key=lambda item: (item.get("analytics") or {}).get("timestamp", ""), reverse=True)
     return {"media": media_items}
 
 
@@ -262,6 +266,12 @@ def delete_admin_workflow(filename: str, _=Depends(verify_admin)):
 
 async def _delete_single_prompt(prompt_id: str, client: httpx.AsyncClient, all_servers: list):
     """Delete a prompt from ComfyUI history and the local usage database."""
+    from app.core.media_jobs import delete_job
+    try:
+        if delete_job(prompt_id):
+            return
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from None
     backend_url = get_backend_for_prompt(prompt_id)
     target_urls = [backend_url] if backend_url else [s.get("url") for s in all_servers]
 

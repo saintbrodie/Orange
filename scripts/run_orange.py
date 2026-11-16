@@ -84,7 +84,7 @@ def render_event(payload_text: str) -> None:
     kind = str(event.get("kind", "activity")).lower()
     state = str(event.get("state", "info")).lower()
     message = str(event.get("message", "")).strip()
-    label = "Generate" if kind == "generation" else "LLM" if kind == "llm" else "Orange"
+    label = "API Generate" if kind == "api_generation" else "Generate" if kind == "generation" else "LLM" if kind == "llm" else "Orange"
     label_tone = "orange" if kind == "generation" else "magenta" if kind == "llm" else "cyan"
     state_tone = "green" if state == "complete" else "red" if state == "failed" else "yellow" if state == "working" else "cyan"
     print(f"  {paint(f'[{label}]', label_tone):<20} {paint(message, state_tone)}", flush=True)

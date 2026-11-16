@@ -34,3 +34,8 @@ def strip_metadata(image_bytes: bytes) -> Tuple[bytes, str]:
         clean = img.copy()
         clean.save(out_io, format="PNG")
         return out_io.getvalue(), "image/png"
+
+
+def metadata_scrubbing_enabled() -> bool:
+    from app.core.config import load_config
+    return load_config().get("scrubMetadata", True) is not False

@@ -13,11 +13,18 @@ DEFAULT_WORKFLOWS_DIR = os.path.join(WORKFLOWS_DIR, "defaults")
 TOOL_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 ALLOWED_MAPPING_KEYS = {"prompt", "image", "image2", "width", "height", "seed", "outputText", "duration"}
 ALLOWED_OUTPUT_TYPES = {"image", "video", "audio", "text"}
-ALLOWED_LLM_PROVIDERS = {"managed", "openai", "ollama", "gemini", "anthropic"}
+ALLOWED_LLM_PROVIDERS = {"managed", "openai", "openai-cloud", "openai-compatible", "openrouter", "venice", "xai", "ollama", "gemini", "anthropic"}
 
 
 def _issue(path: str, code: str, message: str) -> dict:
     return {"path": path, "code": code, "message": message}
+
+
+def _accepts_image(tool):
+    mapping = tool.get("nodeMapping") if isinstance(tool.get("nodeMapping"), dict) else {}
+    inputs = tool.get("api") if isinstance(tool.get("api"), dict) else {}
+    references = inputs.get("references")
+    return bool(mapping.get("image") or (tool.get("provider", "comfyui") != "comfyui" and type(references) is int and references > 0))
 
 
 def _is_http_url(value: Any) -> bool:
@@ -77,7 +84,11 @@ def validate_config(config: Any) -> dict:
             "warnings": warnings,
         }
 
+    if "scrubMetadata" in config and type(config["scrubMetadata"]) is not bool:
+        errors.append(_issue("scrubMetadata", "metadata_setting_invalid", "Metadata removal must be true or false."))
     admin_key = config.get("adminKey")
+    if "apiOnly" in config and type(config["apiOnly"]) is not bool:
+        errors.append(_issue("apiOnly", "api_only_invalid", "API-only mode must be true or false."))
     if admin_key is not None and (not isinstance(admin_key, str) or not admin_key):
         errors.append(_issue("adminKey", "admin_key_invalid", "Admin key must be a non-empty string."))
 
@@ -85,7 +96,7 @@ def validate_config(config: Any) -> dict:
     if not isinstance(servers, list):
         errors.append(_issue("comfyServers", "servers_invalid", "comfyServers must be a list."))
         servers = []
-    elif not servers:
+    elif not servers and not config.get("apiOnly"):
         warnings.append(
             _issue(
                 "comfyServers",
@@ -197,6 +208,14 @@ def validate_config(config: Any) -> dict:
                 )
             )
 
+        if tool.get("provider", "comfyui") != "comfyui":
+            from app.core.media_providers import validate_api_tool
+            try:
+                validate_api_tool(tool)
+            except (ValueError, TypeError) as exc:
+                errors.append(_issue(path, "api_tool_invalid", str(exc)))
+            continue
+
         workflow_file = tool.get("workflowFile")
         workflow_path = None
         if not isinstance(workflow_file, str) or not workflow_file.lower().endswith(".json"):
@@ -276,6 +295,8 @@ def validate_config(config: Any) -> dict:
     for index, tool in enumerate(tools):
         if not isinstance(tool, dict):
             continue
+        if tool.get("provider", "comfyui") != "comfyui":
+            continue
         path = f"tools[{index}]"
         duration = tool.get("duration")
         control_mapping = tool.get("nodeMapping") if isinstance(tool.get("nodeMapping"), dict) else {}
@@ -316,7 +337,7 @@ def validate_config(config: Any) -> dict:
     if modify_tool:
         if modify_tool not in tools_by_id:
             errors.append(_issue("modifyTool", "modify_tool_missing", f"Modify tool '{modify_tool}' does not exist."))
-        elif not tools_by_id[modify_tool].get("nodeMapping", {}).get("image"):
+        elif not _accepts_image(tools_by_id[modify_tool]):
             errors.append(_issue("modifyTool", "modify_tool_no_image", "Modify tool must expose Orange's image mapping."))
 
     return {"errors": errors, "warnings": warnings}

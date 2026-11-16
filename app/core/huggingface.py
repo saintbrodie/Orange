@@ -124,6 +124,9 @@ def _is_hub_url(url):
 
 
 def auth_headers(url):
+    from app.core.civitai import is_civitai_url, auth_headers as civitai_headers
+    if is_civitai_url(url):
+        return civitai_headers(url)
     if not _is_hub_url(url):
         return {}
     token = get_token()
@@ -140,7 +143,9 @@ class _HubRedirectHandler(urllib.request.HTTPRedirectHandler):
         authorization = request.get_header("Authorization")
         if redirected is not None:
             redirected.remove_header("Authorization")
-            if authorization and _is_hub_url(new_url):
+            from app.core.civitai import is_civitai_url
+            same_host = urlsplit(request.full_url).hostname == urlsplit(new_url).hostname
+            if authorization and same_host and (_is_hub_url(new_url) or is_civitai_url(new_url)):
                 redirected.add_unredirected_header("Authorization", authorization)
         return redirected
 

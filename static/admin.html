@@ -181,6 +181,8 @@
                                 <th class="px-6 py-4 font-medium">Time (Local)</th>
                                 <th class="px-6 py-4 font-medium">IP Address</th>
                                 <th class="px-6 py-4 font-medium">Tool ID</th>
+                                <th class="px-6 py-4 font-medium">Provider / Model</th>
+                                <th class="px-6 py-4 font-medium">Status</th>
                                 <th class="px-6 py-4 font-medium w-full">Prompt Snippet</th>
                             </tr>
                         </thead>
@@ -199,7 +201,7 @@
                     <i data-lucide="settings" class="w-5 h-5 text-orange-500"></i> General Settings
                 </h2>
 
-                <div class="space-y-6">
+                <div id="general-settings-sections" class="space-y-6">
                     <div>
                         <div class="flex justify-between items-center mb-2">
                             <label class="text-xs text-zinc-500 font-bold uppercase tracking-wider block">ComfyUI Servers</label>
@@ -258,13 +260,18 @@
                                             <option value="managed">Internal LLM — Gemma 4 E2B (Private)</option>
                                         </optgroup>
                                         <optgroup label="OPENAI-COMPATIBLE API">
-                                            <option value="openai">External API — OpenAI, Ollama, LM Studio, llama.cpp, OpenRouter</option>
+                                            <option value="openai-compatible">OpenAI-compatible — Ollama, LM Studio, llama.cpp</option>
                                         </optgroup>
                                         <optgroup label="DIRECT CLOUD API">
+                                            <option value="openai-cloud">OpenAI</option>
                                             <option value="gemini">Google Gemini</option>
-                                            <option value="anthropic">Anthropic Claude</option>
+                                            <option value="anthropic">Anthropic</option>
+                                            <option value="openrouter">OpenRouter</option>
+                                            <option value="venice">Venice</option>
+                                            <option value="xai">xAI (Grok)</option>
                                         </optgroup>
                                     </select>
+                                    <p id="llm-cloud-key-hint" class="hidden text-xs text-zinc-500 mt-2"></p>
                                 </div>
                                 <div class="space-y-1">
                                     <label class="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Model Name</label>
@@ -289,7 +296,8 @@
                                 </div>
                                 <div class="space-y-1">
                                     <label class="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">API Key (optional)</label>
-                                    <input type="password" id="setting-llm-apikey" placeholder="•••••••• (Leave blank to use environment variable or for local runners)" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono">
+                                    <input type="password" id="setting-llm-apikey" placeholder="Optional — most local runners do not need a key" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-zinc-300 font-mono">
+                                    <p class="text-xs text-zinc-500 mt-2">Optional key for this OpenAI-compatible server. Cloud credentials are managed under API Keys.</p>
                                 </div>
                             </div>
                             
@@ -431,6 +439,34 @@
                     </div>
 
                     <div class="pt-4 border-t border-zinc-800/50">
+                        <label class="flex items-center gap-3 text-sm text-zinc-300">
+                            <input type="checkbox" id="setting-scrub-metadata" checked>
+                            Remove metadata from generated media
+                        </label>
+                        <p class="text-xs text-zinc-500 mt-2">Applies across Orange, including API tools and ComfyUI outputs. Enabled by default.</p>
+                    </div>
+
+                    <section id="api-providers-section" class="pt-4 border-t border-zinc-800/50" aria-label="API Keys">
+                        <h3 class="text-sm font-semibold text-zinc-300">Cloud providers</h3>
+                        <p class="text-xs text-zinc-500 mt-3 mb-4">Manage cloud provider credentials here. Supported Prompt Enhancement providers reuse these keys automatically.</p>
+                        <div id="api-providers-list" class="space-y-3"></div>
+                        <details class="mt-4 bg-zinc-950/50 border border-zinc-800 rounded-xl p-4">
+                            <summary class="cursor-pointer text-sm font-medium text-zinc-100">Civitai</summary>
+                            <div class="space-y-3 pt-4">
+                                <p class="text-xs text-zinc-500">Authenticate model downloads. CIVITAI_API_KEY or CIVITAI_TOKEN overrides a saved key.</p>
+                                <label for="civitai-api-key" class="text-sm text-zinc-400">API credential</label>
+                                <input id="civitai-api-key" type="password" autocomplete="new-password" spellcheck="false" class="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-sm" placeholder="Enter API credential">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" id="save-civitai-key" class="bg-zinc-800 rounded-lg px-4 py-2 text-sm">Save key</button>
+                                    <button type="button" id="test-civitai-key" class="bg-zinc-800 rounded-lg px-4 py-2 text-sm">Test connection</button>
+                                    <button type="button" id="remove-civitai-key" class="bg-zinc-800 rounded-lg px-4 py-2 text-sm">Remove saved key</button>
+                                </div>
+                                <p id="civitai-key-status" class="text-xs text-zinc-400" role="status"></p>
+                            </div>
+                        </details>
+                    </section>
+
+                    <div class="pt-4 border-t border-zinc-800/50">
                         <h3 class="text-sm font-semibold text-zinc-300 mb-4">Database Management</h3>
                         <div class="flex gap-4">
                             <button id="backup-db-btn"
@@ -498,6 +534,7 @@
                 </div>
                 <div class="mt-6 pt-4 border-t border-zinc-800/50">
                     <input type="file" id="workflow-upload-input" accept=".json" class="hidden">
+                    <button id="add-api-tool-btn" class="w-full mb-3 bg-zinc-800 text-orange-400 py-3 rounded-xl border border-zinc-700">Create API Tool</button>
                     <button id="upload-workflow-btn"
                         class="w-full flex items-center justify-center gap-2 bg-gradient-to-br from-zinc-800 to-zinc-900 hover:from-zinc-700 hover:to-zinc-800 text-zinc-300 py-3 rounded-xl border border-zinc-700 transition shadow-sm">
                         <i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload Workflow
@@ -686,7 +723,7 @@
 
     <!-- Script -->
     <script src="/static/tool-input-editor.js?v=4"></script>
-    <script src="/static/admin.js?v=5"></script>
+    <script src="/static/admin.js?v=6"></script>
     <script src="/static/workflow-pack-library.js?v=7"></script>
     <script src="/static/tool-config-layout.js?v=4"></script>
 </body>

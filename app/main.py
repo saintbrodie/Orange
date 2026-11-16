@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, backend_status, db_admin, generate, generation_debug, generation_v2, llm_api, managed_prompt_enhancer, managed_runtime, outputs, personalization, preflight, setup, status, workflow_assets, workflow_pack_admin, workflows
+from app.api import admin, backend_status, db_admin, generate, generation_debug, generation_v2, llm_api, managed_prompt_enhancer, managed_runtime, media_providers, outputs, personalization, preflight, setup, status, workflow_assets, workflow_pack_admin, workflows
 from app.core.backends import backend_manager
 from app.core.config import USER_CONFIG_PATH, load_config, restore_defaults, save_config
 from app.core.database import init_db
@@ -30,6 +30,8 @@ async def lifespan(_app: FastAPI):
         bootstrap_config["adminKey"] = secrets.token_urlsafe(32)
         save_config(bootstrap_config)
     initialize_setup_state(was_fresh_install)
+    from app.core.media_jobs import job_manager
+    await job_manager.start()
     await backend_manager.start()
     runtime_validation_task = asyncio.create_task(validate_pending_managed_runtime())
     try:
@@ -39,6 +41,7 @@ async def lifespan(_app: FastAPI):
             runtime_validation_task.cancel()
         await asyncio.gather(runtime_validation_task, return_exceptions=True)
         stop_managed_prompt_enhancer()
+        await job_manager.stop()
         await backend_manager.stop()
 
 
@@ -82,6 +85,7 @@ async def terminal_activity(request: Request, call_next):
 
 
 app.include_router(outputs.router)
+app.include_router(media_providers.router)
 app.include_router(generation_v2.router)
 app.include_router(llm_api.router)
 app.include_router(personalization.router)
@@ -170,8 +174,10 @@ def serve_admin():
             '    <script src="/static/personalization.js?v=2"></script>\n'
             '    <script src="/static/personalization-tab-state.js?v=1"></script>\n'
             '    <script src="/static/admin-layout.js?v=1"></script>\n'
+            '    <script src="/static/general-settings.js?v=2"></script>\n'
+            '    <script src="/static/media-providers.js?v=5"></script>\n'
             '    <script src="/static/managed-comfyui.js?v=4"></script>\n'
-            '    <script src="/static/managed-prompt-enhancer.js?v=3"></script>\n'
+            '    <script src="/static/managed-prompt-enhancer.js?v=4"></script>\n'
             '    <script src="/static/llm-model-select.js?v=1"></script>\n'
             '    <script src="/static/mobile-navigation.js?v=6"></script>\n'
             "</body>",

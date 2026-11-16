@@ -30,7 +30,7 @@ def _resolve_tool_llm(tool_id: str):
         raise HTTPException(status_code=400, detail="Invalid tool ID")
 
     mapping = tool.get("nodeMapping", {}) if isinstance(tool.get("nodeMapping"), dict) else {}
-    if not mapping.get("prompt"):
+    if not mapping.get("prompt") and tool.get("provider", "comfyui") == "comfyui":
         raise HTTPException(
             status_code=400,
             detail="Prompt enhancement is not supported for this tool.",
@@ -52,10 +52,11 @@ def _resolve_tool_llm(tool_id: str):
     if model in (None, ""):
         model = global_llm.get("model")
 
+    direct_cloud = global_llm.get("provider") in {"openai-cloud", "gemini", "anthropic", "openrouter", "venice", "xai"}
     return {
         "provider": global_llm.get("provider", "openai"),
-        "base_url": global_llm.get("baseUrl"),
-        "api_key": global_llm.get("apiKey"),
+        "base_url": None if direct_cloud else global_llm.get("baseUrl"),
+        "api_key": None if direct_cloud else global_llm.get("apiKey"),
         "model": model,
         "system_prompt": get_system_prompt(tool_id),
     }
@@ -112,6 +113,8 @@ async def get_llm_models(payload: dict, _=Depends(verify_admin)):
     provider = payload.get("provider", "") if isinstance(payload, dict) else ""
     base_url = payload.get("baseUrl") if isinstance(payload, dict) else None
     api_key = payload.get("apiKey") if isinstance(payload, dict) else None
+    if provider in {"openai-cloud", "gemini", "anthropic", "openrouter", "venice", "xai"}:
+        base_url, api_key = None, None
 
     try:
         models = await list_llm_models(

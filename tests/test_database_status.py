@@ -1,3 +1,4 @@
+from contextlib import closing
 import os
 import sqlite3
 import tempfile
@@ -53,7 +54,7 @@ class GenerationStatusDatabaseTests(unittest.TestCase):
 
     def _replace_with_legacy_usage_table(self):
         os.remove(self.db_path)
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
             conn.execute(
                 "CREATE TABLE usage (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, client_ip TEXT, tool_id TEXT, prompt TEXT)"
             )

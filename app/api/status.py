@@ -136,7 +136,14 @@ def _record_completion(prompt_id: str, announce: bool = True) -> None:
 
 
 @router.get("/api/health")
-async def get_health():
+async def get_health(tool_id: str = None):
+    if isinstance(tool_id, str) and tool_id:
+        tool = get_tool_settings(tool_id)
+        if tool and tool.get("provider", "comfyui") != "comfyui":
+            from app.core.media_provider_config import ready
+            if ready(tool["provider"], tool.get("model")):
+                return {"status": "ready", "vram_warning": False}
+            return JSONResponse(status_code=503, content={"status": "offline"})
     servers = get_comfy_servers()
     if not servers:
         return JSONResponse(status_code=503, content={"status": "offline"})
@@ -381,4 +388,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
 
 @router.get("/api/status")
 async def get_status(request: Request, prompt_id: str, client_id: str, tool_id: str = None):
+    from app.core.media_jobs import get_job, status_events
+    if get_job(prompt_id):
+        return EventSourceResponse(status_events(request, prompt_id))
     return EventSourceResponse(status_generator(request, prompt_id, client_id, tool_id))

@@ -236,7 +236,7 @@ def get_base_workflow(workflow_file: str):
 def get_comfy_servers():
     config = load_config()
     servers = config.get("comfyServers", [])
-    if not servers:
+    if not servers and not config.get("apiOnly"):
         legacy_url = config.get("comfyServerUrl", "http://127.0.0.1:8188")
         servers = [{"url": legacy_url, "priority": 1}]
 

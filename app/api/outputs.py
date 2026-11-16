@@ -3,15 +3,27 @@ from urllib.parse import quote
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
+from fastapi.responses import FileResponse
+import json
 
 from app.core.backends import get_backend_client
 from app.core.database import get_backend_for_prompt
 from app.core.outputs import collect_media_outputs, extract_text_output, guess_media_type
-from app.core.utils import strip_metadata
+from app.core.utils import strip_metadata, metadata_scrubbing_enabled
 
 router = APIRouter()
 
 ALLOWED_OUTPUT_TYPES = {"image", "video", "audio", "text"}
+
+
+def _local_outputs(prompt_id, output_type):
+    from app.core.media_jobs import get_job
+    job = get_job(prompt_id)
+    if job is None:
+        return None
+    if job["status"] != "completed":
+        raise HTTPException(404, "Generation is not complete or did not produce output.")
+    return json.loads(job["outputs"]) if job["output_type"] == output_type else []
 
 
 async def _load_prompt_history(prompt_id: str):
@@ -48,6 +60,9 @@ async def list_outputs(prompt_id: str, type: str = Query("image")):
     if output_type not in ALLOWED_OUTPUT_TYPES:
         raise HTTPException(status_code=400, detail="Unsupported output type.")
 
+    local = _local_outputs(prompt_id, output_type)
+    if local is not None:
+        return {"count": len(local), "type": output_type, "items": local}
     _, outputs = await _load_prompt_history(prompt_id)
     if output_type == "text":
         text = extract_text_output(outputs)
@@ -64,6 +79,19 @@ async def get_media(prompt_id: str, type: str = Query("image"), index: int = Que
     if output_type not in ALLOWED_OUTPUT_TYPES:
         raise HTTPException(status_code=400, detail="Unsupported output type.")
 
+    local = _local_outputs(prompt_id, output_type)
+    if local is not None:
+        from app.core.media_jobs import output_path
+        if index >= len(local):
+            raise HTTPException(404, "Output was not found.")
+        item = local[index]
+        try:
+            path = output_path(item["filename"])
+        except ValueError:
+            raise HTTPException(404, "Output was not found.") from None
+        if not path.is_file():
+            raise HTTPException(404, "Local output file is missing.")
+        return FileResponse(path, media_type=item["media_type"], filename=item["filename"], content_disposition_type="inline")
     target_url, outputs = await _load_prompt_history(prompt_id)
     if output_type == "text":
         text = extract_text_output(outputs)
@@ -96,13 +124,17 @@ async def get_media(prompt_id: str, type: str = Query("image"), index: int = Que
     response_type = response.headers.get("content-type")
     media_type = guess_media_type(item["filename"], response_type)
 
-    if media_type.startswith("image/"):
+    if media_type.startswith("image/") and metadata_scrubbing_enabled():
         try:
             clean_bytes, clean_type = strip_metadata(raw_bytes)
             raw_bytes = clean_bytes
             media_type = clean_type or media_type
         except Exception:
             pass
+
+    if media_type == "video/mp4" and metadata_scrubbing_enabled():
+        from app.core.media_jobs import _scrub_mp4
+        raw_bytes = _scrub_mp4(raw_bytes)
 
     safe_filename = quote(item["filename"], safe="")
     headers = {"Content-Disposition": f"inline; filename*=UTF-8''{safe_filename}"}

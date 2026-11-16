@@ -53,6 +53,12 @@
     if (!provider || !panel) return;
     const managed = provider.value === 'managed';
     managedFieldContainers().forEach((container) => container.classList.toggle('hidden', managed));
+    for (const id of ['setting-llm-baseurl', 'setting-llm-apikey']) {
+      document.getElementById(id)?.closest('.space-y-1')?.classList.toggle('hidden', provider.value !== 'openai-compatible');
+    }
+    const cloudNames = {'openai-cloud': 'OpenAI', gemini: 'Google', anthropic: 'Anthropic', openrouter: 'OpenRouter', venice: 'Venice', xai: 'xAI'};
+    const hint = document.getElementById('llm-cloud-key-hint');
+    if (hint) { hint.classList.toggle('hidden', !cloudNames[provider.value]); hint.textContent = `Uses the ${cloudNames[provider.value] || ''} credential saved in API Keys.`; }
     panel.classList.toggle('hidden', !managed);
     if (managed) refreshStatus();
   };

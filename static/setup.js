@@ -245,7 +245,8 @@ async function finishSetup() {
     setStatus($("setup-result"), "Create an Admin password with at least 8 characters.", "error");
     return;
   }
-  if (!backendOk) {
+  const apiOnly = $("api-only").checked;
+  if (!apiOnly && !backendOk) {
     await testBackend();
     if (!backendOk) {
       try {
@@ -263,8 +264,8 @@ async function finishSetup() {
     }
   }
 
-  const packs = selectedPacks();
-  const managedEnhancerSelected = !!$("managed-enhancer")?.checked;
+  const packs = apiOnly ? [] : selectedPacks();
+  const managedEnhancerSelected = !apiOnly && !!$("managed-enhancer")?.checked;
   localStorage.setItem("orange_setup_recovery_key", adminKey);
   if (packs.length) localStorage.setItem("orange_tools_subtab", "curated");
   button.disabled = true;
@@ -280,6 +281,7 @@ async function finishSetup() {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
+        apiOnly,
         comfyUrl: $("comfy-url").value.trim(),
         modelsRoot: $("models-root").value.trim(),
         adminKey,
@@ -345,6 +347,15 @@ async function recoverCompletedSetup() {
 }
 
 $("test-backend").addEventListener("click", testBackend);
+$("api-only").addEventListener("change", () => {
+  const apiOnly = $("api-only").checked;
+  for (const id of ["comfy-url", "test-backend", "models-root", "managed-enhancer"]) {
+    const input = $(id);
+    if (input) input.disabled = apiOnly || (id === "managed-enhancer" && setupStatus?.managedPromptEnhancer?.supported === false);
+  }
+  document.querySelectorAll("[data-pack-id]").forEach(input => { input.disabled = apiOnly; });
+  setStatus($("backend-result"), apiOnly ? "ComfyUI is optional. Finish setup, then connect API Providers in General Settings." : "");
+});
 $("finish-setup").addEventListener("click", finishSetup);
 $("comfy-url").addEventListener("input", () => {
   backendOk = false;
