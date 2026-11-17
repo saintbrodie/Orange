@@ -792,6 +792,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const aiStatusText = document.getElementById('ai-status-text');
 
     async function checkAiStatus() {
+        const vramWarning = document.getElementById('vram-warning');
         try {
             const checkingTool = selectedToolId;
             const res = await fetch('/api/health?tool_id=' + encodeURIComponent(checkingTool || ''));
@@ -803,21 +804,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 generateBtn.disabled = false;
                 generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                 
-                const vramWarning = document.getElementById('vram-warning');
                 if (vramWarning) {
-                    if (resData.vram_warning) {
+                    if (resData.busy) {
                         vramWarning.classList.remove('hidden');
                     } else {
                         vramWarning.classList.add('hidden');
                     }
                 }
             } else {
+                vramWarning?.classList.add('hidden');
                 aiStatusDot.className = 'w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse';
                 aiStatusText.innerText = 'AI Offline';
                 generateBtn.disabled = true;
                 generateBtn.classList.add('opacity-50', 'cursor-not-allowed');
             }
         } catch(e) {
+            vramWarning?.classList.add('hidden');
             aiStatusDot.className = 'w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse';
             aiStatusText.innerText = 'AI Offline';
             generateBtn.disabled = true;

@@ -155,25 +155,27 @@ async def get_health(tool_id: str = None):
             res = await client.get(f"{str(url).rstrip('/')}/system_stats", timeout=2.0)
             if res.status_code == 200:
                 data = res.json()
-                vram_warning = False
-                devices = data.get("devices", [])
-                if devices:
-                    device = devices[0]
-                    vram_free = device.get("vram_free", 1)
-                    vram_total = device.get("vram_total", 1)
-                    if vram_total > 0 and (vram_free / vram_total) < 0.05:
-                        vram_warning = True
-                return {"status": "ready", "vram_warning": vram_warning}
+                # Loaded model weights can fill VRAM even while ComfyUI is idle.
+                # Only an actual queue backlog indicates likely waiting time.
+                busy = False
+                try:
+                    queue_res = await client.get(f"{str(url).rstrip('/')}/queue", timeout=2.0)
+                    if queue_res.status_code == 200:
+                        pending = queue_res.json().get("queue_pending", [])
+                        busy = isinstance(pending, list) and len(pending) >= 2
+                except Exception:
+                    pass  # Missing queue telemetry is not evidence of overload.
+                return {"status": "ready", "busy": busy, "vram_warning": False}
         except Exception:
             pass
         return {"status": "offline", "vram_warning": False}
 
     results = await asyncio.gather(*(check_server(s.get("url")) for s in servers))
     any_ready = any(result["status"] == "ready" for result in results)
-    any_vram_warning = any(result["vram_warning"] for result in results)
+    ready_servers = [result for result in results if result["status"] == "ready"]
 
     if any_ready:
-        return {"status": "ready", "vram_warning": any_vram_warning}
+        return {"status": "ready", "busy": all(result.get("busy", False) for result in ready_servers), "vram_warning": False}
     return JSONResponse(status_code=503, content={"status": "offline"})
 
 
