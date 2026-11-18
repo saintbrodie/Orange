@@ -128,22 +128,27 @@ repository does not register a schedule or install a background service.
 
 ### Current verification
 
-On 2026-11-09, v0.44.0 (`2c75dc1b379a59e0880619d029607af5169a62ef`)
-passed Preflight and image smoke tests for the Pinokio install's four tools:
-Z-Image, Krea 2, Klein editing, and SeedVR2 upscaling. The isolated test environment
+On 2026-11-16, v0.45.0 (`989d93d0d968e704c589ce0146bb18c77f6b50cc`)
+passed Preflight and GPU media smoke tests for all seven curated packs and the
+Pinokio install's four configured tools. Nine cases covered Z-Image, Krea 2,
+Klein editing, SeedVR2 upscaling, LTX 2.5 text-only and first-frame video,
+MOSS-Image, and Qwen Image 2.1 editing with and without a reference image.
+The isolated test environment
 used the candidate's pinned ComfyUI packages with Python 3.12.12 and PyTorch
 2.13.0+cu130, reusing GPU libraries and model files from the local machine.
 This was not a clean Pinokio installation test.
 
-The candidate used the exact v0.44.0 pinned ComfyUI packages in the isolated
+The candidate used the exact v0.45.0 pinned ComfyUI packages in the isolated
 verification environment. Existing models were read from the shared Stability
 Matrix model folders; no models were downloaded and normal installations were
-not changed. The dedicated test process on port 8197 was stopped after all four
-tools passed output retrieval and image decoding.
+not changed. The dedicated test process on port 8197 was stopped after all nine
+cases passed output retrieval and image or video decoding. Installed Pinokio
+workflows were copied unchanged into the verification configuration; the other
+packs were materialized there with supported local model variants.
 
 The focused runtime tests passed. The full Orange unit suite also revealed
 Windows SQLite temporary-file cleanup errors and an Admin provider-label
-assertion failure in areas untouched by this update (195 tests: one assertion
+assertion failure in areas untouched by this update (261 tests: one assertion
 failure and 12 error entries, matching the documented baseline). These remain separate
 issues; the GPU verification record does not imply a clean full CI run.
 

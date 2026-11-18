@@ -1,24 +1,24 @@
 {
   "schemaVersion": 1,
-  "commit": "2c75dc1b379a59e0880619d029607af5169a62ef",
-  "ref": "v0.44.0",
-  "checkedAt": "2026-11-09T09:08:01.465752+00:00",
-  "orangeCommit": "55fdb2cfeb8e985a832ac6d025c2746806589547",
+  "commit": "989d93d0d968e704c589ce0146bb18c77f6b50cc",
+  "ref": "v0.45.0",
+  "checkedAt": "2026-11-16T09:08:32.452174+00:00",
+  "orangeCommit": "cbe883e9fc2722ffba37d0049b8cd1b70da98a16",
   "passed": true,
   "system": {
-    "comfyui_version": "0.44.0",
+    "comfyui_version": "0.45.0",
     "python_version": "3.12.12 (main, Feb  3 2026, 22:54:57) [MSC v.1944 64 bit (AMD64)]",
     "pytorch_version": "2.13.0+cu130",
     "comfy_package_versions": [
       {
         "name": "comfyui-frontend-package",
-        "installed": "1.57.6",
-        "required": "1.57.6"
+        "installed": "1.58.5",
+        "required": "1.58.5"
       },
       {
         "name": "comfyui-workflow-templates",
-        "installed": "0.11.101",
-        "required": "0.11.101"
+        "installed": "0.11.105",
+        "required": "0.11.105"
       },
       {
         "name": "comfyui-embedded-docs",
@@ -32,8 +32,8 @@
       },
       {
         "name": "comfy-kitchen",
-        "installed": "0.2.40",
-        "required": "0.2.40"
+        "installed": "0.2.41",
+        "required": "0.2.41"
       }
     ]
   },
@@ -61,21 +61,51 @@
       "workflowSha256": "18377ecf3a14c936a13c3794d3f7f66a01cb349134146ce0d1c8091c775319ab",
       "preflightPassed": true,
       "smokePassed": true
+    },
+    {
+      "id": "ltx-2-5-video",
+      "workflowSha256": "5c349a81816341be70c8ca58ba0bcdb7188cb0528b3284a6b64e0ce08433ba2f",
+      "preflightPassed": true,
+      "smokePassed": true
+    },
+    {
+      "id": "ltx-2-5-video-first-frame",
+      "workflowSha256": "bd1892edb3ac30e1e7bf07a3623b2bfe1513336ac4eb199cda9ef8d44c2ab138",
+      "preflightPassed": true,
+      "smokePassed": true
+    },
+    {
+      "id": "moss-image",
+      "workflowSha256": "ee7c121fe537399ba058828d1faf681b4d01e9aec4c1bd456b4bc914d9d3f174",
+      "preflightPassed": true,
+      "smokePassed": true
+    },
+    {
+      "id": "qwen-image-2-1-edit",
+      "workflowSha256": "bedc54105f93f5c18e5d9b42a7a631931c0182958484c6fe2ec72ef5a102f2d2",
+      "preflightPassed": true,
+      "smokePassed": true
+    },
+    {
+      "id": "qwen-image-2-1-edit-reference",
+      "workflowSha256": "4d48123b16b8b776a95b2e1692ed125222b00197c198a6efa34747c647bf3547",
+      "preflightPassed": true,
+      "smokePassed": true
     }
   ],
-  "scope": "512px mapped generation sizes; 256px fixture for editing/upscaling; output retrieval and image decoding. No visual-quality or browser UI assessment.",
+  "scope": "512px mapped image generation sizes; 384x256 mapped video base size; 256px fixture for editing/upscaling; output retrieval and media decoding. No visual-quality or browser UI assessment.",
   "unitTests": {
     "focusedRuntime": {
       "testsRun": 4,
       "passed": true
     },
     "fullSuite": {
-      "testsRun": 195,
+      "testsRun": 261,
       "failures": 1,
       "errorEntries": 12,
       "newRegressions": 0,
       "baseline": "Existing Admin provider-label assertion and Windows SQLite temporary-file cleanup errors; see docs/MANAGED_COMFYUI.md."
     }
   },
-  "environmentNote": "Isolated checkout and Python environment; candidate requirement pins installed locally; existing GPU libraries and model files reused read-only. Not a clean Pinokio install test."
+  "environmentNote": "Isolated checkout and Python environment; exact candidate requirement pins; existing GPU libraries and model files reused read-only. Includes all four configured Pinokio tools and all seven curated packs (nine input variants). Not a clean Pinokio install test."
 }
