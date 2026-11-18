@@ -67,8 +67,13 @@ class OpenRouterAdapter:
             resolutions = choices(resolution_values, RESOLUTIONS)
             if (ratio_values and not ratios) or (resolution_values and not resolutions):
                 continue
-            references = 1 if 'image' in architecture.get('input_modalities', []) else 0
-            models.append(Model(item['id'], label(item.get('name'), item['id'], key), ratios=ratios or ('1:1',), resolutions=resolutions or ('standard',), references=references, send_ratio=bool(ratios)))
+            capability = mapping(parameters.get('input_references'))
+            maximum = capability.get('max')
+            references = min(maximum, 2) if capability.get('type') == 'range' and type(maximum) is int and maximum > 0 else 0
+            minimum = capability.get('min', 0) if references else 0
+            if type(minimum) is not int or not 0 <= minimum <= min(references, 1):
+                continue
+            models.append(Model(item['id'], label(item.get('name'), item['id'], key), ratios=ratios or ('1:1',), resolutions=resolutions or ('standard',), references=references, requires_image=minimum == 1, send_ratio=bool(ratios)))
         return ModelDiscovery(list({model.id: model for model in models}.values()))
 
     async def submit(self, client, key, request):

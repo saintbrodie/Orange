@@ -92,7 +92,7 @@ capabilities.
 | OpenAI GPT Image 2.6 Flare | `gpt-image-2.6-flare` | Generate/edit, up to two references, square/landscape/portrait |
 | OpenAI GPT Image 2.5 | `gpt-image-2.5-sunburst`, `gpt-image-2.5-flare` | Same curated image controls |
 | OpenAI GPT Image 2 / 1.5 / 1 Mini | `gpt-image-2`, `gpt-image-1.5`, `gpt-image-1-mini` | Same curated image controls |
-| OpenRouter image catalog | Discovered from `/images/models` | Supported curated ratios/resolution tiers, up to one reference when advertised |
+| OpenRouter image catalog | Discovered from `/images/models` | Supported curated ratios/resolution tiers, up to two references when advertised |
 | Venice image/edit catalogs | Discovered from `/models?type=image` and `type=inpaint` | Supported ratios/resolution tiers; one required reference for editing models |
 | xAI Grok Imagine Image 2.0 | `grok-imagine-image-2.0` | Generate/edit, one optional or required reference, five curated ratios, 1K/2K |
 | xAI Grok Imagine Video 1.5 / Lite | `grok-imagine-video-1.5`, `grok-imagine-video-1.5-lite` | Text or starting-image video, 720p/1080p, 5/10/15 seconds |
@@ -201,7 +201,10 @@ respectively, but the documented REST endpoints provide every feature used here:
   send optional data URL references through `input_references`. Orange verifies
   the credential first with the authenticated
   [current-key endpoint](https://openrouter.ai/docs/api/api-reference/api-keys/get-current-key)
-  because the image catalog is public. Unsupported sizing parameters are omitted.
+  because the image catalog is public. Orange uses the catalog's `input_references`
+  range to decide whether to offer references and caps the count at two. Retest
+  the connection to refresh cached capabilities, then review any existing tools
+  whose reference settings no longer match the model.
 - [Venice model discovery](https://docs.venice.ai/api-reference/endpoint/models/list),
   [generation](https://docs.venice.ai/api-reference/endpoint/image/generate), and
   [editing](https://docs.venice.ai/api-reference/endpoint/image/edit): generators
@@ -224,8 +227,8 @@ or active jobs per process. Existing ComfyUI jobs retain their queue-aware
 routing, workflow mapping, asset upload, and safe failover engine behind the
 ComfyUI adapter.
 
-The API lifecycle is `queued → running → processing/downloading → completed`,
-or `failed`, `timed_out`, or `interrupted`. Status uses the existing
+The API lifecycle is `queued → submitting → processing/downloading → completed`,
+with separate `failed`, `delivery_failed`, `timed_out`, and `interrupted` states. Status uses the existing
 `/api/status` SSE contract. Processing stages are reported honestly; the adapters
 do not invent a numerical percentage when the provider supplies none.
 
@@ -240,13 +243,24 @@ do not invent a numerical percentage when the provider supplies none.
   Errors tell the administrator/user to check provider usage before regenerating.
 - At restart, known Google video, xAI video, Runway task, and fal request handles
   resume through GET-only polling and downloads.
-  Jobs without a safely resumable remote handle become interrupted. Orange never
-  silently repeats them, even if that means losing a synchronous image result.
+  A job still in the local queue can be generated again. If Orange was already
+  submitting the job and no handle was saved, check the provider's usage before
+  generating again. The submission may have been accepted.
+- When fetching a completed result fails, use **Retry download** in Generate.
+  Jobs that timed out with a saved handle offer the same action. Orange polls the
+  existing provider job and saves the recovered result under the same local job
+  ID. The provider must still retain the job and its output. This action is also
+  available via `POST /api/jobs/{job_id}/retry-download`.
 - Provider exception bodies, arbitrary response fields, and credentials are not
   written to job errors or usage logs. API redirects are rejected. Media delivery
   accepts only explicitly trusted provider/CDN HTTPS hosts, revalidates redirects,
   strips API headers and cookies, and enforces a 256 MiB streaming download limit.
   Signed output URLs are not persisted in the job ledger or usage history.
+
+Cloud generation uses Orange's existing trusted deployment model. Anyone who can
+reach Generate can run configured tools with the connected account's API keys.
+Keep access restricted to a trusted network and use provider-side spending limits
+where available. The local queue limit controls concurrent work, not spending.
 
 SQLite's `media_jobs` table stores the lifecycle, remote file handle, deadline,
 and local output manifest. Media is saved atomically under `runtime/media/`,

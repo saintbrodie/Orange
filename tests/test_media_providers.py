@@ -20,7 +20,7 @@ from app.api import generation_v2, media_providers as api, outputs, setup, statu
 from app.core import database as db, media_jobs as jobs, media_provider_config as config
 from app.core.config_validation import validate_config
 from app.core.media_providers import (
-    ADAPTERS, GoogleAdapter, Media, MediaRequest, OpenAIAdapter, ProviderError,
+    ADAPTERS, DeliveryError, GoogleAdapter, Media, MediaRequest, OpenAIAdapter, ProviderError,
     ProviderResult, _request, model_for, validate_api_tool,
 )
 from app.core.public_config import build_public_config
@@ -127,6 +127,26 @@ class AdapterTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(final.media[0].mime, "video/mp4")
         self.assertEqual(calls[-1].url.params["alt"], "media")
         self.assertNotIn("secret", str(calls[-1].url))
+
+    async def test_google_rejects_oversized_video_before_reading_body(self):
+        class UnreadableStream(httpx.AsyncByteStream):
+            async def __aiter__(self):
+                self.fail_if_buffered()
+                yield b''
+
+            @staticmethod
+            def fail_if_buffered():
+                raise AssertionError('Oversized video body was read')
+
+        def transport(request):
+            if request.url.path.endswith(':download'):
+                self.assertEqual(request.headers['x-goog-api-key'], 'key')
+                return httpx.Response(200, stream=UnreadableStream(), headers={'content-length': str(257 * 1024 * 1024)})
+            return httpx.Response(200, json={'state': 'ACTIVE'})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
+            with self.assertRaisesRegex(DeliveryError, 'local media limit'):
+                await GoogleAdapter().poll(client, 'key', 'files/video')
 
     async def test_pending_and_failed_video_files(self):
         adapter = GoogleAdapter()

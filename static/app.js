@@ -56,6 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const copyTextBtn = document.getElementById('copy-text-btn');
     const errorBanner = document.getElementById('error-banner');
     const errorMessage = document.getElementById('error-message');
+    const retryDownloadBtn = document.getElementById('retry-download-btn');
 
     // Init
     fetch(configUrl).then(res => res.json()).then(data => {
@@ -136,6 +137,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function selectTool(toolId) {
+        if (selectedToolId !== toolId) errorBanner.classList.add('hidden');
         selectedToolId = toolId;
         renderTools();
         renderAspectRatios();
@@ -402,6 +404,7 @@ document.addEventListener("DOMContentLoaded", () => {
     clearImage2Btn.addEventListener('click', clearImage2);
 
     function showError(msg) {
+        retryDownloadBtn.classList.add('hidden');
         errorMessage.innerText = msg;
         errorBanner.classList.remove('hidden');
     }
@@ -551,6 +554,9 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (data.status === 'error') {
                 evtSource.close();
                 showGenerationError(data.detail || "An error occurred during generation.");
+                if (data.retry_delivery && selectedToolId === toolId) {
+                    offerDownloadRetry(promptId, clientId, toolId);
+                }
             }
         };
 
@@ -720,6 +726,31 @@ document.addEventListener("DOMContentLoaded", () => {
         uiContainer.classList.remove('hidden');
         generateBtn.disabled = false;
         showError(msg);
+    }
+
+    function offerDownloadRetry(promptId, clientId, toolId) {
+        retryDownloadBtn.classList.remove('hidden');
+        retryDownloadBtn.onclick = async () => {
+            errorBanner.classList.add('hidden');
+            uiContainer.classList.add('hidden');
+            generatingLayer.classList.remove('hidden');
+            generatingLayer.classList.add('flex');
+            generateBtn.disabled = true;
+            document.getElementById('generating-title').innerText = 'Retrieving your result…';
+            document.getElementById('queue-status').innerText = 'Checking the existing job';
+
+            try {
+                const res = await fetch(`/api/jobs/${encodeURIComponent(promptId)}/retry-download`, {method: 'POST'});
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.detail || 'Could not retry the download.');
+                }
+                listenToQueue(promptId, clientId, toolId);
+            } catch (error) {
+                showGenerationError(error.message);
+                offerDownloadRetry(promptId, clientId, toolId);
+            }
+        };
     }
 
     function goBackToForm() {

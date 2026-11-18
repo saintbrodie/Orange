@@ -60,6 +60,8 @@ A fresh install opens a setup wizard. Orange connects to ComfyUI, scans the hard
 
 For cloud generation, select **Use cloud APIs only** during setup. Then configure **Admin → General Settings → API Keys**, test the connection to discover models, and create a tool under **Tools → Create API Tool**. See [API Providers](docs/API_PROVIDERS.md) for credentials, supported models, and retry behavior.
 
+Give Generate access only to people you trust to use your connected provider accounts. If a cloud result fails to download and **Retry download** appears, use it to retrieve the existing result without starting another generation.
+
 You can add curated tools later from **Admin → Tools → Curated Library**, or import your own API-format ComfyUI workflows.
 
 ## A quick look

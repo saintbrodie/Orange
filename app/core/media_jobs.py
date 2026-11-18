@@ -13,13 +13,14 @@ from PIL import Image
 
 from app.core.config import PROJECT_ROOT
 from app.core import database as db
-from app.core.media_providers import ADAPTERS, ProviderError, ProviderResult
+from app.core.media_providers import ADAPTERS, DeliveryError, ProviderError, ProviderResult
 from app.core.media_provider_config import credential
 from app.core.utils import metadata_scrubbing_enabled
 from app.core.terminal_events import emit_terminal_event
 
 OUTPUT_DIR = Path(PROJECT_ROOT) / "runtime" / "media"
-TERMINAL = {"completed", "failed", "timed_out", "interrupted"}
+RECOVERABLE = {"delivery_failed", "timed_out"}
+TERMINAL = {"completed", "failed", "interrupted"} | RECOVERABLE
 MAX_OUTPUT_BYTES = 256 * 1024 * 1024
 MAX_JOBS = 32
 
@@ -33,13 +34,17 @@ def get_job(job_id):
     return dict(row) if row else None
 
 
+def can_resume(job):
+    return bool(job["remote_id"] and getattr(ADAPTERS.get(job["provider"]), "resumable", False))
+
+
 def _update(job_id, status, *, remote_id=None, outputs=None, error=None, usage=None):
     with db._connect() as conn:
         conn.execute("UPDATE media_jobs SET status=?, updated=?, remote_id=COALESCE(?,remote_id), outputs=COALESCE(?,outputs), error=? WHERE id=?",
                      (status, time.time(), remote_id, json.dumps(outputs) if outputs is not None else None, error, job_id))
         conn.execute("UPDATE usage SET status=?, error=?, usage_json=COALESCE(?,usage_json) WHERE prompt_id=?",
                      (status, error, json.dumps(usage) if usage is not None else None, job_id))
-    labels = {"running": "Generating", "scrubbing": "Removing metadata", "completed": "Generation complete", "failed": "Generation failed", "timed_out": "Generation timed out", "interrupted": "Generation interrupted"}
+    labels = {"running": "Generating", "submitting": "Generating", "scrubbing": "Removing metadata", "completed": "Generation complete", "failed": "Generation failed", "delivery_failed": "Result delivery failed", "timed_out": "Generation timed out", "interrupted": "Generation interrupted"}
     if status in labels:
         job = get_job(job_id)
         emit_terminal_event("api_generation", "complete" if status == "completed" else "failed" if status in TERMINAL else "working", f"{job['provider']}: {labels[status]}")
@@ -170,12 +175,16 @@ class MediaJobManager:
         self.slots = asyncio.Semaphore(2)
         with db._connect() as conn:
             conn.row_factory = sqlite3.Row
-            pending = [dict(row) for row in conn.execute("SELECT * FROM media_jobs WHERE status NOT IN ('completed','failed','timed_out','interrupted')")]
+            placeholders = ','.join('?' for _ in TERMINAL)
+            pending = [dict(row) for row in conn.execute(f"SELECT * FROM media_jobs WHERE status NOT IN ({placeholders})", tuple(TERMINAL))]
         for job in pending:
-            if job["remote_id"] and getattr(ADAPTERS.get(job["provider"]), "resumable", False):
+            if can_resume(job):
                 self._schedule(job["id"])
             else:
-                _update(job["id"], "interrupted", error="Orange restarted before this job finished. The provider may have accepted the request; check provider usage before trying again.")
+                detail = "Orange restarted before submitting this queued job. You can generate it again."
+                if job["status"] != "queued":
+                    detail = "Orange restarted without a provider job ID. The provider may have accepted the request. Check provider usage before generating again."
+                _update(job["id"], "interrupted", error=detail)
 
     async def stop(self):
         tasks = list(self.tasks.values())
@@ -200,6 +209,23 @@ class MediaJobManager:
         self._schedule(job_id, request)
         return {"prompt_id": job_id, "client_id": job_id, "provider": provider}
 
+    def retry_delivery(self, job):
+        job_id = job['id']
+        if job['status'] not in RECOVERABLE or not can_resume(job) or job_id in self.tasks:
+            raise ValueError('This job is not available for download retry.')
+        if len(self.tasks) >= MAX_JOBS:
+            raise ProviderError("Orange's API generation queue is full. Try again later.")
+        now = time.time()
+        # Keep the original creation date and grant retrieval its own deadline.
+        timeout = max(0, now - job['created']) + 300
+        with db._connect() as conn:
+            changed = conn.execute("UPDATE media_jobs SET status='processing', updated=?, timeout=?, error=NULL WHERE id=? AND status=?",
+                                   (now, timeout, job_id, job['status']))
+            if not changed.rowcount:
+                raise ValueError('This job is not available for download retry.')
+            conn.execute("UPDATE usage SET status='processing', error=NULL WHERE prompt_id=?", (job_id,))
+        self._schedule(job_id)
+
     async def _run(self, job_id, request):
         job = get_job(job_id)
         try:
@@ -212,6 +238,8 @@ class MediaJobManager:
             raise
         except asyncio.TimeoutError:
             _update(job_id, "timed_out", error="Generation timed out. The provider may still finish or charge for this request; check provider usage before trying again.")
+        except DeliveryError as exc:
+            _update(job_id, "delivery_failed", error=str(exc))
         except ProviderError as exc:
             _update(job_id, "failed", error=str(exc))
         except Exception:
@@ -224,11 +252,18 @@ class MediaJobManager:
             key = credential(job["provider"])
             if not key:
                 raise ProviderError("Provider credential is unavailable. Configure it in Admin.")
-            _update(job["id"], "running")
             async with httpx.AsyncClient(timeout=httpx.Timeout(600, connect=15), follow_redirects=False) as client:
-                result = ProviderResult(remote_id=job["remote_id"]) if job["remote_id"] else await adapter.submit(client, key, request)
+                remote_id = job["remote_id"]
+                if remote_id:
+                    result = ProviderResult(remote_id=remote_id)
+                elif request is not None:
+                    _update(job["id"], "submitting")
+                    result = await adapter.submit(client, key, request)
+                else:
+                    raise ProviderError('This job has no provider ID to retrieve.')
                 if result.remote_id:
-                    _update(job["id"], "processing", remote_id=result.remote_id, usage=result.usage)
+                    remote_id = result.remote_id
+                    _update(job["id"], "processing", remote_id=remote_id, usage=result.usage)
                 while not result.media and result.remote_id:
                     await asyncio.sleep(5)
                     result = await adapter.poll(client, key, result.remote_id)
@@ -236,7 +271,12 @@ class MediaJobManager:
                 scrub = metadata_scrubbing_enabled()
                 if scrub:
                     _update(job["id"], "scrubbing")
-                outputs = _store_outputs(job["id"], result.media, job["output_type"], scrub=scrub)
+                try:
+                    outputs = _store_outputs(job["id"], result.media, job["output_type"], scrub=scrub)
+                except OSError:
+                    if remote_id and getattr(adapter, 'resumable', False):
+                        raise DeliveryError('Orange could not save the generated media locally.') from None
+                    raise
                 _update(job["id"], "completed", outputs=outputs, usage=result.usage or None)
 
 
@@ -253,6 +293,8 @@ async def status_events(request, job_id):
         event = {"status": "queue", "position": queue_position(job)} if state == "queued" else {"status": "executing", "message": "Generating..."}
         if state in TERMINAL:
             event = {"status": "completed"} if state == "completed" else {"status": "error", "detail": job["error"] or "Generation failed."}
+            if state in RECOVERABLE and can_resume(job):
+                event['retry_delivery'] = True
         elif state == "scrubbing":
             event = {"status": "executing", "message": "Removing metadata…"}
         elif state in {"processing", "downloading"}:

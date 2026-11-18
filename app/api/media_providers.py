@@ -8,9 +8,23 @@ from app.api.admin import verify_admin
 from app.api.generate import MAX_UPLOAD_BYTES, _read_validated_image
 from app.core import media_provider_config as config
 from app.core.media_providers import ADAPTERS, ModelDiscovery, MediaRequest, ProviderError, provider_models, validate_api_tool
-from app.core.media_jobs import job_manager
+from app.core.media_jobs import get_job, job_manager
 
 router = APIRouter()
+
+
+@router.post('/api/jobs/{job_id}/retry-download', status_code=202)
+async def retry_download(job_id: str):
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(404, 'Generation was not found.')
+    try:
+        job_manager.retry_delivery(job)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from None
+    except ProviderError as exc:
+        raise HTTPException(503, str(exc)) from None
+    return {'prompt_id': job_id}
 
 
 @router.get("/api/admin/credentials/civitai")

@@ -27,7 +27,7 @@ def png(size=(256, 256)):
 
 def image_record(model_id='bytedance-seed/seedream-4.5', **changes):
     return {'id': model_id, 'name': 'Seedream 4.5', 'architecture': {'input_modalities': ['text', 'image'], 'output_modalities': ['image']},
-            'supported_parameters': {'aspect_ratio': {'type': 'enum', 'values': ['1:1', '3:4']}, 'resolution': {'type': 'enum', 'values': ['1K', '2K']}}, **changes}
+            'supported_parameters': {'aspect_ratio': {'type': 'enum', 'values': ['1:1', '3:4']}, 'resolution': {'type': 'enum', 'values': ['1K', '2K']}, 'input_references': {'type': 'range', 'min': 0, 'max': 14}}, **changes}
 
 
 def venice_record(model_id='qwen-image-3', kind='image', **constraints):
@@ -68,6 +68,8 @@ class AggregatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(r.method == 'GET' and r.headers['authorization'] == 'Bearer private-key' for r in calls))
         self.assertEqual([m.id for m in result.models], ['bytedance-seed/seedream-4.5', 'vendor/fixed'])
         self.assertEqual(result.models[0].ratios, ('1:1', '3:4'))
+        self.assertEqual(result.models[0].references, 2)
+        self.assertEqual(result.models[1].references, 0)
         self.assertFalse(result.models[1].send_ratio)
         self.assertEqual(result.models[1].resolutions, ('standard',))
 

@@ -6,7 +6,7 @@ is required: Orange already owns an asynchronous httpx transport.
 import base64
 import binascii
 import re
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urlsplit
 from dataclasses import dataclass, field
 
 import httpx
@@ -164,6 +164,10 @@ class ProviderResult:
 
 class ProviderError(Exception):
     """Only constant public messages cross the adapter boundary."""
+
+
+class DeliveryError(ProviderError):
+    """The provider finished, but Orange could not retrieve the output."""
 
 
 def _decode(data):
@@ -342,6 +346,8 @@ class GoogleAdapter:
         return value
 
     async def poll(self, client, key, remote_id):
+        from app.core.media_downloads import download_media
+
         name = self.file_id(remote_id)
         payload = _json(await _request(client, "GET", f"{self.base}/{name}", headers=self.headers(key)))
         if payload.get("state") == "FAILED":
@@ -349,21 +355,8 @@ class GoogleAdapter:
         if payload.get("state") != "ACTIVE":
             return ProviderResult(remote_id=name)
         url = f"{self.base}/{name}:download?alt=media"
-        headers = self.headers(key)
-        for _ in range(4):
-            response = await _request(client, "GET", url, headers=headers, allow_redirect=True)
-            if not response.is_redirect:
-                break
-            url = urljoin(url, response.headers.get("location", ""))
-            parsed = urlsplit(url)
-            trusted_host = parsed.hostname == "storage.googleapis.com" or (parsed.hostname or "").endswith(".googleusercontent.com")
-            same_origin = parsed.hostname == "generativelanguage.googleapis.com"
-            if parsed.scheme != "https" or parsed.port not in (None, 443) or parsed.username or parsed.password or not (trusted_host or same_origin):
-                raise ProviderError("Provider returned an unsupported media location.")
-            headers = self.headers(key) if same_origin else {}
-        if response.status_code != 200:
-            raise ProviderError("Provider could not return the video.")
-        return ProviderResult(media=[Media(response.content, "video/mp4")])
+        media = await download_media(client, 'google', url, 'video', google_headers=self.headers(key))
+        return ProviderResult(media=[media])
 
 
 class LazyAdapter:

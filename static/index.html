@@ -134,7 +134,10 @@
                 <!-- Error Banner -->
                 <div id="error-banner" class="hidden bg-red-950/50 border border-red-900 text-red-200 px-4 py-3 rounded-2xl text-sm flex items-start gap-3">
                     <i data-lucide="alert-circle" class="w-5 h-5 shrink-0 mt-0.5"></i>
-                    <span id="error-message">Something went wrong.</span>
+                    <div>
+                        <span id="error-message">Something went wrong.</span>
+                        <button id="retry-download-btn" type="button" class="hidden mt-2 block font-semibold underline">Retry download</button>
+                    </div>
                 </div>
 
                 <button id="generate-btn" class="w-full bg-gradient-to-r from-orange-600 to-orange-500 text-white font-semibold flex items-center justify-center gap-3 rounded-2xl py-5 hover:from-orange-500 hover:to-orange-400 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(249,115,22,0.2)] text-lg">
@@ -240,6 +243,6 @@
         <div class="mesh-overlay"></div>
     </div>
 
-    <script src="/static/app.js?v=16"></script>
+    <script src="/static/app.js?v=17"></script>
 </body>
 </html>

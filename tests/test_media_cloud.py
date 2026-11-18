@@ -238,6 +238,56 @@ class CloudJobTests(unittest.IsolatedAsyncioTestCase):
         for item in reversed(self.patches): item.stop()
         self.temp.cleanup()
 
+    async def test_retry_download_recovers_completed_runway_job_without_resubmitting(self):
+        app = FastAPI()
+        app.include_router(api.router)
+        app.include_router(outputs.router)
+        app.include_router(generation_v2.router)
+        native = httpx.AsyncClient
+        calls = []
+        download_available = False
+
+        def transport(request):
+            calls.append(request)
+            if request.method == 'POST':
+                return httpx.Response(200, json={'id': 'paid-task'})
+            if request.url.path == '/v1/tasks/paid-task':
+                return httpx.Response(200, json={'status': 'SUCCEEDED', 'output': ['https://dnznrvs05pmza.cloudfront.net/file.png']})
+            if not download_available:
+                return httpx.Response(503)
+            return httpx.Response(200, content=png(), headers={'content-type': 'image/png'})
+
+        def factory(**kwargs):
+            return native(transport=httpx.MockTransport(transport), **kwargs)
+
+        value = tool('runway', 'gen4_image')
+        with patch.object(generation_v2, 'get_tool_settings', return_value=value), patch.object(api, 'job_manager', self.manager), patch.object(config, 'ready', return_value=True), patch.object(jobs.httpx, 'AsyncClient', side_effect=factory), patch('asyncio.sleep', new=AsyncMock()):
+            async with native(transport=httpx.ASGITransport(app=app), base_url='http://orange') as client:
+                response = await client.post('/api/generate', data={'tool_id': value['id'], 'prompt': 'An orange'})
+                job_id = response.json()['prompt_id']
+                await self.manager.tasks[job_id]
+                self.assertEqual(jobs.get_job(job_id)['status'], 'delivery_failed')
+                self.assertEqual(db.get_generation_record(job_id)['status'], 'delivery_failed')
+                connection = AsyncMock()
+                connection.is_disconnected.return_value = False
+                events = [json.loads(event) async for event in jobs.status_events(connection, job_id)]
+                self.assertTrue(events[-1]['retry_delivery'])
+                await self.manager.start()
+                self.assertNotIn(job_id, self.manager.tasks)
+
+                download_available = True
+                retry_url = f'/api/jobs/{job_id}/retry-download'
+                retry = await client.post(retry_url)
+                self.assertEqual(retry.status_code, 202, retry.text)
+                task = self.manager.tasks.get(job_id)
+                if task:
+                    await task
+                self.assertEqual((await client.post(retry_url)).status_code, 409)
+                output = await client.get('/api/output', params={'prompt_id': job_id, 'type': 'image'})
+                self.assertEqual(output.status_code, 200)
+                self.assertEqual(db.get_generation_record(job_id)['status'], 'completed')
+        self.assertEqual(sum(request.method == 'POST' for request in calls), 1)
+
     async def test_http_generation_polling_local_outputs_and_history_for_all_three(self):
         app = FastAPI(); app.include_router(generation_v2.router); app.include_router(outputs.router)
         native = httpx.AsyncClient
