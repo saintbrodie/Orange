@@ -30,10 +30,10 @@
                 </div>
             </div>
             
-            <!-- VRAM Warning -->
+            <!-- Generation queue warning -->
             <div id="vram-warning" class="hidden w-full bg-orange-950/60 border border-orange-600/50 rounded-xl p-3 mb-4 mt-4 flex items-center justify-between text-orange-500 shadow-[0_0_15px_rgba(234,88,12,0.2)]">
                 <i data-lucide="flame" class="w-5 h-5 shrink-0 animate-pulse"></i>
-                <div class="text-[11px] leading-tight font-medium text-center px-2">Server under heavy load.<br>Generations may be slow.</div>
+                <div class="text-[11px] leading-tight font-medium text-center px-2">Generation backends are busy.<br>New requests may wait in the queue.</div>
                 <i data-lucide="flame" class="w-5 h-5 shrink-0 animate-pulse"></i>
             </div>
 
@@ -112,6 +112,10 @@
                         </div>
                     </div>
 
+                    <div id="resolution-container" class="hidden space-y-3">
+                        <label for="resolution-input" class="text-xs font-bold uppercase tracking-wider text-zinc-500">Resolution</label>
+                        <select id="resolution-input" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3 text-sm"></select>
+                    </div>
                     <div id="duration-container" class="hidden space-y-3">
                         <label for="duration-input" class="text-xs font-medium text-zinc-500 uppercase tracking-widest pl-1">Length</label>
                         <select id="duration-input" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-zinc-200"></select>
@@ -130,7 +134,10 @@
                 <!-- Error Banner -->
                 <div id="error-banner" class="hidden bg-red-950/50 border border-red-900 text-red-200 px-4 py-3 rounded-2xl text-sm flex items-start gap-3">
                     <i data-lucide="alert-circle" class="w-5 h-5 shrink-0 mt-0.5"></i>
-                    <span id="error-message">Something went wrong.</span>
+                    <div>
+                        <span id="error-message">Something went wrong.</span>
+                        <button id="retry-download-btn" type="button" class="hidden mt-2 block font-semibold underline">Retry download</button>
+                    </div>
                 </div>
 
                 <button id="generate-btn" class="w-full bg-gradient-to-r from-orange-600 to-orange-500 text-white font-semibold flex items-center justify-center gap-3 rounded-2xl py-5 hover:from-orange-500 hover:to-orange-400 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(249,115,22,0.2)] text-lg">
@@ -236,6 +243,6 @@
         <div class="mesh-overlay"></div>
     </div>
 
-    <script src="/static/app.js?v=15"></script>
+    <script src="/static/app.js?v=17"></script>
 </body>
 </html>

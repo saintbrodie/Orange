@@ -241,6 +241,15 @@ async def complete_setup(payload: dict, request: Request):
     if len(admin_key) < 8:
         raise HTTPException(status_code=400, detail="Admin password must be at least 8 characters")
 
+    if payload.get("apiOnly") is True:
+        if payload.get("selectedPacks"):
+            raise HTTPException(400, "ComfyUI workflow packs require a ComfyUI connection.")
+        config = dict(load_config())
+        config.update(adminKey=admin_key, tools=[], comfyServers=[], apiOnly=True)
+        save_config(config)
+        mark_setup_complete()
+        return {"status": "complete", "packs": [], "queuedPackCount": 0, "redirect": "/admin"}
+
     comfy_url = _normalize_url(payload.get("comfyUrl") or "http://127.0.0.1:8188")
     requested_root = str(payload.get("modelsRoot") or "").strip() or None
     known_packs = {str(pack["id"]) for pack in list_workflow_packs()}
@@ -273,6 +282,7 @@ async def complete_setup(payload: dict, request: Request):
         }
     config["adminKey"] = admin_key
     config["comfyServers"] = [server]
+    config.pop("apiOnly", None)
     save_config(config)
     mark_setup_complete()
     await backend_manager.refresh_all()

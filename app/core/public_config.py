@@ -45,6 +45,15 @@ def _public_tool(tool: Any) -> dict:
         "outputType": tool.get("outputType", "image"),
         "nodeMapping": public_mapping,
     }
+    if tool.get("provider", "comfyui") != "comfyui":
+        from app.core.media_tool_inputs import public_api_inputs
+        try:
+            result.update(public_api_inputs(tool))
+        except ValueError:
+            return {}
+        if isinstance(tool.get("promptEnhance"), dict):
+            result["promptEnhance"] = {"enabled": tool["promptEnhance"].get("enabled", True) is not False}
+        return result
 
     if isinstance(tool.get("imageVariant"), dict):
         result["firstFrame"] = True

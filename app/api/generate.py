@@ -22,7 +22,7 @@ from app.core.backends import (
 from app.core.config import get_base_workflow, get_comfy_servers, get_system_prompt, get_tool_settings, load_config
 from app.core.database import get_backend_for_prompt, log_usage
 from app.core.llm import call_llm
-from app.core.utils import strip_metadata
+from app.core.utils import strip_metadata, metadata_scrubbing_enabled
 from app.core.workflow_assets import find_managed_asset_references
 
 router = APIRouter()
@@ -293,6 +293,8 @@ async def get_output(prompt_id: str, type: str = "image"):
 
     raw_bytes = file_res.content
 
+    if type == "image" and not metadata_scrubbing_enabled():
+        return StreamingResponse(io.BytesIO(raw_bytes), media_type=file_res.headers.get("content-type", "image/png"))
     if type == "image":
         try:
             clean_bytes, media_type = strip_metadata(raw_bytes)

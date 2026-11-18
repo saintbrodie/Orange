@@ -4,7 +4,7 @@
   <img src="docs/screenshots/generate.webp" width="100%" alt="Orange Generate UI" />
 </p>
 
-Orange is a small web frontend for **ComfyUI**. It turns finished ComfyUI workflows into simple tools that people can use without seeing the node graph, model setup, or backend details.
+Orange is a small, local-first media generation frontend for **ComfyUI and cloud APIs**. It turns finished workflows and API models into simple tools that people can use without seeing the node graph, model setup, or backend details.
 
 > **Smarter internals, simpler surface.**
 
@@ -13,6 +13,7 @@ ComfyUI is where the workflow gets built. Orange is where people use it.
 ## Highlights
 
 - **Simple generation UI.** Show people the controls they actually need, like a prompt, reference image, or aspect ratio.
+- **Native cloud generation.** Create curated image and video tools with Google, OpenAI, OpenRouter, Venice, xAI, Runway, and fal.ai. Keep credentials server-side and store results locally; ComfyUI is optional.
 - **Bring your own workflows.** Orange works with image generation, editing, upscaling, video, audio, and text workflows exported from ComfyUI.
 - **Preflight and portable models.** Check nodes, mappings, and assets; resolve model folders per backend and remember explicit choices for duplicate filenames.
 - **Optional curated tools.** Filter image, editing, video, and utility workflows. Reuse compatible installed models and add optional first-frame or reference uploads to your own tools too.
@@ -40,7 +41,7 @@ Pinokio does not download workflow models up front. Orange checks the connected 
 
 ### Manual / GitHub
 
-You need Python 3 and a reachable ComfyUI instance.
+You need Python 3 and either a cloud API credential or a reachable ComfyUI instance.
 
 Clone the repository, then start Orange:
 
@@ -56,6 +57,10 @@ The launchers create the Python environment, sync dependencies when needed, keep
 ## First run
 
 A fresh install opens a setup wizard. Orange connects to ComfyUI, scans the hardware, nodes, and model inventory, then lets you add curated tools or skip them entirely. Missing model downloads are shown before anything changes, and selected tools go through Workflow Preflight before they are exposed.
+
+For cloud generation, select **Use cloud APIs only** during setup. Then configure **Admin → General Settings → API Keys**, test the connection to discover models, and create a tool under **Tools → Create API Tool**. See [API Providers](docs/API_PROVIDERS.md) for credentials, supported models, and retry behavior.
+
+Give Generate access only to people you trust to use your connected provider accounts. If a cloud result fails to download and **Retry download** appears, use it to retrieve the existing result without starting another generation.
 
 You can add curated tools later from **Admin → Tools → Curated Library**, or import your own API-format ComfyUI workflows.
 
@@ -87,6 +92,7 @@ You can add curated tools later from **Admin → Tools → Curated Library**, or
 ## Documentation
 
 - [Architecture Overview](docs/ARCHITECTURE.md)
+- [API Providers & Cloud Generation](docs/API_PROVIDERS.md)
 - [Adding Your Own Workflows](docs/adding_workflows.md)
 - [Curated Workflow Packs](docs/WORKFLOW_PACKS.md)
 - [Managed ComfyUI Lifecycle](docs/MANAGED_COMFYUI.md)

@@ -278,6 +278,8 @@ lucide.createIcons();
                         <td class="px-6 py-3 text-zinc-400">${localTime}</td>
                         <td class="px-6 py-3 font-mono text-zinc-300">${log.client_ip}</td>
                         <td class="px-6 py-3 font-medium text-orange-400">${log.tool_id}</td>
+                        <td class="px-6 py-3 text-zinc-400">${log.provider || 'comfyui'}${log.model ? `<br><span class="text-xs">${log.model}</span>` : ''}</td>
+                        <td class="px-6 py-3 text-zinc-400">${log.status || 'queued'}</td>
                         <td class="px-6 py-3 text-zinc-400 max-w-xs truncate" title="${log.prompt || ''}">${promptSnippet}</td>
                     </tr>
                 `;
@@ -302,7 +304,7 @@ lucide.createIcons();
                     return;
                 }
 
-                const headers = ['ID', 'Timestamp', 'Client IP', 'Tool ID', 'Prompt'];
+                const headers = ['ID', 'Timestamp', 'Client IP', 'Tool ID', 'Prompt', 'Provider', 'Model', 'Status'];
 
                 const escapeCSV = (str) => {
                     if (str === null || str === undefined) return '';
@@ -318,7 +320,10 @@ lucide.createIcons();
                     escapeCSV(log.timestamp),
                     escapeCSV(log.client_ip),
                     escapeCSV(log.tool_id),
-                    escapeCSV(log.prompt)
+                    escapeCSV(log.prompt),
+                    escapeCSV(log.provider || 'comfyui'),
+                    escapeCSV(log.model),
+                    escapeCSV(log.status)
                 ]);
 
                 const csvContent = [headers.map(escapeCSV).join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -434,6 +439,8 @@ lucide.createIcons();
         const llmDefaults = {
             managed: "",
             openai: "https://api.openai.com/v1",
+            "openai-cloud": "",
+            "openai-compatible": "http://127.0.0.1:11434/v1",
             ollama: "http://127.0.0.1:11434",
             gemini: "https://generativelanguage.googleapis.com",
             anthropic: "https://api.anthropic.com"
@@ -444,6 +451,10 @@ lucide.createIcons();
                 const provider = e.target.value;
                 const urlInput = document.getElementById('setting-llm-baseurl');
                 const currentUrl = urlInput.value.trim();
+                activeFetchedModels = [];
+                document.getElementById('setting-llm-apikey').value = '';
+                if (provider === 'openai-compatible') urlInput.value = llmDefaults[provider];
+                else urlInput.value = '';
                 
                 const defaultUrls = Object.values(llmDefaults);
                 if (!currentUrl || defaultUrls.includes(currentUrl)) {
@@ -456,7 +467,7 @@ lucide.createIcons();
                     'setting-llm-model-custom-container',
                     'setting-llm-model-custom',
                     provider,
-                    document.getElementById('setting-llm-model').value,
+                    '',
                     activeFetchedModels
                 );
                 if (window.syncManagedEnhancerProviderUI) window.syncManagedEnhancerProviderUI();
@@ -475,8 +486,8 @@ lucide.createIcons();
                 e.preventDefault();
                 const btn = document.getElementById('fetch-models-btn');
                 const provider = document.getElementById('setting-llm-provider').value;
-                const baseUrl = document.getElementById('setting-llm-baseurl').value.trim();
-                const apiKey = document.getElementById('setting-llm-apikey').value.trim();
+                const baseUrl = provider === 'openai-compatible' ? document.getElementById('setting-llm-baseurl').value.trim() : '';
+                const apiKey = provider === 'openai-compatible' ? document.getElementById('setting-llm-apikey').value.trim() : '';
                 
                 const origHTML = btn.innerHTML;
                 btn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>';
@@ -1101,6 +1112,9 @@ lucide.createIcons();
                 const cRes = await adminFetch('/api/admin/config');
                 if (cRes.ok) {
                     appConfig = await cRes.json();
+                    document.getElementById("setting-scrub-metadata").checked = appConfig.scrubMetadata !== false;
+                    if (window.OrangeMediaAdmin) await OrangeMediaAdmin.refreshProviders();
+                    if (window.OrangeCredentials) await OrangeCredentials.refresh();
 
                     await loadHfTokenStatus();
 
@@ -1120,7 +1134,8 @@ lucide.createIcons();
                     // Populate global LLM settings
                     const llm = appConfig.llm || {};
                     const legacyOllamaProvider = llm.provider === 'ollama';
-                    const llmUiProvider = legacyOllamaProvider ? 'openai' : (llm.provider || 'openai');
+                    const legacyCompatible = llm.provider === 'openai' && llm.baseUrl && !/^https:\/\/api\.openai\.com(?:\/|$)/i.test(llm.baseUrl);
+                    const llmUiProvider = legacyOllamaProvider || legacyCompatible ? 'openai-compatible' : llm.provider === 'openai' ? 'openai-cloud' : (llm.provider || 'openai-compatible');
                     let llmUiBaseUrl = llm.baseUrl || '';
                     if (legacyOllamaProvider) {
                         llmUiBaseUrl = (llmUiBaseUrl || 'http://127.0.0.1:11434').replace(/\/+$/, '');
@@ -1128,8 +1143,8 @@ lucide.createIcons();
                     }
                     document.getElementById('setting-llm-enabled').checked = !!llm.enabled;
                     document.getElementById('setting-llm-provider').value = llmUiProvider;
-                    document.getElementById('setting-llm-baseurl').value = llmUiBaseUrl;
-                    document.getElementById('setting-llm-apikey').value = llm.apiKey || '';
+                    document.getElementById('setting-llm-baseurl').value = llmUiProvider === 'openai-compatible' ? (llmUiBaseUrl || llmDefaults['openai-compatible']) : '';
+                    document.getElementById('setting-llm-apikey').value = llmUiProvider === 'openai-compatible' ? (llm.apiKey || '') : '';
                     
                     try {
                         const gpRes = await adminFetch('/api/admin/prompts/global');
@@ -1188,7 +1203,7 @@ lucide.createIcons();
                     modifySelect.innerHTML = '<option value="">Select a tool...</option>';
                     // Only show tools that accept image input
                     (appConfig.tools || []).forEach(t => {
-                        if (t.nodeMapping && t.nodeMapping.image) {
+                        if ((t.nodeMapping && t.nodeMapping.image) || (t.provider && t.api?.references > 0)) {
                             modifySelect.innerHTML += `<option value="${t.id}">${t.name} (${t.id})</option>`;
                         }
                     });
@@ -1349,6 +1364,12 @@ lucide.createIcons();
         });
 
         async function selectTool(index) {
+            if (appConfig.tools[index]?.provider && appConfig.tools[index].provider !== 'comfyui') {
+                editingToolIndex = index;
+                renderToolsList();
+                return window.OrangeMediaAdmin.editTool(index);
+            }
+            document.getElementById('api-tool-editor')?.classList.add('hidden');
             editingToolIndex = index;
             renderToolsList();
             document.getElementById('tool-editor-empty').classList.add('hidden');
@@ -1739,6 +1760,7 @@ lucide.createIcons();
         document.getElementById('save-settings-btn').addEventListener('click', async () => {
             if (!appConfig) return;
 
+            appConfig.scrubMetadata = document.getElementById("setting-scrub-metadata").checked;
             appConfig.adminKey = document.getElementById('setting-admin-key').value.trim();
             appConfig.targetMegapixels = document.getElementById('setting-target-mp').value;
 
@@ -1755,8 +1777,8 @@ lucide.createIcons();
                 enabled: document.getElementById('setting-llm-enabled').checked,
                 provider: providerVal,
                 model: modelVal,
-                baseUrl: providerVal === 'managed' ? '' : document.getElementById('setting-llm-baseurl').value.trim(),
-                apiKey: providerVal === 'managed' ? '' : document.getElementById('setting-llm-apikey').value.trim()
+                baseUrl: providerVal !== 'openai-compatible' ? '' : document.getElementById('setting-llm-baseurl').value.trim(),
+                apiKey: providerVal !== 'openai-compatible' ? '' : document.getElementById('setting-llm-apikey').value.trim()
             };
 
             appConfig.aspectRatios = {};

@@ -1,18 +1,24 @@
 import os
 import sqlite3
+from contextlib import contextmanager, closing
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DB_PATH = os.path.join(PROJECT_ROOT, "usage_logs.db")
 
 
+@contextmanager
 def _connect(path: str = None):
     database_path = os.path.abspath(path or DB_PATH)
     conn = sqlite3.connect(database_path, timeout=5.0)
-    conn.execute("PRAGMA busy_timeout = 5000")
-    if database_path == os.path.abspath(DB_PATH):
-        conn.execute("PRAGMA journal_mode = WAL")
-        conn.execute("PRAGMA synchronous = NORMAL")
-    return conn
+    try:
+        conn.execute("PRAGMA busy_timeout = 5000")
+        if database_path == os.path.abspath(DB_PATH):
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA synchronous = NORMAL")
+        with conn:
+            yield conn
+    finally:
+        conn.close()
 
 
 def _usage_retention_days() -> int:
@@ -45,6 +51,12 @@ def init_db():
             ("backend_url", "TEXT"),
             ("status", "TEXT DEFAULT 'queued'"),
             ("error", "TEXT"),
+            ("provider", "TEXT DEFAULT 'comfyui'"),
+            ("model", "TEXT"),
+            ("estimated_cost", "REAL"),
+            ("cost_currency", "TEXT DEFAULT 'USD'"),
+            ("user_id", "TEXT"),
+            ("usage_json", "TEXT"),
         ]
         for column, definition in migrations:
             try:
@@ -56,6 +68,13 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON usage(timestamp)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_status_timestamp ON usage(status, timestamp)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_tool_timestamp ON usage(tool_id, timestamp)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_user_provider ON usage(user_id, provider, timestamp)")
+        conn.execute("""CREATE TABLE IF NOT EXISTS media_jobs (
+            id TEXT PRIMARY KEY, provider TEXT NOT NULL, model TEXT NOT NULL,
+            output_type TEXT NOT NULL, status TEXT NOT NULL, created REAL NOT NULL,
+            updated REAL NOT NULL, timeout REAL NOT NULL, remote_id TEXT,
+            outputs TEXT NOT NULL DEFAULT '[]', error TEXT
+        )""")
 
         retention_days = _usage_retention_days()
         if retention_days > 0:
@@ -154,7 +173,7 @@ def delete_usage(prompt_id: str):
 
 
 def validate_database(path: str) -> None:
-    with sqlite3.connect(path, timeout=5.0) as conn:
+    with closing(sqlite3.connect(path, timeout=5.0)) as conn:
         quick_check = conn.execute("PRAGMA quick_check").fetchone()
         if not quick_check or quick_check[0] != "ok":
             raise ValueError("SQLite integrity check failed")
@@ -172,7 +191,7 @@ def backup_database(destination_path: str) -> str:
     if os.path.exists(destination_path):
         os.remove(destination_path)
 
-    with _connect() as source, sqlite3.connect(destination_path, timeout=5.0) as destination:
+    with _connect() as source, closing(sqlite3.connect(destination_path, timeout=5.0)) as destination:
         source.backup(destination)
         destination.commit()
         # A downloaded backup should be a single portable file rather than relying
@@ -189,7 +208,7 @@ def restore_database(source_path: str, backup_path: str = None) -> None:
     if backup_path and os.path.exists(DB_PATH):
         backup_database(backup_path)
 
-    with sqlite3.connect(source_path, timeout=5.0) as source, _connect() as destination:
+    with closing(sqlite3.connect(source_path, timeout=5.0)) as source, _connect() as destination:
         source.backup(destination)
         destination.commit()
         try:

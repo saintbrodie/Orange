@@ -6,7 +6,8 @@ from urllib.parse import urlsplit, urlunsplit
 import httpx
 
 
-SUPPORTED_PROVIDERS = {"managed", "openai", "ollama", "gemini", "anthropic"}
+SUPPORTED_PROVIDERS = {"managed", "openai", "openai-cloud", "openai-compatible", "openrouter", "venice", "xai", "ollama", "gemini", "anthropic"}
+CLOUD_COMPATIBLE_URLS = {'openrouter': 'https://openrouter.ai/api/v1', 'venice': 'https://api.venice.ai/api/v1', 'xai': 'https://api.x.ai/v1'}
 ENV_KEYS = {
     "openai": "OPENAI_API_KEY",
     "gemini": "GEMINI_API_KEY",
@@ -25,6 +26,21 @@ class LLMError(Exception):
 class LLMConfigError(LLMError):
     def __init__(self, public_message: str, technical_message: Optional[str] = None):
         super().__init__(public_message, technical_message or public_message, status_code=400)
+
+
+def _cloud_connection(provider, base_url, api_key):
+    if provider in CLOUD_COMPATIBLE_URLS:
+        from app.core.media_provider_config import credential
+        try:
+            api_key = credential(provider)
+        except OSError:
+            raise LLMConfigError("Configure this provider's credential under API Keys.") from None
+        if not api_key:
+            raise LLMConfigError("Configure this provider's credential under API Keys.")
+        return 'openai-compatible', CLOUD_COMPATIBLE_URLS[provider], api_key
+    if provider == 'openai-cloud':
+        return 'openai', None, None
+    return provider, base_url, api_key
 
 
 def normalize_provider(provider: str) -> str:
@@ -62,11 +78,24 @@ def validate_base_url(base_url: Optional[str]) -> Optional[str]:
     return urlunsplit((parsed.scheme, parsed.netloc, normalized_path, "", ""))
 
 
-def resolve_api_key(provider: str, api_key: Optional[str]) -> Optional[str]:
+def resolve_api_key(provider: str, api_key: Optional[str], base_url: Optional[str] = None) -> Optional[str]:
     provider = normalize_provider(provider)
+    if provider == "openai-compatible":
+        return str(api_key or "").strip() or None
+    if provider == "openai-cloud":
+        provider = "openai"
     env_name = ENV_KEYS.get(provider)
     env_value = os.environ.get(env_name) if env_name else None
     value = env_value or str(api_key or "").strip()
+    if not value and provider in {"openai", "gemini", "anthropic"}:
+        expected = {"openai": "api.openai.com", "gemini": "generativelanguage.googleapis.com", "anthropic": "api.anthropic.com"}[provider]
+        target = urlsplit(base_url) if base_url else None
+        if target is None or (target.scheme == "https" and target.hostname == expected and target.port in (None, 443)):
+            from app.core.media_provider_config import credential
+            try:
+                value = credential("google" if provider == "gemini" else provider)
+            except OSError:
+                value = None
     return value or None
 
 
@@ -249,6 +278,10 @@ async def call_llm(
 ) -> str:
     """Call a configured prompt-enhancement provider without exposing provider internals."""
     provider = normalize_provider(provider)
+    provider, base_url, api_key = _cloud_connection(provider, base_url, api_key)
+    compatible = provider == "openai-compatible"
+    if compatible:
+        base_url = base_url or "http://127.0.0.1:11434/v1"
     if provider == "managed":
         from app.core.managed_prompt_enhancer import MANAGED_BASE_URL, MANAGED_MODEL_ID, ensure_server_ready
 
@@ -273,7 +306,9 @@ async def call_llm(
     if not prompt:
         raise LLMConfigError("Prompt enhancement requires a prompt.")
 
-    resolved_key = resolve_api_key(provider, api_key)
+    resolved_key = resolve_api_key(provider, api_key, base_url)
+    if compatible:
+        provider = "openai"
     _require_cloud_key(provider, base_url, resolved_key)
 
     timeout = _request_timeout(provider, base_url)
@@ -388,12 +423,19 @@ async def list_llm_models(
     api_key: Optional[str],
 ) -> list[str]:
     provider = normalize_provider(provider)
+    catalog_provider = provider
+    provider, base_url, api_key = _cloud_connection(provider, base_url, api_key)
+    compatible = provider == "openai-compatible"
+    if compatible:
+        base_url = base_url or "http://127.0.0.1:11434/v1"
     if provider == "managed":
         from app.core.managed_prompt_enhancer import MANAGED_MODEL_ID
 
         return [MANAGED_MODEL_ID]
     base_url = validate_base_url(base_url)
-    resolved_key = resolve_api_key(provider, api_key)
+    resolved_key = resolve_api_key(provider, api_key, base_url)
+    if compatible:
+        provider = "openai"
     _require_cloud_key(provider, base_url, resolved_key)
 
     timeout = httpx.Timeout(min(_timeout_seconds(), 20.0))
@@ -406,12 +448,16 @@ async def list_llm_models(
                 data = response.json()
                 models = [item.get("name") for item in data.get("models", []) if isinstance(item, dict)]
             elif provider == "openai":
-                url = _endpoint(base_url, "https://api.openai.com/v1", "models")
+                url = _endpoint(base_url, "https://api.openai.com/v1", "language-models" if catalog_provider == 'xai' else "models")
                 headers = {"Authorization": f"Bearer {resolved_key}"} if resolved_key else {}
-                response = await client.get(url, headers=headers)
+                response = await client.get(url, headers=headers, **({"params": {"type": "text"}} if catalog_provider == "venice" else {}))
                 response.raise_for_status()
                 data = response.json()
-                models = [item.get("id") for item in data.get("data", []) if isinstance(item, dict)]
+                models = [item.get("id") for item in data.get('models' if catalog_provider == 'xai' else 'data', [])
+                          if isinstance(item, dict)
+                          and (catalog_provider != 'xai' or 'text' in item.get('output_modalities', []))
+                          and (catalog_provider != "openrouter" or "text" in item.get("architecture", {}).get("output_modalities", ["text"]))
+                          and (catalog_provider != "venice" or item.get("type", "text") == "text")]
             elif provider == "gemini":
                 url = _gemini_endpoint(base_url, "models")
                 response = await client.get(url, params={"key": resolved_key} if resolved_key else {})

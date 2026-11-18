@@ -78,6 +78,32 @@ async def generate_v2(
     image: UploadFile = File(None),
     image2: UploadFile = File(None),
     duration: float | None = Form(None),
+    resolution: str | None = Form(None),
+):
+    from app.core.media_providers import adapter_for
+    from app.api.media_providers import submit_api_tool
+    tool = get_tool_settings(tool_id)
+    if not tool:
+        raise HTTPException(status_code=400, detail="Invalid tool ID")
+    if prompt and len(prompt) > MAX_PROMPT_CHARS:
+        raise HTTPException(status_code=413, detail=f"Prompt exceeds the {MAX_PROMPT_CHARS} character limit.")
+    try:
+        adapter = adapter_for(tool)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+    if adapter.managed_jobs:
+        return await submit_api_tool(request, tool, prompt, aspect_ratio, resolution, duration, image, image2)
+    return await adapter.submit_tool(request=request, tool_id=tool_id, prompt=prompt, aspect_ratio=aspect_ratio, image=image, image2=image2, duration=duration)
+
+
+async def generate_comfy(
+    request: Request,
+    tool_id: str,
+    prompt=None,
+    aspect_ratio=None,
+    image=None,
+    image2=None,
+    duration=None,
 ):
     client_ip = request.client.host if request.client else "unknown"
 

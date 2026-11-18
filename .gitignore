@@ -31,6 +31,7 @@ Thumbs.db
 runtime/logs/
 runtime/verification/
 runtime/secrets/
+runtime/media/
 
 # Downloaded/Generated Media (Optional - uncomment if you want to prevent pushing final creations)
 # output/

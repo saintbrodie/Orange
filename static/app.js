@@ -56,6 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const copyTextBtn = document.getElementById('copy-text-btn');
     const errorBanner = document.getElementById('error-banner');
     const errorMessage = document.getElementById('error-message');
+    const retryDownloadBtn = document.getElementById('retry-download-btn');
 
     // Init
     fetch(configUrl).then(res => res.json()).then(data => {
@@ -114,7 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             let iconClass = "border-2 rounded-sm border-current mr-2 ";
             if(ratio.includes('1:1') || ratio.toLowerCase().includes('square')) iconClass += "w-4 h-4";
-            else if(ratio.includes('16') && ratio.startsWith('9')) iconClass += "w-3 h-5";
+            else if((() => { const parts = ratio.split(':').map(Number); return parts.length === 2 && parts[1] > parts[0]; })()) iconClass += "w-3 h-5";
             else iconClass += "w-5 h-3";
 
             btn.innerHTML = `<div class="${iconClass}"></div> ${ratio}`;
@@ -136,6 +137,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function selectTool(toolId) {
+        if (selectedToolId !== toolId) errorBanner.classList.add('hidden');
         selectedToolId = toolId;
         renderTools();
         renderAspectRatios();
@@ -149,7 +151,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const mapping = tool.nodeMapping;
         
         const imageLabel = document.getElementById('image1-label');
-        if (imageLabel) imageLabel.textContent = tool.firstFrame ? 'First frame (optional)' : 'Image 1';
+        if (imageLabel) imageLabel.textContent = tool.provider && tool.firstFrame ? 'Reference image (optional)' : tool.firstFrame ? 'First frame (optional)' : 'Image 1';
         const image2Label = document.getElementById('image2-label');
         if (image2Label) image2Label.textContent = tool.optionalReference ? 'Reference image (optional)' : 'Image 2';
         const durationContainer = document.getElementById('duration-container');
@@ -165,6 +167,17 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             durationInput.value = String(tool.duration.default);
         }
+        const resolutionContainer = document.getElementById('resolution-container');
+        const resolutionInput = document.getElementById('resolution-input');
+        resolutionContainer.classList.toggle('hidden', !tool.resolution || tool.resolution.options.length < 2);
+        resolutionInput.replaceChildren();
+        for (const value of tool.resolution?.options || []) {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            resolutionInput.appendChild(option);
+        }
+        if (tool.resolution) resolutionInput.value = tool.resolution.default;
 
         // Image 1
         if(mapping.image || tool.firstFrame) {
@@ -218,6 +231,7 @@ document.addEventListener("DOMContentLoaded", () => {
         setTimeout(() => {
             if (promptInput) promptInput.dispatchEvent(new Event('input'));
         }, 10);
+        checkAiStatus();
     }
 
     // Prompt Enhancement Logic
@@ -390,6 +404,7 @@ document.addEventListener("DOMContentLoaded", () => {
     clearImage2Btn.addEventListener('click', clearImage2);
 
     function showError(msg) {
+        retryDownloadBtn.classList.add('hidden');
         errorMessage.innerText = msg;
         errorBanner.classList.remove('hidden');
     }
@@ -417,6 +432,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if(tool.nodeMapping.width && tool.nodeMapping.height) formData.append("aspect_ratio", selectedAspectRatio);
         if((tool.nodeMapping.image || tool.firstFrame) && selectedImageFile) formData.append("image", selectedImageFile);
         if(tool.duration) formData.append("duration", document.getElementById("duration-input").value);
+        if(tool.resolution) formData.append("resolution", document.getElementById("resolution-input").value);
         if((tool.nodeMapping.image2 || tool.optionalReference) && selectedImage2File) formData.append("image2", selectedImage2File);
 
         // UI Reset
@@ -443,8 +459,8 @@ document.addEventListener("DOMContentLoaded", () => {
         
         progressContainer.classList.add('hidden');
         queueStatus.classList.remove('hidden');
-        generatingTitle.innerText = "Initializing connection...";
-        queueStatus.innerText = "Contacting Cluster...";
+        generatingTitle.innerText = tool.provider ? "Generating..." : "Initializing connection...";
+        queueStatus.innerText = tool.provider ? "Contacting provider..." : "Contacting Cluster...";
         generateBtn.disabled = true;
 
         try {
@@ -490,8 +506,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 generatingTitle.innerText = "Waiting in Queue...";
                 queueStatus.innerText = `Queue position: ${data.position}`;
             } else if (data.status === 'generating') {
-                generatingTitle.innerText = "Setting things up...";
-                queueStatus.innerText = `Getting ready`;
+                const apiTool = config.tools.find(t => t.id === toolId)?.provider;
+                generatingTitle.innerText = apiTool ? 'Generating...' : 'Setting things up...';
+                queueStatus.innerText = apiTool ? 'Generating media' : 'Getting ready';
             } else if (data.status === 'executing') {
                 generatingTitle.innerText = data.message;
             } else if (data.status === 'preview' && data.image) {
@@ -537,6 +554,9 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (data.status === 'error') {
                 evtSource.close();
                 showGenerationError(data.detail || "An error occurred during generation.");
+                if (data.retry_delivery && selectedToolId === toolId) {
+                    offerDownloadRetry(promptId, clientId, toolId);
+                }
             }
         };
 
@@ -557,7 +577,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             generatingTitle.innerText = `Finalizing ${typeLabel}...`;
             document.getElementById('queue-status').classList.remove('hidden');
-            document.getElementById('queue-status').innerText = currentOutputType === 'image' ? 'Stripping metadata' : 'Preparing file';
+            document.getElementById('queue-status').innerText = config.tools.find(t => t.id === selectedToolId)?.provider ? 'Preparing file' : currentOutputType === 'image' ? 'Stripping metadata' : 'Preparing file';
             
             const outputRes = await fetch(`/api/output?prompt_id=${promptId}&type=${currentOutputType}`);
             if(!outputRes.ok) throw new Error(`${typeLabel} not found`);
@@ -708,6 +728,31 @@ document.addEventListener("DOMContentLoaded", () => {
         showError(msg);
     }
 
+    function offerDownloadRetry(promptId, clientId, toolId) {
+        retryDownloadBtn.classList.remove('hidden');
+        retryDownloadBtn.onclick = async () => {
+            errorBanner.classList.add('hidden');
+            uiContainer.classList.add('hidden');
+            generatingLayer.classList.remove('hidden');
+            generatingLayer.classList.add('flex');
+            generateBtn.disabled = true;
+            document.getElementById('generating-title').innerText = 'Retrieving your result…';
+            document.getElementById('queue-status').innerText = 'Checking the existing job';
+
+            try {
+                const res = await fetch(`/api/jobs/${encodeURIComponent(promptId)}/retry-download`, {method: 'POST'});
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.detail || 'Could not retry the download.');
+                }
+                listenToQueue(promptId, clientId, toolId);
+            } catch (error) {
+                showGenerationError(error.message);
+                offerDownloadRetry(promptId, clientId, toolId);
+            }
+        };
+    }
+
     function goBackToForm() {
         resultLayer.classList.add('hidden');
         resultLayer.classList.remove('flex');
@@ -778,8 +823,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const aiStatusText = document.getElementById('ai-status-text');
 
     async function checkAiStatus() {
+        const vramWarning = document.getElementById('vram-warning');
         try {
-            const res = await fetch('/api/health');
+            const checkingTool = selectedToolId;
+            const res = await fetch('/api/health?tool_id=' + encodeURIComponent(checkingTool || ''));
+            if (checkingTool !== selectedToolId || !generatingLayer.classList.contains('hidden')) return;
             if(res.ok) {
                 const resData = await res.json();
                 aiStatusDot.className = 'w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
@@ -787,21 +835,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 generateBtn.disabled = false;
                 generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                 
-                const vramWarning = document.getElementById('vram-warning');
                 if (vramWarning) {
-                    if (resData.vram_warning) {
+                    if (resData.busy) {
                         vramWarning.classList.remove('hidden');
                     } else {
                         vramWarning.classList.add('hidden');
                     }
                 }
             } else {
+                vramWarning?.classList.add('hidden');
                 aiStatusDot.className = 'w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse';
                 aiStatusText.innerText = 'AI Offline';
                 generateBtn.disabled = true;
                 generateBtn.classList.add('opacity-50', 'cursor-not-allowed');
             }
         } catch(e) {
+            vramWarning?.classList.add('hidden');
             aiStatusDot.className = 'w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse';
             aiStatusText.innerText = 'AI Offline';
             generateBtn.disabled = true;

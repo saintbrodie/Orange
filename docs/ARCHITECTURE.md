@@ -1,5 +1,16 @@
 # Orange Architecture & Technical Breakdown
 
+Orange now also supports direct cloud media APIs. `media_providers.py` registers
+ComfyUI and cloud adapters; existing tools default to ComfyUI. `media_jobs.py`
+owns durable cloud jobs, local outputs, and restart recovery, while the ComfyUI
+adapter retains the existing workflow/routing engine described below. Both paths
+share Generate, SSE status, output endpoints, Gallery, and the usage database.
+`media_cloud.py` implements xAI, Runway, and fal request contracts;
+`media_downloads.py` validates delivery hosts and bounds downloads without
+forwarding API credentials. Remote task handles resume through GET-only polling.
+See [API Providers](API_PROVIDERS.md) for model contracts, configuration, storage,
+security, and extension details.
+
 Orange is a deliberately small web frontend for **ComfyUI**. Its job is not to recreate the ComfyUI editor. It turns engineer-built API workflows into simple tools for people who should not need to understand nodes, models, samplers, or backend topology.
 
 ## Product Boundary
