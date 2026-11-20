@@ -175,7 +175,7 @@ def serve_admin():
             '    <script src="/static/personalization-tab-state.js?v=1"></script>\n'
             '    <script src="/static/admin-layout.js?v=1"></script>\n'
             '    <script src="/static/general-settings.js?v=2"></script>\n'
-            '    <script src="/static/media-providers.js?v=5"></script>\n'
+            '    <script src="/static/media-providers.js?v=6"></script>\n'
             '    <script src="/static/managed-comfyui.js?v=4"></script>\n'
             '    <script src="/static/managed-prompt-enhancer.js?v=4"></script>\n'
             '    <script src="/static/llm-model-select.js?v=1"></script>\n'

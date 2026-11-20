@@ -1,8 +1,66 @@
 import asyncio
+from pathlib import Path
+import tempfile
 import unittest
 from unittest import mock
 
+import httpx
+from fastapi import FastAPI
+
 from app.api import workflow_pack_admin
+from app.core import config, media_provider_config
+from app.core.media_tool_inputs import public_api_inputs
+
+
+class CuratedApiToolTests(unittest.IsolatedAsyncioTestCase):
+    async def test_api_presets_require_keys_and_add_once_without_comfyui(self):
+        app = FastAPI()
+        app.include_router(workflow_pack_admin.router)
+        keys = {}
+        enabled = set()
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / 'config.json'
+            config_path.write_text('{"adminKey":"test-admin","apiOnly":true,"tools":[],"comfyServers":[]}', encoding='utf-8')
+            with mock.patch.object(config, 'USER_CONFIG_PATH', str(config_path)), mock.patch.object(media_provider_config, 'credential', side_effect=lambda provider: keys.get(provider, '')), mock.patch.object(media_provider_config, 'enabled', side_effect=lambda provider, model: provider in enabled):
+                self.addCleanup(config.invalidate_config_cache)
+                async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://orange') as client:
+                    catalog_url = '/api/admin/workflow-packs'
+                    self.assertEqual((await client.post(f'{catalog_url}/api-tools/api-nano-banana')).status_code, 401)
+                    client.headers['Authorization'] = 'Bearer test-admin'
+                    catalog = (await client.get(catalog_url)).json()
+                    self.assertEqual(catalog['servers'], [])
+                    packs = {pack['id']: pack for pack in catalog['packs'] if 'api' in pack.get('tags', [])}
+                    self.assertEqual(set(packs), {'api-nano-banana', 'api-gpt-image'})
+                    self.assertEqual(packs['api-nano-banana']['providerName'], 'Google')
+                    self.assertNotEqual(packs['api-nano-banana']['tagline'], packs['api-gpt-image']['tagline'])
+                    for pack_id, pack in packs.items():
+                        with self.subTest(pack=pack_id):
+                            self.assertEqual(pack['thumbnail'], f'/static/curated-thumbnails/{pack_id}.jpg')
+                            self.assertTrue(pack['thumbnailAlt'])
+                            self.assertTrue((Path(config.PROJECT_ROOT) / pack['thumbnail'].lstrip('/')).is_file())
+                            self.assertEqual(pack['setupRequired'], 'key')
+                            path = f'{catalog_url}/api-tools/{pack_id}'
+                            response = await client.post(path)
+                            self.assertEqual(response.status_code, 409)
+                            self.assertIn('API key', response.json()['detail'])
+                            keys[pack['tool']['provider']] = 'private-test-key'
+                            self.assertIn('Enable', (await client.post(path)).json()['detail'])
+                            enabled.add(pack['tool']['provider'])
+                            response = await client.post(path)
+                            self.assertEqual(response.status_code, 200, response.text)
+                            self.assertTrue(response.json()['added'])
+                            tool = response.json()['tool']
+                            self.assertFalse(tool['api']['requireImage'])
+                            self.assertEqual(tool['api']['references'], 1)
+                            public_inputs = public_api_inputs(tool)
+                            self.assertTrue(public_inputs['firstFrame'])
+                            self.assertNotIn('image', public_inputs['nodeMapping'])
+                            self.assertFalse((await client.post(path)).json()['added'])
+                    response = await client.get(catalog_url)
+                    self.assertNotIn('private-test-key', response.text)
+                    installed = [pack['id'] for pack in response.json()['packs'] if pack['installed']]
+                    self.assertCountEqual(installed, packs)
+                    self.assertEqual(len(config.load_config()['tools']), 2)
 
 
 class WorkflowPackAdminTests(unittest.TestCase):

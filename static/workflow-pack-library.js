@@ -6,7 +6,7 @@
   let jobByKey = new Map();
   let pollTimer = null;
   let selectedTag = 'all';
-  const defaultTags = ['image', 'edit', 'video', 'tools'];
+  const defaultTags = ['image', 'edit', 'video', 'tools', 'api'];
 
   function packTags(pack) {
     return [...new Set((Array.isArray(pack.tags) ? pack.tags : [])
@@ -25,7 +25,8 @@
     filters.innerHTML = tags.map(tag => {
       const active = tag === selectedTag;
       const count = tag === 'all' ? packs.length : packs.filter(pack => packTags(pack).includes(tag)).length;
-      return `<button type="button" data-library-tag="${escapeHtml(tag)}" aria-pressed="${active}" class="px-3 py-2 rounded-full border text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-400 ${active ? 'bg-orange-500/15 border-orange-500/50 text-orange-300' : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'}">${escapeHtml(tag.charAt(0).toUpperCase() + tag.slice(1))}<span class="ml-1.5 opacity-60">${count}</span></button>`;
+      const label = tag === 'api' ? 'API' : tag.charAt(0).toUpperCase() + tag.slice(1);
+      return `<button type="button" data-library-tag="${escapeHtml(tag)}" aria-pressed="${active}" class="px-3 py-2 rounded-full border text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-400 ${active ? 'bg-orange-500/15 border-orange-500/50 text-orange-300' : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'}">${escapeHtml(label)}<span class="ml-1.5 opacity-60">${count}</span></button>`;
     }).join('');
     filters.querySelectorAll('[data-library-tag]').forEach(button => {
       button.addEventListener('click', () => {
@@ -279,15 +280,15 @@
               <div class="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center"><i data-lucide="library" class="w-4 h-4 text-orange-400"></i></div>
               <h2 class="text-xl font-semibold text-zinc-100">Curated Library</h2>
             </div>
-            <p class="text-sm text-zinc-500 leading-relaxed">Orange-tested workflows with guided setup. Choose a backend and Orange will tell you what is already ready, what it would download, and what needs attention before anything changes.</p>
+            <p class="text-sm text-zinc-500 leading-relaxed">Add ComfyUI workflows or cloud API tools to Generate.</p>
           </div>
-          <div class="self-start flex items-center gap-2">
+          <div id="curated-backend-actions" class="self-start flex items-center gap-2">
             <button id="curated-clear-history-btn" class="bg-zinc-900 hover:bg-zinc-800 text-zinc-500 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-2 border border-zinc-800"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Clear history</button>
             <button id="curated-refresh-btn" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-2 border border-zinc-700"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Scan again</button>
           </div>
         </div>
 
-        <div class="bg-zinc-950/55 border border-zinc-800 rounded-2xl p-4 mb-4">
+        <div id="curated-backend-settings" class="bg-zinc-950/55 border border-zinc-800 rounded-2xl p-4 mb-4">
           <div class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-4 md:items-end">
             <div>
               <label class="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1.5">Set up for</label>
@@ -493,6 +494,10 @@
   }
 
   function actionForPack(pack, inspection, job) {
+    if (pack.providerName) {
+      if (pack.installed) return {label: 'Added to Orange', disabled: true, primary: false, icon: 'circle-check'};
+      return {label: 'Add to Orange', disabled: Boolean(pack.setupRequired), primary: !pack.setupRequired, icon: 'plus'};
+    }
     const busy = job?.state === 'queued' || job?.state === 'running';
     const retryable = job?.state === 'failed' || job?.state === 'interrupted';
     if (busy) return {label: job?.cancelRequested ? 'Canceling…' : 'Cancel setup', disabled: Boolean(job?.cancelRequested), primary: false, danger: !job?.cancelRequested, icon: job?.cancelRequested ? 'loader-2' : 'circle-stop', spin: Boolean(job?.cancelRequested)};
@@ -523,31 +528,30 @@
     const packs = catalog.packs || [];
     renderTagFilters(packs);
     const visiblePacks = selectedTag === 'all' ? packs : packs.filter(pack => packTags(pack).includes(selectedTag));
+    const hasBackend = Boolean(catalog.servers?.length);
+    const showBackendControls = selectedTag !== 'api' && hasBackend;
+    for (const id of ['curated-backend-settings', 'curated-backend-actions']) {
+      document.getElementById(id).classList.toggle('hidden', !showBackendControls);
+    }
+    const displayedPacks = visiblePacks.filter(pack => hasBackend || pack.providerName);
     const filterCount = document.getElementById('curated-filter-count');
-    if (filterCount) filterCount.textContent = `Showing ${visiblePacks.length} of ${packs.length} workflows`;
+    if (filterCount) filterCount.textContent = `Showing ${displayedPacks.length} of ${packs.length} tools`;
 
-    const servers = catalog.servers || [];
-    if (!servers.length) {
-      list.innerHTML = `
+    const backendNotice = !hasBackend && visiblePacks.some(pack => !pack.providerName) ? `
         <div class="lg:col-span-2 border border-dashed border-zinc-700 rounded-2xl p-8 text-center bg-zinc-950/40">
           <div class="w-10 h-10 mx-auto rounded-xl bg-zinc-800 flex items-center justify-center mb-3"><i data-lucide="server-off" class="w-5 h-5 text-zinc-500"></i></div>
-          <h3 class="text-sm font-semibold text-zinc-200">Connect a ComfyUI backend first</h3>
-          <p class="text-xs text-zinc-500 mt-1 max-w-md mx-auto">The library checks a real backend before it offers installs, so Orange never guesses about nodes or models.</p>
+          <h3 class="text-sm font-semibold text-zinc-200">Connect ComfyUI to add local workflows</h3>
           <button id="curated-open-general" class="mt-4 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 px-3 py-2 rounded-lg text-xs font-semibold">Open General Settings</button>
-        </div>
-      `;
-      document.getElementById('curated-open-general')?.addEventListener('click', () => document.getElementById('tab-general')?.click());
-      renderSummary();
-      if (window.lucide) lucide.createIcons();
-      return;
-    }
+        </div>` : '';
 
     const serverUrl = serverSelect.value;
-    list.innerHTML = visiblePacks.map((pack) => {
+    list.innerHTML = displayedPacks.map((pack) => {
       const inspection = inspectionByPack.get(pack.id);
       const job = jobByKey.get(installKey(serverUrl, pack.id));
       const action = actionForPack(pack, inspection, job);
-      const presentation = typePresentation(pack);
+      const isApi = Boolean(pack.providerName);
+      const presentation = isApi ? {label: `${pack.providerName} · Generate or edit`, icon: 'cloud'} : typePresentation(pack);
+      const apiSetup = pack.setupRequired === 'key' ? 'API key required' : 'Media generation is disabled';
       const highlights = Array.isArray(pack.highlights) ? pack.highlights : [];
       const buttonClass = action.danger
         ? 'bg-red-500/10 hover:bg-red-500/15 text-red-300 border border-red-500/30'
@@ -573,7 +577,7 @@
               </div>
               <div class="text-[10px] text-zinc-600 mt-0.5">${escapeHtml(presentation.label)}</div>
             </div>
-            ${stateBadge(pack, inspection, job)}
+            ${isApi ? '<span class="text-[10px] font-semibold text-orange-300 bg-orange-500/10 border border-orange-500/20 rounded-full px-2 py-1">API</span>' : stateBadge(pack, inspection, job)}
           </div>
 
           <div>
@@ -582,8 +586,9 @@
             ${highlights.length ? `<div class="flex flex-wrap gap-1.5 mt-2.5">${highlights.map((item) => `<span class="text-[10px] text-zinc-500 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1">${escapeHtml(item)}</span>`).join('')}</div>` : ''}
           </div>
 
-          <div class="min-h-6">${inspectionStatus(pack, inspection, job)}</div>
-          <div data-model-bindings="${escapeHtml(pack.id)}"></div>
+          ${isApi && pack.setupRequired ? `
+            <p class="text-xs text-amber-300">${apiSetup} · <a data-api-provider="${escapeHtml(pack.tool.provider)}" href="#settings-tab-keys" class="font-semibold underline underline-offset-2">Open API Keys</a></p>` : ''}
+          ${isApi ? '' : `<div class="min-h-6">${inspectionStatus(pack, inspection, job)}</div><div data-model-bindings="${escapeHtml(pack.id)}"></div>`}
 
           <div class="mt-auto flex items-center gap-2 pt-1">
             <button data-pack-id="${escapeHtml(pack.id)}" ${action.disabled ? 'disabled' : ''} class="flex-1 justify-center ${buttonClass} px-3 py-2.5 rounded-xl text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
@@ -592,14 +597,31 @@
           </div>
         </article>
       `;
-    }).join('');
+    }).join('') + backendNotice;
 
     if (!visiblePacks.length) {
       list.innerHTML = '<div class="lg:col-span-2 border border-dashed border-zinc-800 rounded-2xl p-8 text-center text-sm text-zinc-500">No workflows with this tag yet. Choose All to browse the library.</div>';
     }
     list.querySelectorAll('[data-pack-id]').forEach((button) => {
-      button.addEventListener('click', () => runPackAction(button.dataset.packId));
+      button.addEventListener('click', () => {
+        const pack = displayedPacks.find(item => item.id === button.dataset.packId);
+        if (pack?.providerName) addApiTool(pack, button);
+        else runPackAction(button.dataset.packId);
+      });
     });
+    list.querySelectorAll('[data-api-provider]').forEach(link => {
+      link.addEventListener('click', async event => {
+        event.preventDefault();
+        const settingsReady = openGeneralSettings();
+        document.getElementById('settings-tab-keys').click();
+        const provider = link.dataset.apiProvider;
+        await settingsReady;
+        await window.OrangeMediaAdmin?.refreshProviders({expand: provider});
+        const card = [...document.querySelectorAll('#api-providers-list details')].find(item => item.dataset.provider === provider);
+        card?.querySelector('summary')?.focus();
+      });
+    });
+    document.getElementById('curated-open-general')?.addEventListener('click', () => document.getElementById('tab-general')?.click());
     list.querySelectorAll('[data-model-bindings]').forEach(container => {
       const inspection = inspectionByPack.get(container.dataset.modelBindings);
       window.ModelBindings?.render(container, serverUrl, inspection?.workflowFile, inspection?.modelBindings, async () => {
@@ -608,6 +630,24 @@
     });
     renderSummary();
     if (window.lucide) lucide.createIcons();
+  }
+
+  async function addApiTool(pack, button) {
+    button.disabled = true;
+    try {
+      const response = await authFetch(`/api/admin/workflow-packs/api-tools/${encodeURIComponent(pack.id)}`, {method: 'POST'});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Could not add the API tool.');
+      pack.installed = true;
+      renderCatalog();
+      setLibraryStatus(`${pack.name} is ready in Generate.`, 'success');
+      await loadEditorData();
+    } catch (error) {
+      if (error.message?.includes('API Keys')) await refreshCatalog();
+      setLibraryStatus(error.message, 'error');
+    } finally {
+      button.disabled = false;
+    }
   }
 
   function renderServerOptions(previousUrl = '') {
@@ -746,7 +786,7 @@
       renderServerOptions(previousUrl);
       renderCatalog();
       if (!(catalog.servers || []).length) {
-        setLibraryStatus('Add a ComfyUI backend in General Settings to use the library.', 'warning');
+        setLibraryStatus('', 'neutral');
         return;
       }
       if (!options.skipJobs) await refreshJobs();

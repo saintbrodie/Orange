@@ -3,7 +3,7 @@
   const $ = id => document.getElementById(id);
   const fieldClass = 'w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-sm text-zinc-200';
   const buttonClass = 'bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg px-4 py-2 text-sm';
-  const providerNames = {google: 'Google Gemini', openai: 'OpenAI', anthropic: 'Anthropic', openrouter: 'OpenRouter', venice: 'Venice', xai: 'xAI (Grok)', runway: 'Runway', fal: 'fal.ai'};
+  const providerNames = {google: 'Google', openai: 'OpenAI', anthropic: 'Anthropic', openrouter: 'OpenRouter', venice: 'Venice', xai: 'xAI (Grok)', runway: 'Runway', fal: 'fal.ai'};
   let providers = [];
   let editIndex = -1;
   const node = (tag, text = '', className = '') => {

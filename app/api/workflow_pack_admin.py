@@ -8,7 +8,9 @@ from app.api.preflight import _routing_cache_results, _routing_compatible
 from app.core.backends import backend_manager, workflow_compatibility_key
 from app.core.model_bindings import cache_inventory, resolve_models
 from app.core.video_controls import tool_variants
-from app.core.config import get_base_workflow, load_config, save_config
+from app.core.config import _config_lock, get_base_workflow, load_config, save_config
+from app.core import media_provider_config
+from app.core.media_providers import model_for
 from app.core.preflight import run_preflight, validate_backend, validate_mappings, validate_workflow_structure
 from app.core.workflow_install_jobs import (
     cancel_job,
@@ -335,6 +337,12 @@ def get_workflow_pack_catalog(_=Depends(verify_admin)):
         item["installed"] = bool(tool.get("id") in installed_tool_ids)
         packs.append(item)
 
+    for pack_id in CURATED_API_TOOLS:
+        pack = _api_pack(pack_id)
+        pack['installed'] = pack['tool']['id'] in installed_tool_ids
+        pack['setupRequired'] = _api_pack_setup_required(pack['tool'])
+        packs.append(pack)
+
     servers = []
     for server in config.get("comfyServers") or []:
         if not isinstance(server, dict) or not server.get("url"):
@@ -352,6 +360,92 @@ def get_workflow_pack_catalog(_=Depends(verify_admin)):
         "servers": servers,
         "detectedModelsRoot": resolve_models_root(),
     }
+
+
+CURATED_API_TOOLS = {
+    'api-nano-banana': {
+        'provider': 'google',
+        'model': 'gemini-nano-banana-2.1',
+        'name': 'Nano Banana 2.1',
+        'providerName': 'Google',
+        'tagline': 'Create illustrations and concept art in five aspect ratios at up to 4K. Attach a reference to rework its style, lighting, or composition.',
+        'thumbnailAlt': 'Clay-style orange cat astronaut sitting on a banana crescent in space',
+    },
+    'api-gpt-image': {
+        'provider': 'openai',
+        'model': 'gpt-image-2.6-flare',
+        'name': 'GPT Image 2.6 Flare',
+        'providerName': 'OpenAI',
+        'tagline': 'Create product shots, posters, or detailed scenes with specific directions for layout, lighting, and materials. Attach an image to request targeted changes.',
+        'thumbnailAlt': 'Orange enamel camera and blood orange on a cobalt-blue plinth',
+    },
+}
+
+
+def _api_pack(pack_id):
+    preset = CURATED_API_TOOLS[pack_id]
+    model = model_for(preset['provider'], preset['model'])
+    tool = {
+        'id': pack_id,
+        'name': preset['name'],
+        'provider': preset['provider'],
+        'model': model.id,
+        'outputType': 'image',
+        'api': {
+            'ratios': list(model.ratios),
+            'resolutions': list(model.resolutions),
+            'defaultResolution': model.resolutions[0],
+            'references': 1,
+            'requireImage': False,
+        },
+    }
+    return {
+        'id': pack_id,
+        'name': preset['name'],
+        'providerName': preset['providerName'],
+        'type': 'text-to-image',
+        'tags': ['api', 'image', 'edit'],
+        'tagline': preset['tagline'],
+        'thumbnail': f'/static/curated-thumbnails/{pack_id}.jpg',
+        'thumbnailAlt': preset['thumbnailAlt'],
+        'tool': tool,
+    }
+
+
+def _api_pack_setup_required(tool):
+    provider = tool['provider']
+    try:
+        if not media_provider_config.credential(provider):
+            return 'key'
+        if not media_provider_config.enabled(provider, tool['model']):
+            return 'enable'
+    except OSError:
+        return 'key'
+    return None
+
+
+@router.post('/api/admin/workflow-packs/api-tools/{pack_id}')
+def add_curated_api_tool(pack_id: str, _=Depends(verify_admin)):
+    if pack_id not in CURATED_API_TOOLS:
+        raise HTTPException(404, 'Curated API tool not found.')
+    pack = _api_pack(pack_id)
+    tool = pack['tool']
+    setup = _api_pack_setup_required(tool)
+    if setup == 'key':
+        raise HTTPException(409, f'Configure a {pack["providerName"]} API key in API Keys first.')
+    if setup == 'enable':
+        raise HTTPException(409, f'Enable {pack["providerName"]} media generation in API Keys first.')
+    with _config_lock:
+        config = load_config()
+        tools = config.get('tools') or []
+        existing = next((item for item in tools if item.get('id') == tool['id']), None)
+        if existing is not None:
+            return {'tool': existing, 'added': False}
+        try:
+            save_config({**config, 'tools': [*tools, tool]})
+        except ValueError:
+            raise HTTPException(409, 'Resolve the existing configuration errors before adding this tool.') from None
+    return {'tool': tool, 'added': True}
 
 
 @router.post("/api/admin/workflow-packs/inspect")

@@ -2,6 +2,8 @@
 
 Orange workflow packs are curated, installable ComfyUI tools intended to provide known-good workflows without forcing them on every deployment.
 
+The same Curated Library also has an **API** filter for Nano Banana 2.1 and GPT Image 2.6 Flare. Both cloud presets require the matching provider key and work without ComfyUI. See the [API provider guide](API_PROVIDERS.md) for setup.
+
 They are different from arbitrary user-uploaded workflows:
 
 - a pack has a tested ComfyUI API workflow

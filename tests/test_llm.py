@@ -91,7 +91,9 @@ class LLMValidationTests(unittest.TestCase):
 
 class LLMCallTests(unittest.IsolatedAsyncioTestCase):
     async def test_openai_default_requires_key(self):
-        with patch.dict(os.environ, {"OPENAI_API_KEY": ""}, clear=False):
+        with patch.dict(os.environ, {"OPENAI_API_KEY": ""}, clear=False), patch(
+            "app.core.media_provider_config.credential", return_value=""
+        ):
             with self.assertRaises(LLMConfigError):
                 await call_llm("openai", None, None, "model", "system", "prompt")
 

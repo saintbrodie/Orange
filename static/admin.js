@@ -607,13 +607,14 @@ lucide.createIcons();
 
         const activeClass = "admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition";
 
-        tabGeneral.addEventListener('click', async () => {
+        async function openGeneralSettings() {
             resetTabs();
             tabGeneral.className = activeClass;
             settingsContainer.classList.remove('hidden');
             localStorage.setItem('orange_admin_tab', 'general');
             await loadEditorData();
-        });
+        }
+        tabGeneral.addEventListener('click', openGeneralSettings);
 
         tabTools.addEventListener('click', async () => {
             resetTabs();

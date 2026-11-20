@@ -16,15 +16,15 @@ ComfyUI is where the workflow gets built. Orange is where people use it.
 - **Native cloud generation.** Create curated image and video tools with Google, OpenAI, OpenRouter, Venice, xAI, Runway, and fal.ai. Keep credentials server-side and store results locally; ComfyUI is optional.
 - **Bring your own workflows.** Orange works with image generation, editing, upscaling, video, audio, and text workflows exported from ComfyUI.
 - **Preflight and portable models.** Check nodes, mappings, and assets; resolve model folders per backend and remember explicit choices for duplicate filenames.
-- **Optional curated tools.** Filter image, editing, video, and utility workflows. Reuse compatible installed models and add optional first-frame or reference uploads to your own tools too.
+- **Optional curated tools.** Filter the library for image, editing, video, utility, or API tools. Reuse compatible installed ComfyUI models or add a cloud preset.
 - **Prompt enhancement and personalization.** Add local or cloud LLM prompt enhancement, themes, and white-label branding when you want them.
 - **Run it your way.** Connect to an existing ComfyUI setup, or use the Pinokio launcher to install Orange and ComfyUI together.
 
-## New in v1.1
+## Cloud generation in v1.2
 
-LTX 2.5 brings video with synchronized audio and an optional first frame. Qwen Image 2.1 Turbo Edit adds eight-step editing with an optional reference, and MOSS-Image adds text-focused image generation. The redesigned Tool Editor exposes the same configuration used by curated tools, while backend-specific model bindings keep workflows portable between machines.
+Connect a provider under **Admin → General Settings → API Keys**, then add **Nano Banana 2.1** or **GPT Image 2.6 Flare** from **Tools → Curated Library → API**. Both presets generate from a prompt and accept an optional image for editing. Use **Create API Tool** to curate controls for other supported image and video models.
 
-See the [v1.1.0 release notes](CHANGELOG.md#v110---2026-11-13) for details. To upgrade, update the checkout and restart through the launcher so dependencies sync, then run **Check Workflow** on your tools. Existing local configuration and workflows remain separate from tracked defaults.
+See the [upcoming v1.2.0 changes](CHANGELOG.md#v120-unreleased) and the [latest stable release notes](CHANGELOG.md#v110---2026-11-13).
 
 ## Install
 
@@ -35,7 +35,7 @@ The easiest all-in-one setup is the companion [Orange Pinokio launcher](https://
 It offers two install paths:
 
 - **Orange + ComfyUI** installs and manages a local ComfyUI alongside Orange.
-- **Orange Only** uses an existing ComfyUI from Stability Matrix, another manager, another machine, or a remote server.
+- **Orange Only** supports cloud-only setup or an existing ComfyUI instance from Stability Matrix, another manager, another machine, or a remote server.
 
 Pinokio does not download workflow models up front. Orange checks the connected ComfyUI first and only installs missing files for tools you choose.
 
@@ -56,9 +56,9 @@ The launchers create the Python environment, sync dependencies when needed, keep
 
 ## First run
 
-A fresh install opens a setup wizard. Orange connects to ComfyUI, scans the hardware, nodes, and model inventory, then lets you add curated tools or skip them entirely. Missing model downloads are shown before anything changes, and selected tools go through Workflow Preflight before they are exposed.
+A fresh install opens a setup wizard. If you connect ComfyUI, Orange scans the hardware, nodes, and model inventory, then lets you choose curated tools. Orange shows missing model downloads before installation and runs Workflow Preflight before adding selected tools to Generate.
 
-For cloud generation, select **Use cloud APIs only** during setup. Then configure **Admin → General Settings → API Keys**, test the connection to discover models, and create a tool under **Tools → Create API Tool**. See [API Providers](docs/API_PROVIDERS.md) for credentials, supported models, and retry behavior.
+For a cloud-only installation, select **Use cloud APIs only** during setup. You can also add API tools to an installation that already uses ComfyUI. See [API Providers](docs/API_PROVIDERS.md) for credentials, model discovery, and retry behavior.
 
 Give Generate access only to people you trust to use your connected provider accounts. If a cloud result fails to download and **Retry download** appears, use it to retrieve the existing result without starting another generation.
 
@@ -108,4 +108,4 @@ Third-party components and model weights keep their own licenses. The curated wo
 
 ## Project direction
 
-Orange should make ComfyUI easier to use without moving workflow-engineering decisions onto the people generating with it. New features should mostly improve onboarding, reliability, diagnostics, and workflow management instead of adding more technical controls to the Generate page.
+Orange should make ComfyUI workflows and cloud models easier to use. Administrators curate the controls for each tool so the Generate page stays focused on the choices people need for that tool.

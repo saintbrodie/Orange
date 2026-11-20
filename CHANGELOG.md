@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.2.0 (Unreleased)
+
+### Cloud generation
+
+- Adds native image and video generation through Google, OpenAI, OpenRouter, Venice, xAI, Runway, and fal.ai. Create cloud-only installations or use API tools alongside existing ComfyUI workflows.
+- Reuses Generate, job status, result downloads, gallery, and history for cloud jobs. Media is stored locally. When supported, **Retry download** retrieves a completed result without submitting a second generation.
+- Adds Nano Banana 2.1 and GPT Image 2.6 Flare to the Curated Library's **API** filter. Each preset includes a model-generated example, an optional image for editing, and a link to API Keys when setup is required.
+- Tracks cloud usage by provider, model, and generation status. Generation load warnings now respond to queue backlogs.
+
+### Settings and credentials
+
+- Organizes General Settings into tabs, with cloud credentials and model discovery under **API Keys**. Saved keys stay in the server's credential store and are also available to supported prompt-enhancement providers.
+- Keeps local OpenAI-compatible prompt enhancement available and groups Hugging Face and Civitai download credentials under **Model Providers**.
+- Enables metadata removal from generated media by default and exposes the toggle under General Settings.
+
+### Upgrading
+
+- Update the checkout and restart Orange through the launcher. Existing ComfyUI tools and workflows can continue to run alongside API tools.
+- Follow the [cloud generation guide](docs/API_PROVIDERS.md) to connect a provider and add a curated preset or create your own API tool.
+
 ## v1.1.0 - 2026-11-13
 
 ### Curated workflows

@@ -1,5 +1,12 @@
 # Native API media generation
 
+To add a preset, open **Admin → Tools → Curated Library → API**. Nano Banana
+2.1 uses a Google key, and GPT Image 2.6 Flare uses an OpenAI key. Use
+the preset's **Open API Keys** link to configure the key and enable media
+generation, then return and select **Add to Orange**. In Generate, enter a
+prompt to create an image, or attach an optional reference image to edit it.
+Both presets work on cloud-only installations.
+
 Orange can run ComfyUI tools, direct cloud API tools, or both. People using
 Generate still see a curated tool, prompt, optional reference images, and the
 format choices selected by the administrator.
@@ -10,7 +17,7 @@ format choices selected by the administrator.
    finish setup without connecting ComfyUI. Create the Admin password as usual.
 2. Open **Admin → General Settings → API Keys**.
    Expand the provider you want to configure.
-3. Save a Google Gemini, OpenAI, OpenRouter, Venice, xAI, Runway, or fal.ai credential and enable media generation.
+3. Save a Google, OpenAI, OpenRouter, Venice, xAI, Runway, or fal.ai credential and enable media generation.
    **Test connection** lists the account's available models without generating
    paid media and shows the compatible media models it found. It does not test
    individual models. A successful listing does not guarantee billing,
@@ -352,7 +359,7 @@ Face plus Civitai under Model Providers (download credentials only). Anthropic
 credentials use the same native vault policy with `ORANGE_ANTHROPIC_API_KEY` or
 `ANTHROPIC_API_KEY` as environment overrides.
 
-Prompt Enhancement offers direct Google Gemini, OpenAI, OpenRouter, Venice, xAI, and Anthropic choices.
+Prompt Enhancement offers direct Google, OpenAI, OpenRouter, Venice, xAI, and Anthropic choices.
 These use fixed provider endpoints and keys from API Keys, without editable URL
 or key fields in Prompt Enhancement. Fetch Models lists text-model choices for
 the selected provider. The separate OpenAI-compatible option defaults to
