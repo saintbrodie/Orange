@@ -24,7 +24,7 @@ ComfyUI is where the workflow gets built. Orange is where people use it.
 
 Connect a provider under **Admin → General Settings → API Keys**, then add **Nano Banana 2.1** or **GPT Image 2.6 Flare** from **Tools → Curated Library → API**. Both presets generate from a prompt and accept an optional image for editing. Use **Create API Tool** to curate controls for other supported image and video models.
 
-See the [upcoming v1.2.0 changes](CHANGELOG.md#v120-unreleased) and the [latest stable release notes](CHANGELOG.md#v110---2026-11-13).
+See the [v1.2.0 release notes](CHANGELOG.md#v120---2026-11-20) for details. To upgrade, select **Update Orange** in Pinokio or update a manual checkout, then restart Orange.
 
 ## Install
 
