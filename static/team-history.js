@@ -20,9 +20,9 @@
             stream = null;
         }
 
-        async function showOutput(job, currentView) {
+        async function showOutput(job, currentView, prefix = '/api') {
             const query = new URLSearchParams({ prompt_id: job.id, type: job.output_type });
-            const output = await request(`/api/outputs?${query}`);
+            const output = await request(`${prefix}/outputs?${query}`);
             if (!dialog.open || view !== currentView) return;
             if (job.output_type === 'text') {
                 content.replaceChildren(element('pre', output.text || 'No text result is available.'));
@@ -31,7 +31,7 @@
             content.replaceChildren();
             for (const [index, item] of (output.items || []).entries()) {
                 query.set('index', index);
-                const source = `/api/output?${query}`;
+                const source = `${prefix}/output?${query}`;
                 const media = element({ image: 'img', video: 'video', audio: 'audio' }[job.output_type] || 'img');
                 if (media.tagName === 'IMG') media.alt = `Result ${index + 1}`;
                 else media.controls = true;
@@ -93,13 +93,13 @@
             content.replaceChildren();
         });
 
-        return async (job, heading = job.tool_id) => {
+        return async (job, heading = job.tool_id, prefix) => {
             const currentView = ++view;
             title.textContent = heading;
             content.textContent = 'Loading result…';
             dialog.showModal();
             try {
-                if (job.status === 'completed') await showOutput(job, currentView);
+                if (job.status === 'completed') await showOutput(job, currentView, prefix);
                 else track(job, currentView);
             } catch (error) {
                 if (dialog.open && view === currentView) content.textContent = error.message;

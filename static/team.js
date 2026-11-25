@@ -3,9 +3,11 @@
     const sessionNotice = byId('team-error');
     const openJob = window.OrangeTeamHistory.createViewer(byId('team-result'), api,
         () => Promise.all([loadHistory(), loadSpend(), loadDirectory()]));
-    const embedded = document.body.hasAttribute('data-team-embedded');
-    const directoryUrl = embedded ? '/team?embedded=1#team-management' : '/team#team-management';
-    const profileId = new URLSearchParams(location.search).get('user');
+    const adminWorkspace = byId('admin-team-container');
+    const params = new URLSearchParams(location.search);
+    const teamUrl = adminWorkspace ? '/admin?view=team' : '/team';
+    const profileId = params.get('user');
+    const profileUrl = id => `${teamUrl}${adminWorkspace ? '&' : '?'}user=${encodeURIComponent(id)}`;
     const monthFormat = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
     const addedFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
     const providerNames = { comfyui: 'ComfyUI', openai: 'OpenAI', openrouter: 'OpenRouter', xai: 'xAI', fal: 'fal.ai' };
@@ -20,10 +22,12 @@
     let groupTools = [];
     let editingGroup = null;
     let signOutAfterLink = false;
+    const activity = { view: '', page: 1, query: '', request: 0 };
 
-    byId('team-profile-back').href = directoryUrl;
+    byId('team-profile-back').href = `${teamUrl}#team-management`;
 
     window.addEventListener('orange:personalization-applied', ({ detail }) => {
+        if (adminWorkspace) return;
         const appName = detail.config.branding.appName || 'Orange';
         const signIn = detail.config.signIn || {};
         byId('team-brand-name').textContent = `${appName} Team`;
@@ -50,7 +54,7 @@
     }
 
     function leaveTeam() {
-        (embedded ? window.parent : window).location.replace('/team');
+        location.replace('/team');
     }
 
     async function api(path, method = 'GET', body) {
@@ -357,7 +361,7 @@
             const identity = element(canView ? 'a' : 'span');
             identity.className = 'team-user';
             identity.append(avatar, element('span', member.handle));
-            if (canView) identity.href = `/team?user=${encodeURIComponent(member.id)}${embedded ? '&embedded=1' : ''}`;
+            if (canView) identity.href = profileUrl(member.id);
             appendCell(row, identity);
             appendCell(row, label(member.role));
             appendCell(row, badge(member));
@@ -594,7 +598,7 @@
     }
 
     function showIncomingInvitation() {
-        if (embedded) return false;
+        if (adminWorkspace) return false;
         const token = new URLSearchParams(location.hash.slice(1)).get('invite');
         if (!token) return false;
         inviteToken = token;
@@ -604,6 +608,7 @@
         byId('team-nav').hidden = true;
         byId('team-account').hidden = true;
         byId('team-profile').hidden = true;
+        byId('team-activity').hidden = true;
         byId('team-auth').hidden = false;
         byId('team-login').hidden = true;
         const form = byId('team-accept');
@@ -617,6 +622,99 @@
         return true;
     }
 
+    function renderGallery(jobs) {
+        const grid = byId('team-gallery-grid');
+        grid.replaceChildren(...jobs.map(job => {
+            const item = element('li');
+            const button = action('', () => openJob(job, `${job.handle} · ${job.tool_id}`, '/api/team/gallery'));
+            const image = element('img');
+            image.alt = '';
+            image.loading = 'lazy';
+            image.addEventListener('error', () => {
+                const unavailable = element('span', 'Preview unavailable');
+                unavailable.className = 'team-gallery-unavailable';
+                image.replaceWith(unavailable);
+            }, { once: true });
+            image.src = `/api/team/gallery/output?prompt_id=${encodeURIComponent(job.id)}`;
+            const details = element('span', `${job.tool_id} · ${dateText(job.created)}`);
+            details.className = 'team-muted';
+            button.append(image, element('strong', job.handle), details);
+            item.append(button);
+            return item;
+        }));
+    }
+
+    async function loadActivity() {
+        const request = ++activity.request;
+        const images = activity.view === 'gallery';
+        const feedback = byId('team-activity-feedback');
+        const table = byId('team-activity-rows');
+        const previous = byId('team-activity-previous');
+        const next = byId('team-activity-next');
+        const query = new URLSearchParams({ images, page: activity.page, query: activity.query });
+        feedback.textContent = 'Loading…';
+        previous.disabled = next.disabled = true;
+        table.replaceChildren();
+        byId('team-gallery-grid').replaceChildren();
+        try {
+            const { jobs, has_more } = await api(`/api/team/activity?${query}`);
+            if (request !== activity.request) return;
+            if (images) renderGallery(jobs);
+            else {
+                for (const job of jobs) {
+                    const link = element('a', job.handle);
+                    link.href = profileUrl(job.user_id);
+                    const row = table.insertRow();
+                    appendCell(row, link);
+                    appendCell(row, job.tool_id);
+                    appendCell(row, dateText(job.created));
+                    appendCell(row, label(job.status));
+                }
+            }
+            feedback.textContent = jobs.length ? `Page ${activity.page}` : images ? 'No generated images found.' : 'No generation activity found.';
+            next.disabled = !has_more;
+        } catch (error) {
+            if (request === activity.request) feedback.textContent = error.message;
+        } finally {
+            if (request === activity.request) previous.disabled = activity.page === 1;
+        }
+    }
+
+    async function showView() {
+        if (!account) return;
+        const requested = adminWorkspace ? adminWorkspace.dataset.view : params.get('view') || 'team';
+        if (!requested) return;
+        const staff = account.role !== 'member';
+        const report = staff && ['analytics', 'gallery'].includes(requested);
+        const showProfile = !report && staff && Boolean(profileId);
+        byId('team-account').hidden = report || showProfile;
+        byId('team-profile').hidden = !showProfile;
+        byId('team-activity').hidden = !report;
+        if (!adminWorkspace) {
+            for (const name of ['home', 'analytics', 'gallery']) {
+                const tab = byId(`team-${name}-tab`);
+                if (name === (report ? requested : 'home')) tab.setAttribute('aria-current', 'page');
+                else tab.removeAttribute('aria-current');
+            }
+        }
+        if (report) {
+            if (activity.view !== requested) activity.page = 1;
+            activity.view = requested;
+            const gallery = requested === 'gallery';
+            byId('team-activity-title').textContent = gallery ? 'Gallery' : 'Generation activity';
+            byId('team-activity-table').hidden = gallery;
+            byId('team-gallery-grid').hidden = !gallery;
+            await loadActivity();
+        } else if (showProfile) {
+            await loadProfile();
+        } else {
+            await refreshDashboard();
+            if (location.hash === '#team-management' && !byId('team-management').hidden) {
+                byId('team-management').scrollIntoView();
+            }
+        }
+    }
+
     async function init() {
         const session = await api('/api/team/session');
         localStorage.removeItem('orange_admin_key');
@@ -624,39 +722,65 @@
         if (inviteToken || showIncomingInvitation()) return;
         account = session.user;
         if (!account) {
-            byId('team-auth').hidden = false;
+            if (adminWorkspace) leaveTeam();
+            else byId('team-auth').hidden = false;
             return;
         }
-        byId('team-nav').hidden = false;
         const owner = account.role === 'owner';
-        byId('team-admin').hidden = !owner;
-        if (profileId) {
-            byId('team-profile').hidden = false;
-            await loadProfile();
+        if (owner && !adminWorkspace) {
+            const url = new URL('/admin', location.href);
+            const view = params.get('view');
+            url.searchParams.set('view', ['analytics', 'gallery'].includes(view) ? view : 'team');
+            if (profileId) url.searchParams.set('user', profileId);
+            url.hash = location.hash;
+            location.replace(url);
             return;
         }
-        byId('team-account').hidden = false;
+        const member = account.role === 'member';
+        if (!adminWorkspace) {
+            byId('team-nav').hidden = false;
+            byId('team-analytics-tab').hidden = member;
+            byId('team-gallery-tab').hidden = member;
+        }
+        byId('team-own-heading').hidden = !member;
         byId('team-name').textContent = account.handle;
         byId('team-role').textContent = label(account.role);
+        if (member) {
+            byId('team-spend-title').textContent = 'My API usage';
+            const { teams } = await api('/api/team/account');
+            byId('team-own-memberships').textContent = teams.map(group => group.name).join(', ') || 'No team assigned';
+        }
         for (const id of ['team-invite-role', 'team-add-role']) {
             byId(`${id}-label`).hidden = !owner;
             byId(id).hidden = !owner;
             byId(id).disabled = !owner;
         }
         byId('team-workspace').hidden = !owner;
-        await refreshDashboard();
-        if (location.hash === '#team-management' && !byId('team-management').hidden) {
-            byId('team-management').scrollIntoView();
-        }
+        await showView();
     }
 
-    byId('team-logout').addEventListener('click', async () => {
+    adminWorkspace?.addEventListener('orange:team-view', () => showView().catch(error => notice(error.message)));
+    byId('team-logout')?.addEventListener('click', async () => {
         try {
             await api('/api/team/logout', 'POST');
             leaveTeam();
         } catch (error) {
             notice(error.message);
         }
+    });
+    bindForm(byId('team-activity-filter'), async ({ query }) => {
+        activity.query = query.trim();
+        activity.page = 1;
+        await loadActivity();
+    });
+    bindAction(byId('team-activity-refresh'), loadActivity);
+    byId('team-activity-previous').addEventListener('click', () => {
+        activity.page -= 1;
+        loadActivity();
+    });
+    byId('team-activity-next').addEventListener('click', () => {
+        activity.page += 1;
+        loadActivity();
     });
     bindAction(byId('team-refresh'), refreshDashboard);
     byId('team-account-search').addEventListener('input', () => changeDirectoryFilters(180));

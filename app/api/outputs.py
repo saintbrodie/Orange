@@ -65,7 +65,10 @@ async def _load_prompt_history(prompt_id: str, record=None):
 @router.get("/api/outputs")
 async def list_outputs(prompt_id: str, type: str = Query("image"), request: Request = None):
     record = authorize_generation(request, prompt_id, gallery=True)
-    output_type = type.lower()
+    return await describe_outputs(prompt_id, type.lower(), record)
+
+
+async def describe_outputs(prompt_id, output_type, record):
     if output_type not in ALLOWED_OUTPUT_TYPES:
         raise HTTPException(status_code=400, detail="Unsupported output type.")
 
@@ -85,7 +88,10 @@ async def list_outputs(prompt_id: str, type: str = Query("image"), request: Requ
 @router.get("/api/media")
 async def get_media(prompt_id: str, type: str = Query("image"), index: int = Query(0, ge=0), request: Request = None):
     record = authorize_generation(request, prompt_id, gallery=True)
-    output_type = type.lower()
+    return await read_media(prompt_id, type.lower(), index, record)
+
+
+async def read_media(prompt_id, output_type, index, record):
     if output_type not in ALLOWED_OUTPUT_TYPES:
         raise HTTPException(status_code=400, detail="Unsupported output type.")
 

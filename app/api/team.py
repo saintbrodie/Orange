@@ -1,8 +1,10 @@
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
+from starlette.concurrency import run_in_threadpool
 
+from app.api.outputs import describe_outputs, read_media
 from app.core import access, budgets, team, team_directory, team_tools
 from app.core.config import get_tool_settings, load_config
 from app.core.rate_limit import SlidingWindowRateLimiter
@@ -239,6 +241,44 @@ def generations(request: Request):
     user = team.request_user(request)
     with access.job_db() as connection:
         return {"jobs": team.history(connection, user["id"])}
+
+
+@router.get("/account")
+def own_account(request: Request):
+    _require_team()
+    user = team.request_user(request)
+    with access.job_db() as connection:
+        return {"teams": team_tools.user_groups(connection, user["id"])}
+
+
+@router.get("/activity")
+def activity(request: Request, images: bool = False, query: str = Query("", max_length=64),
+             page: int = Query(1, ge=1, le=100_000_000)):
+    _require_team()
+    user = team.request_user(request, "owner", "operator")
+    with access.job_db() as connection:
+        connection.execute("BEGIN")
+        return team.staff_activity(connection, user["id"], images=images, query=query, page=page)
+
+
+@router.get("/gallery/outputs")
+async def gallery_outputs(prompt_id: str, request: Request):
+    record = await run_in_threadpool(_gallery_record, request, prompt_id)
+    return await describe_outputs(prompt_id, "image", record)
+
+
+@router.get("/gallery/output")
+async def gallery_output(prompt_id: str, request: Request, index: int = Query(0, ge=0)):
+    record = await run_in_threadpool(_gallery_record, request, prompt_id)
+    return await read_media(prompt_id, "image", index, record)
+
+
+def _gallery_record(request, prompt_id):
+    _require_team()
+    user = team.request_user(request, "owner", "operator")
+    with access.job_db() as connection:
+        connection.execute("BEGIN")
+        return team.staff_gallery_image(connection, user["id"], prompt_id)
 
 
 @router.get("/spend")

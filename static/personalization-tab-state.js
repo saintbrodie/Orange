@@ -5,7 +5,8 @@
   if (!tab || !container || !adminMenu) return;
 
   const DEFAULT_CLASS = 'admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition';
-  const restoreRequested = localStorage.getItem('orange_admin_tab') === 'personalization';
+  const restoreRequested = localStorage.getItem('orange_admin_tab') === 'personalization'
+    && !new URLSearchParams(location.search).has('view');
   let restored = false;
 
   function deactivate() {

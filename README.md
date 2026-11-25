@@ -89,7 +89,7 @@ For headless setup, run `python -m scripts.team_owner owner` from the Orange fol
 
 Use **Admin → Personalization → Team sign-in** to edit the sign-in title, welcome message, button label, and form icon. The sign-in page uses the active theme and can display the app logo.
 
-In Team mode, **Admin** is available to Owners and includes a **Team** tab. Operators use the Team page directly to manage their assigned account features.
+In Team mode, Owners open the **Team** tab in Admin directly from Generate. Operators have **Team**, **Analytics**, and **Gallery** tabs on their workspace. Members see their own account, team memberships, usage, and generation history.
 
 On **Generate**, expand **My generation history** to check your jobs and open completed results.
 
@@ -97,7 +97,9 @@ At `http://localhost:7070/team`, sign in and open **Account Management** to crea
 
 Use **Add user** to set a username and password for an account that can sign in immediately. Owners can add and remove accounts at any role as long as at least one active Owner remains. Operators can add and remove Members. Removing an account revokes its sessions and password reset links, frees its username, and preserves historical workspace spending.
 
-**Account Management** shows each account’s teams, date added, and recorded generation count. Search by username, filter by team, role, or status, and sort using the column headings. The directory displays 25 accounts per page by default. Dates are recorded for new accounts, and earlier accounts with no stored creation date display **Unknown**. Select a username to see recent activity, tool access, and account settings. Owners can open every account. Operators can open Member accounts and their own account. Prompts and generated files are available to the submitting account.
+**Account Management** shows each account’s teams, date added, and recorded generation count. Search by username, filter by team, role, or status, and sort using the column headings. The directory displays 25 accounts per page by default. Dates are recorded for new accounts, and earlier accounts with no stored creation date display **Unknown**. Select a username to see recent activity, tool access, and account settings. Owners can open every account. Operators can open Member accounts and their own account.
+
+**Analytics** shows generation activity by username. **Gallery** shows completed Team images with the submitting username, tool, and date. Owners can see all current accounts' activity and images. Operators can see their own and Members'. Both views support username search. Prompts, generation status controls, and non-image results stay with the submitting account.
 
 Owners control workspace-wide availability for Team mode in **Admin → Tools**. Under **Team → Teams**, create teams such as Graphics or Social Media and set their tool access. Click a team’s member count to filter the account directory. In **Account Management**, select individual users, a page, or all matches, then use **Manage teams** to add, remove, or move memberships. Moving users preserves their other teams. An account inherits tools from all of its teams. An account without a team inherits every globally available tool. Per-account overrides can allow or deny individual tools, subject to workspace-wide availability.
 

@@ -7,11 +7,13 @@
     <link rel="icon" href="/static/orange-head.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/static/styles.css?v=9">
     <link rel="stylesheet" href="/static/app-navigation.css?v=3">
-    <link rel="stylesheet" href="/static/team.css?v=10">
-    <link rel="stylesheet" href="/static/team-history.css?v=1">
     <script src="/static/lucide.min.js" defer></script>
-    <script src="/static/team-history.js?v=1" defer></script>
-    <script src="/static/team.js?v=11" defer></script>
+    <!-- team assets -->
+    <link rel="stylesheet" href="/static/team.css?v=12">
+    <link rel="stylesheet" href="/static/team-history.css?v=1">
+    <script src="/static/team-history.js?v=2" defer></script>
+    <script src="/static/team.js?v=12" defer></script>
+    <!-- team assets -->
 </head>
 <body class="team-page">
     <nav class="team-header" aria-label="Team navigation">
@@ -20,12 +22,16 @@
             <div><h1 id="team-brand-name" class="bg-gradient-to-br">Orange Team</h1></div>
         </a>
         <div id="team-nav" class="team-nav" hidden>
+            <a id="team-home-tab" class="orange-page-link" href="/team">Team</a>
+            <a id="team-analytics-tab" class="orange-page-link" href="/team?view=analytics" hidden>Analytics</a>
+            <a id="team-gallery-tab" class="orange-page-link" href="/team?view=gallery" hidden>Gallery</a>
             <a class="orange-page-link" href="/"><i data-lucide="wand-2" aria-hidden="true"></i> Generate</a>
-            <a id="team-admin" class="orange-page-link" href="/admin" hidden><i data-lucide="settings" aria-hidden="true"></i> Admin</a>
             <button type="button" id="team-logout"><i data-lucide="log-out" aria-hidden="true"></i> Sign out</button>
         </div>
     </nav>
     <main class="team-main">
+    <!-- team workspace -->
+    <div class="team-workspace">
         <p id="team-error" class="team-error" role="alert" hidden></p>
         <section id="team-auth" class="team-panel team-auth" hidden>
             <div id="team-auth-lock"><i data-lucide="lock" class="team-auth-icon" aria-hidden="true"></i></div>
@@ -51,9 +57,12 @@
         </section>
 
         <div id="team-account" hidden>
-            <header class="team-heading">
-                <div><h2 id="team-name"></h2><p id="team-role" class="team-muted"></p></div>
-            </header>
+            <section id="team-own-heading" class="team-panel" aria-labelledby="team-own-title" hidden>
+                <h2 id="team-own-title">My account</h2>
+                <p id="team-name"></p>
+                <p id="team-role" class="team-muted"></p>
+                <p id="team-own-memberships" class="team-muted"></p>
+            </section>
 
             <section id="team-management" class="team-panel" aria-labelledby="team-management-title" hidden>
                 <div class="team-heading">
@@ -116,7 +125,7 @@
             </section>
 
             <details class="team-panel team-disclosure">
-                <summary>API usage and budgets</summary>
+                <summary id="team-spend-title">API usage and budgets</summary>
                 <div class="team-heading"><h3>My API usage</h3><span class="team-muted" id="team-month"></span></div>
                 <dl class="team-metrics" id="team-own-totals"></dl>
                 <section id="team-workspace-usage" hidden>
@@ -192,7 +201,27 @@
                 </details>
             </div>
         </div>
-    </main>
+        <section id="team-activity" class="team-panel" aria-labelledby="team-activity-title" hidden>
+            <div class="team-heading">
+                <h2 id="team-activity-title">Generation activity</h2>
+                <button id="team-activity-refresh" type="button">Refresh</button>
+            </div>
+            <form id="team-activity-filter" class="team-inline" role="search">
+                <label for="team-activity-search">Username</label>
+                <input id="team-activity-search" name="query" type="search" maxlength="64" placeholder="Search by username">
+                <button type="submit">Search</button>
+            </form>
+            <p id="team-activity-feedback" class="team-muted" role="status"></p>
+            <div id="team-activity-table" class="team-table" hidden><table>
+                <thead><tr><th scope="col">User</th><th scope="col">Tool</th><th scope="col">Submitted</th><th scope="col">Status</th></tr></thead>
+                <tbody id="team-activity-rows"></tbody>
+            </table></div>
+            <ul id="team-gallery-grid" class="team-gallery-grid" aria-label="Generated images" hidden></ul>
+            <div class="team-actions team-activity-pages">
+                <button id="team-activity-previous" type="button">Previous</button>
+                <button id="team-activity-next" type="button">Next</button>
+            </div>
+        </section>
     <dialog id="team-group-dialog" class="team-panel" aria-labelledby="team-group-title">
         <div class="team-heading"><h2 id="team-group-title">New team</h2><form method="dialog"><button type="submit">Close</button></form></div>
         <p class="team-error" role="alert" hidden></p>
@@ -268,6 +297,9 @@
         <header><h2 id="team-result-title">Generation result</h2><form method="dialog"><button type="submit">Close</button></form></header>
         <div id="team-result-content" aria-live="polite"></div>
     </dialog>
+    </div>
+    <!-- team workspace -->
+    </main>
     <div class="mesh-container" aria-hidden="true">
         <div class="mesh-blob mesh-1"></div>
         <div class="mesh-blob mesh-2"></div>

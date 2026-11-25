@@ -85,12 +85,16 @@ class TeamTests(unittest.IsolatedAsyncioTestCase):
             await self.login(owner)
             await self.add_user(owner, operator, "operator", "operator")
             member_id = await self.add_user(owner, member, "member")
-            self.assertIn('data-orange-mode="team"', (await owner.get("/admin")).text)
-            self.assertIn('id="tab-team"', (await owner.get("/admin")).text)
-            self.assertIn('data-team-embedded', (await owner.get("/team", params={"embedded": 1})).text)
+            owner_admin = (await owner.get("/admin", params={"view": "team"})).text
+            self.assertIn('data-orange-mode="team"', owner_admin)
+            self.assertIn('id="tab-team"', owner_admin)
+            self.assertIn('id="team-management"', owner_admin)
+            self.assertNotIn('<iframe', owner_admin)
+            self.assertIn('href="/admin?view=team"', (await owner.get("/")).text)
+            self.assertEqual((await owner.get("/team", params={"embedded": 1})).headers["location"], "/admin?view=team")
             self.assertIn('href="/team"', (await member.get("/")).text)
             self.assertEqual((await operator.get("/admin")).headers["location"], "/team")
-            self.assertEqual((await operator.get("/team", params={"embedded": 1})).status_code, 403)
+            self.assertEqual((await operator.get("/team", params={"embedded": 1})).headers["location"], "/team")
             self.assertEqual((await owner.get("/api/admin/media")).status_code, 403)
             self.assertEqual((await operator.get("/api/admin/config")).status_code, 403)
             self.assertEqual((await member.get("/api/admin/usage")).status_code, 403)
@@ -436,6 +440,50 @@ class TeamTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await operator.get(f"/api/team/users/{operator_id}")).status_code, 200)
             self.assertEqual((await alice.get(profile_url)).status_code, 403)
             self.assertEqual((await bob.get(profile_url)).status_code, 403)
+
+    async def test_activity_and_gallery_respect_staff_visibility_and_leave_personal_outputs_private(self):
+        async with self.client() as owner, self.client() as operator, self.client() as member:
+            await self.login(owner)
+            operator_id = await self.add_user(owner, operator, "staff", "operator")
+            member_id = await self.add_user(owner, member, "alice")
+            with access.job_db() as connection:
+                for job_id, user_id, output_type in (
+                    ("alice-image", member_id, "image"), ("alice-video", member_id, "video"),
+                    ("staff-image", operator_id, "image"), ("owner-image", self.owner_id, "image"),
+                ):
+                    access.insert_owned_generation(connection, job_id, user_id, "comfy", "comfyui", output_type)
+                connection.execute("""UPDATE generation_access
+                    SET status='completed', prompt_id=id, backend_url='http://comfy.example'""")
+            activity = "/api/team/activity"
+            gallery = "/api/team/gallery"
+            image_params = {"prompt_id": "alice-image"}
+            self.assertEqual((await member.get("/api/team/account")).json(), {"teams": []})
+            self.assertEqual((await member.get(activity)).status_code, 403)
+            self.assertEqual((await member.get(f"{gallery}/outputs", params=image_params)).status_code, 403)
+            self.assertEqual((await member.get(f"{gallery}/output", params=image_params)).status_code, 403)
+            self.assertEqual((await operator.get("/api/outputs", params=image_params)).status_code, 404)
+            self.assertEqual((await operator.get(f"{gallery}/output", params={"prompt_id": "owner-image"})).status_code, 404)
+            self.assertEqual((await owner.get(f"{gallery}/outputs", params={"prompt_id": "alice-video"})).status_code, 404)
+            jobs = (await owner.get(activity)).json()["jobs"]
+            self.assertEqual({job["handle"] for job in jobs}, {"owner", "staff", "alice"})
+            jobs = (await operator.get(activity, params={"images": True})).json()["jobs"]
+            self.assertEqual({job["id"] for job in jobs}, {"staff-image", "alice-image"})
+            jobs = (await operator.get(activity, params={"query": "ALI"})).json()["jobs"]
+            self.assertEqual({job["id"] for job in jobs}, {"alice-image", "alice-video"})
+            png = BytesIO()
+            Image.new("RGB", (4, 4), "orange").save(png, "PNG")
+            backend = AsyncMock()
+            backend.get.side_effect = [
+                httpx.Response(200, json={"alice-image": {"outputs": {"1": {"images": [{"filename": "result.png"}]}}}}),
+                httpx.Response(200, json={"alice-image": {"outputs": {"1": {"images": [{"filename": "result.png"}]}}}}),
+                httpx.Response(200, content=png.getvalue(), headers={"content-type": "image/png"}),
+            ]
+            with patch.object(outputs, "get_backend_client", return_value=backend):
+                listing = await operator.get(f"{gallery}/outputs", params=image_params)
+                self.assertEqual(listing.json()["count"], 1)
+                image = await operator.get(f"{gallery}/output", params=image_params)
+                self.assertEqual(image.status_code, 200)
+                self.assertEqual(image.headers["content-type"], "image/png")
 
     async def test_team_lan_http_sign_in_requires_opt_in_and_a_private_connection(self):
         self.patch(patch.object(access, "_machine_hostnames", return_value={"team.example"}))

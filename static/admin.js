@@ -252,11 +252,11 @@ const orangeTeamMode = document.documentElement.dataset.orangeMode === 'team';
                     logoutBtn.classList.remove('hidden');
                     adminMenu.classList.remove('hidden');
                     adminMenu.classList.add('flex');
-                    const savedTab = localStorage.getItem('orange_admin_tab') || 'general';
-                    const tabMap = { general: tabGeneral, tools: tabTools, analytics: tabAnalytics };
+                    const requested = orangeTeamMode && new URLSearchParams(location.search).get('view');
+                    const savedTab = requested || localStorage.getItem('orange_admin_tab') || 'general';
+                    const tabMap = { general: tabGeneral, tools: tabTools, analytics: tabAnalytics, gallery: tabGallery };
                     if (orangeTeamMode) tabMap.team = tabTeam;
-                    if (!orangeTeamMode) tabMap.gallery = document.getElementById('tab-gallery');
-                    (tabMap[savedTab] || tabGeneral).click();
+                    (Object.hasOwn(tabMap, savedTab) ? tabMap[savedTab] : tabGeneral).click();
                 }
 
                 renderDashboard(data);
@@ -583,7 +583,6 @@ const orangeTeamMode = document.documentElement.dataset.orangeMode === 'team';
         const tabTools = document.getElementById('tab-tools');
         const tabTeam = document.getElementById('tab-team');
         const teamContainer = document.getElementById('admin-team-container');
-        const teamFrame = document.getElementById('admin-team-frame');
         const tabGallery = document.getElementById('tab-gallery');
         const settingsContainer = document.getElementById('settings-container');
         const toolsContainer = document.getElementById('tools-container');
@@ -619,6 +618,11 @@ const orangeTeamMode = document.documentElement.dataset.orangeMode === 'team';
         const MAPPING_TYPES = ['prompt', 'image', 'image2', 'resolution', 'seed', 'duration', 'outputText'];
 
         function resetTabs() {
+            if (orangeTeamMode && new URLSearchParams(location.search).has('view')) {
+                const url = new URL(location.href);
+                url.searchParams.delete('view');
+                history.replaceState(history.state, '', url);
+            }
             const defaultClass = "admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition";
             tabGeneral.className = defaultClass;
             tabTools.className = defaultClass;
@@ -655,31 +659,35 @@ const orangeTeamMode = document.documentElement.dataset.orangeMode === 'team';
             await loadEditorData();
         });
 
-        tabTeam.addEventListener('click', () => {
-            if (!orangeTeamMode) return;
+        function openTeamView(view, tab) {
             resetTabs();
-            tabTeam.className = activeClass;
+            tab.className = activeClass;
             teamContainer.classList.remove('hidden');
-            localStorage.setItem('orange_admin_tab', 'team');
-            if (!teamFrame.hasAttribute('src')) teamFrame.src = '/team?embedded=1';
-        });
+            localStorage.setItem('orange_admin_tab', view);
+            teamContainer.dataset.view = view;
+            teamContainer.dispatchEvent(new Event('orange:team-view'));
+        }
 
-        teamFrame.addEventListener('load', () => {
-            const embeddedPage = teamFrame.contentDocument;
-            if (embeddedPage?.getElementById('team-login') && !embeddedPage.body.hasAttribute('data-team-embedded')) {
-                location.replace('/team');
-            }
+        tabTeam.addEventListener('click', () => {
+            if (orangeTeamMode) openTeamView('team', tabTeam);
         });
 
         tabAnalytics.addEventListener('click', () => {
-            resetTabs();
-            tabAnalytics.className = activeClass;
+            if (orangeTeamMode) openTeamView('analytics', tabAnalytics);
+            else {
+                resetTabs();
+                tabAnalytics.className = activeClass;
+            }
             dashboardContainer.classList.remove('hidden');
             localStorage.setItem('orange_admin_tab', 'analytics');
         });
 
         if(tabGallery) {
             tabGallery.addEventListener('click', async () => {
+                if (orangeTeamMode) {
+                    openTeamView('gallery', tabGallery);
+                    return;
+                }
                 resetTabs();
                 tabGallery.className = activeClass;
                 galleryContainer.classList.remove('hidden');

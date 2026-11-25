@@ -202,26 +202,26 @@ def serve_team(request: Request, embedded: bool = False):
     if not access.is_team():
         raise HTTPException(404, "Team mode is unavailable.")
     if embedded:
-        if not getattr(request.state, "team_user", None):
-            return RedirectResponse("/team", status_code=303)
-        team.request_user(request, "owner")
+        user = getattr(request.state, "team_user", None)
+        return RedirectResponse("/admin?view=team" if user and user["role"] == "owner" else "/team", status_code=303)
     with open(os.path.join(STATIC_DIR, "team.html"), "r", encoding="utf-8") as page:
         content = page.read().replace("</head>", THEME_HEAD + "</head>")
-        if embedded:
-            content = content.replace('<body class="team-page">', '<body class="team-page" data-team-embedded>', 1)
         return HTMLResponse(content)
 
 
 @app.get("/")
-def serve_index():
+def serve_index(request: Request):
     if setup_required():
         return RedirectResponse(url="/setup", status_code=302)
     try:
         with open(os.path.join(STATIC_DIR, "index.html"), "r", encoding="utf-8") as f:
             content = f.read()
         if access.is_team():
+            user = getattr(request.state, "team_user", None)
+            owner = user and user["role"] == "owner"
             content = content.replace('href="/admin"><i data-lucide="settings" class="w-4 h-4"></i> Admin',
-                                      'href="/team"><i data-lucide="user" class="w-4 h-4"></i> Account', 1)
+                                      ('href="/admin?view=team"><i data-lucide="users" class="w-4 h-4"></i> Team' if owner
+                                       else 'href="/team"><i data-lucide="user" class="w-4 h-4"></i> Account'), 1)
             content = content.replace("</head>",
                                       '    <link rel="stylesheet" href="/static/team-history.css?v=1">\n'
                                       '    <script src="/static/team-history.js?v=1" defer></script>\n</head>', 1)
@@ -252,6 +252,12 @@ def serve_admin():
             content = f.read()
         if access.is_team():
             content = content.replace("<html lang=\"en\">", '<html lang="en" data-orange-mode="team">', 1)
+            with open(os.path.join(STATIC_DIR, "team.html"), "r", encoding="utf-8") as page:
+                team_page = page.read()
+            assets = team_page.split("<!-- team assets -->")[1]
+            workspace = team_page.split("<!-- team workspace -->")[1]
+            content = content.replace("<!-- team assets -->", assets)
+            content = content.replace("<!-- team workspace -->", workspace)
         content = content.replace(
             "</head>",
             THEME_HEAD
@@ -266,14 +272,14 @@ def serve_admin():
             '    <script src="/static/tool-ratios.js?v=1"></script>\n'
             '    <script src="/static/workflow-assets.js?v=2"></script>\n'
             '    <script src="/static/personalization.js?v=5"></script>\n'
-            '    <script src="/static/personalization-tab-state.js?v=2"></script>\n'
+            '    <script src="/static/personalization-tab-state.js?v=3"></script>\n'
             '    <script src="/static/admin-layout.js?v=1"></script>\n'
             '    <script src="/static/general-settings.js?v=2"></script>\n'
             '    <script src="/static/media-providers.js?v=6"></script>\n'
             '    <script src="/static/managed-comfyui.js?v=5"></script>\n'
             '    <script src="/static/managed-prompt-enhancer.js?v=5"></script>\n'
             '    <script src="/static/llm-model-select.js?v=1"></script>\n'
-            '    <script src="/static/mobile-navigation.js?v=8"></script>\n'
+            '    <script src="/static/mobile-navigation.js?v=9"></script>\n'
             "</body>",
         )
         return HTMLResponse(content=content)

@@ -1,9 +1,12 @@
-:root {
+html:has(> body.team-page) {
     color-scheme: dark;
     height: auto;
     min-height: 100%;
     overflow-y: auto;
     font: 16px/1.5 system-ui, sans-serif;
+}
+
+.team-page, .team-workspace {
     --team-bg: var(--orange-bg, #09090b);
     --team-panel: var(--orange-panel, #18181b);
     --team-panel-raised: var(--orange-panel-2, #27272a);
@@ -16,22 +19,31 @@
     --team-control-radius: max(6px, calc(var(--team-radius) * .5));
 }
 
-* { box-sizing: border-box; }
-[hidden] { display: none !important; }
+:where(.team-page, .team-workspace) * { box-sizing: border-box; }
+:where(.team-page, .team-workspace) [hidden] { display: none !important; }
 body.team-page { display: block; height: auto; min-height: 100vh; overflow: visible; isolation: isolate; background: var(--team-bg); color: var(--team-text); }
-body.team-page[data-team-embedded] { min-height: 0; background: transparent; }
-[data-team-embedded] .team-header, [data-team-embedded] .mesh-container { display: none !important; }
-[data-team-embedded] .team-main { width: 100%; margin: 0; }
-a { color: var(--team-accent); }
-button, input, select { font: inherit; color: inherit; border: 1px solid var(--team-line); border-radius: var(--team-control-radius); background: var(--team-bg); padding: .5rem .75rem; }
-input, select { min-width: 0; }
-button { cursor: pointer; background: var(--team-panel-raised); font-weight: 500; }
-button:disabled { cursor: wait; opacity: .6; }
-button:hover:not(:disabled) { border-color: var(--team-accent); }
-:focus-visible { outline: 2px solid var(--team-accent); outline-offset: 3px; }
-h1, h2, p, dl { margin: 0; }
-h2 { font-size: 1.125rem; font-weight: 600; }
-label { font-size: .875rem; font-weight: 600; }
+:where(.team-workspace) a { color: var(--team-accent); }
+:where(.team-workspace, .team-nav) :is(button, input, select) { font: inherit; color: inherit; border: 1px solid var(--team-line); border-radius: var(--team-control-radius); background: var(--team-bg); padding: .5rem .75rem; }
+.team-workspace :where(button:not(.team-primary, .team-text-button), input:not([type="checkbox"], [type="radio"]), select) {
+    min-height: 2.5rem;
+    padding: .5rem .8rem;
+    border-radius: min(var(--team-control-radius), .6rem);
+}
+.team-workspace select {
+    padding-inline-end: 2rem;
+    background-position: right .75rem center;
+}
+.team-workspace :where(button:not(.team-primary, .team-text-button)) {
+    background-color: var(--team-panel-raised);
+}
+:where(.team-workspace) :is(input, select) { min-width: 0; }
+:where(.team-workspace, .team-nav) button { cursor: pointer; background: var(--team-panel-raised); font-weight: 500; }
+:where(.team-workspace, .team-nav) button:disabled { cursor: wait; opacity: .6; }
+:where(.team-workspace, .team-nav) button:hover:not(:disabled) { border-color: var(--team-accent); }
+:where(.team-page, .team-workspace) :focus-visible { outline: 2px solid var(--team-accent); outline-offset: 3px; }
+.team-brand h1, :where(.team-workspace) :is(h2, p, dl) { margin: 0; }
+:where(.team-workspace) h2 { font-size: 1.125rem; font-weight: 600; }
+:where(.team-workspace) label { font-size: .875rem; font-weight: 600; }
 .team-primary { padding: .85rem; border: 1px solid transparent; background: linear-gradient(110deg, var(--team-accent-secondary), var(--team-accent)); color: white; font-weight: 700; box-shadow: 0 0 20px var(--orange-glow, transparent); }
 .team-header { width: min(80rem, calc(100% - 2rem)); margin: 1.5rem auto 0; border: 1px solid var(--team-line); border-radius: var(--team-radius); background: color-mix(in srgb, var(--team-panel) 88%, transparent); backdrop-filter: blur(12px); padding: .95rem clamp(1rem, 3vw, 2rem); display: flex; align-items: center; justify-content: space-between; gap: .75rem 1rem; flex-wrap: wrap; }
 .team-brand, .team-nav { display: flex; align-items: center; gap: .75rem; }
@@ -40,10 +52,20 @@ label { font-size: .875rem; font-weight: 600; }
 .team-brand h1 { overflow-wrap: anywhere; font-size: 1.5rem; font-weight: 750; line-height: 1.25; color: var(--team-accent); background: linear-gradient(135deg, var(--team-accent), var(--team-accent-secondary)); background-clip: text; -webkit-text-fill-color: transparent; }
 .team-brand .orange-brand-tagline { color: var(--team-muted); font-size: .75rem; }
 .team-nav { flex-wrap: wrap; }
+.team-nav a[aria-current="page"] { color: var(--team-accent); border-color: var(--team-accent); }
 .team-nav button { display: inline-flex; align-items: center; gap: .5rem; }
 .team-nav svg { width: 1rem; height: 1rem; flex-shrink: 0; }
 .team-main { width: min(80rem, calc(100% - 2rem)); margin: 2rem auto 4rem; }
 .team-panel { border: 1px solid var(--team-line); border-radius: var(--team-radius); padding: clamp(1rem, 2.8vw, 1.5rem); margin-block: 1rem; color: var(--team-text); background: color-mix(in srgb, var(--team-panel) 90%, transparent); box-shadow: 0 16px 30px -20px #0008; }
+#admin-team-container .team-workspace > :first-child:not([hidden]), #admin-team-container #team-management { margin-top: 0; }
+#team-activity { margin-top: 0; }
+.team-activity-pages { justify-content: flex-end; margin-top: 1rem; }
+.team-gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr)); gap: 1rem; list-style: none; margin: 1rem 0 0; padding: 0; }
+.team-gallery-grid li { min-width: 0; }
+.team-gallery-grid button { display: grid; gap: .25rem; width: 100%; overflow-wrap: anywhere; padding: 0 0 .6rem; overflow: hidden; text-align: center; }
+.team-gallery-grid img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--team-bg); }
+.team-gallery-unavailable { display: grid; place-items: center; aspect-ratio: 1; background: var(--team-bg); }
+#team-own-heading .team-muted { margin-top: .25rem; }
 #team-name { font-size: clamp(1.5rem, 4vw, 2rem); overflow-wrap: anywhere; }
 .team-auth { width: min(28rem, 100%); margin: clamp(2.5rem, 8vh, 6rem) auto; padding: clamp(1.5rem, 5vw, 2.5rem); background: var(--team-panel); }
 .team-auth-icon { display: block; width: 2.75rem; height: 2.75rem; margin: 0 auto .8rem; color: var(--team-accent); }
@@ -74,7 +96,7 @@ label { font-size: .875rem; font-weight: 600; }
 .team-directory .team-directory-teams { width: 23%; }
 .team-directory .team-select-cell { width: 2.65rem; text-align: center; }
 .team-directory input[type="checkbox"] { accent-color: var(--team-accent); cursor: pointer; }
-.team-directory th button { padding: .2rem 0; background: transparent; border: 0; font-size: inherit; text-align: inherit; }
+.team-directory th button { min-height: 0; padding: .2rem 0; background: transparent; border: 0; font-size: inherit; text-align: inherit; }
 .team-directory th[aria-sort="ascending"] button::after { content: " ↑"; }
 .team-directory th[aria-sort="descending"] button::after { content: " ↓"; }
 .team-directory th:last-child, .team-directory td:last-child:not([colspan]) { text-align: right; font-variant-numeric: tabular-nums; }
@@ -128,11 +150,11 @@ a.team-user:hover, a.team-user:focus-visible { color: var(--team-accent); text-d
 .team-policy-table td:first-child { white-space: normal; overflow-wrap: anywhere; }
 #team-invitation-link { flex: 1; width: auto; }
 .team-table { overflow-x: auto; margin-top: .75rem; }
-table { width: 100%; border-collapse: collapse; white-space: nowrap; }
-th, td { padding: .55rem .65rem; border-bottom: 1px solid var(--team-line); text-align: left; }
-th { color: var(--team-muted); font-weight: 600; font-size: .85rem; }
-td .team-inline { flex-wrap: nowrap; margin: 0; }
-td .team-inline input { width: 7rem; }
+.team-table table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+.team-table :is(th, td) { padding: .55rem .65rem; border-bottom: 1px solid var(--team-line); text-align: left; }
+.team-table th { color: var(--team-muted); font-weight: 600; font-size: .85rem; }
+.team-table td .team-inline { flex-wrap: nowrap; margin: 0; }
+.team-table td .team-inline input { width: 7rem; }
 dialog.team-panel { width: min(42rem, calc(100% - 2rem)); max-height: 90vh; margin: auto; overflow-y: auto; }
 dialog.team-form-dialog { width: min(27rem, calc(100% - 2rem)); }
 dialog.team-form-dialog .team-error { margin-top: .75rem; }
@@ -140,7 +162,7 @@ dialog.team-form-dialog .team-error { margin-top: .75rem; }
 .team-stack-form input { max-width: 100%; }
 .team-stack-form button[type="submit"] { justify-self: end; margin-top: .35rem; }
 .team-share-link { flex-wrap: nowrap; }
-dialog::backdrop { background: color-mix(in srgb, var(--team-bg) 82%, transparent); }
+.team-workspace dialog::backdrop { background: color-mix(in srgb, var(--team-bg) 82%, transparent); }
 
 @media (max-width: 52rem) {
     .team-profile-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: 'history' 'settings' 'usage'; }

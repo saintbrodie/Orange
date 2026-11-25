@@ -12,13 +12,24 @@
     <link rel="stylesheet" href="/static/app-navigation.css?v=3">
     <style>
         [data-orange-mode="team"] #login-container,
-        [data-orange-mode="team"] #tab-gallery,
         [data-orange-mode="team"] #legacy-admin-key,
         [data-orange-mode="team"] #legacy-db-controls {
             display: none !important;
         }
         html:not([data-orange-mode="team"]) #tab-team { display: none !important; }
-        #admin-team-frame { display: block; width: 100%; height: calc(100dvh - 12rem); min-height: min(28rem, 75dvh); border: 0; }
+        #admin-menu .admin-tab > svg,
+        body > nav > div:first-child > img,
+        #logout-btn { flex-shrink: 0; }
+
+        @media (min-width: 641px) {
+            body > nav:has(#admin-menu),
+            body > nav:has(#admin-menu) > div:first-child,
+            #admin-menu { flex-wrap: wrap; gap: 0.5rem; }
+            body > nav:has(#admin-menu) h1 { margin-right: 0.75rem; }
+            #admin-menu { padding-left: 0.75rem; gap: 0.25rem; }
+            #admin-menu .admin-tab { padding-inline: 0.65rem; white-space: nowrap; }
+            #admin-generate-link { margin-left: 0; }
+        }
 
         /* Hide number input arrows */
         input[type="number"]::-webkit-inner-spin-button,
@@ -46,6 +57,7 @@
         }
     </style>
     <link rel="stylesheet" href="/static/tool-config.css?v=2">
+    <!-- team assets -->
 </head>
 
 <body
@@ -93,8 +105,8 @@
 
     <!-- Main Content Area -->
     <main class="flex-1 flex flex-col items-center relative w-full pt-16 pb-10 px-4 z-10">
-        <section id="admin-team-container" class="hidden w-full max-w-7xl mx-auto" aria-label="Team administration">
-            <iframe id="admin-team-frame" title="Team administration"></iframe>
+        <section id="admin-team-container" class="hidden w-full max-w-7xl mx-auto" aria-label="Team workspace">
+            <!-- team workspace -->
         </section>
 
         <!-- Login Form UI -->
@@ -787,7 +799,7 @@
 
     <!-- Script -->
     <script src="/static/tool-input-editor.js?v=4"></script>
-    <script src="/static/admin.js?v=18"></script>
+    <script src="/static/admin.js?v=19"></script>
     <script src="/static/workflow-pack-library.js?v=10"></script>
     <script src="/static/tool-config-layout.js?v=4"></script>
 </body>

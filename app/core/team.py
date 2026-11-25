@@ -407,3 +407,30 @@ def history(connection, user_id):
     return [dict(row) for row in connection.execute("""SELECT id, tool_id, provider, created, output_type, status,
         ((provider <> 'comfyui' AND status <> 'submission_failed') OR prompt_id IS NOT NULL) AS trackable
         FROM generation_access WHERE owner_id=? ORDER BY created DESC, rowid DESC LIMIT 100""", (user_id,))]
+
+
+_STAFF_ACTIVITY_SCOPE = """FROM generation_access g JOIN team_users u ON g.owner_id=u.id
+    WHERE u.removed=0 AND (?='owner' OR u.role='member' OR u.id=?)"""
+_GALLERY_IMAGE = """g.output_type='image' AND g.status='completed'
+    AND (g.provider<>'comfyui' OR g.prompt_id IS NOT NULL)"""
+
+
+def staff_activity(connection, user_id, *, images, query, page):
+    staff = require_active(connection, user_id, "owner", "operator")
+    page_size = 24
+    image_filter = f"AND {_GALLERY_IMAGE}" if images else ""
+    jobs = connection.execute(f"""SELECT g.id, g.tool_id, g.provider, g.created, g.output_type, g.status,
+        u.handle, u.id AS user_id
+        {_STAFF_ACTIVITY_SCOPE} {image_filter} AND instr(u.handle, ?) > 0
+        ORDER BY g.created DESC, g.rowid DESC LIMIT ? OFFSET ?""",
+        (staff["role"], user_id, query.strip().lower(), page_size + 1, (page - 1) * page_size)).fetchall()
+    return {"jobs": [dict(row) for row in jobs[:page_size]], "has_more": len(jobs) > page_size}
+
+
+def staff_gallery_image(connection, user_id, job_id):
+    staff = require_active(connection, user_id, "owner", "operator")
+    job = connection.execute(f"""SELECT g.* {_STAFF_ACTIVITY_SCOPE}
+        AND {_GALLERY_IMAGE} AND g.id=?""", (staff["role"], user_id, job_id)).fetchone()
+    if job is None:
+        raise HTTPException(404, "Gallery image was not found.")
+    return job
