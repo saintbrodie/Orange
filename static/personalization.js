@@ -5,7 +5,7 @@
 
   const DEFAULT_CLASS = 'admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition';
   const ACTIVE_CLASS = 'admin-tab active flex items-center gap-2 bg-zinc-800 text-orange-400 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-zinc-700 transition';
-  const KNOWN_CONTAINERS = ['settings-container', 'tools-container', 'dashboard-container', 'gallery-container'];
+  const KNOWN_CONTAINERS = ['settings-container', 'tools-container', 'dashboard-container', 'gallery-container', 'admin-team-container'];
 
   let presets = {};
   let state = null;
@@ -14,7 +14,7 @@
   function adminKey() { return localStorage.getItem('orange_admin_key') || ''; }
   function adminFetch(url, options = {}) {
     options.headers = options.headers || {};
-    options.headers.Authorization = `Bearer ${adminKey()}`;
+    if (document.documentElement.dataset.orangeMode !== 'team') options.headers.Authorization = `Bearer ${adminKey()}`;
     return fetch(url, options);
   }
 
@@ -78,6 +78,16 @@
             </div>
           </section>
 
+          <section class="pt-6 border-t border-zinc-800/60" aria-labelledby="team-sign-in-settings-title">
+            <h3 id="team-sign-in-settings-title" class="text-sm font-semibold text-zinc-200 mb-4">Team sign-in</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label class="space-y-1"><span class="text-xs text-zinc-400">Title</span><input id="sign-in-title" maxlength="80" placeholder="Sign in to your app" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm"></label>
+              <label class="space-y-1"><span class="text-xs text-zinc-400">Button label</span><input id="sign-in-button-text" maxlength="32" placeholder="Sign in" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm"></label>
+              <label class="space-y-1 md:col-span-2"><span class="text-xs text-zinc-400">Welcome message</span><textarea id="sign-in-message" maxlength="400" rows="3" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm"></textarea></label>
+              <label class="space-y-1"><span class="text-xs text-zinc-400">Icon above the form</span><select id="sign-in-mark" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm"><option value="lock">Lock</option><option value="logo">App logo</option><option value="none">None</option></select></label>
+            </div>
+          </section>
+
           <section id="custom-theme-section" class="hidden pt-6 border-t border-zinc-800/60">
             <h3 class="text-sm font-semibold text-zinc-200">Custom Theme</h3>
             <p class="text-xs text-zinc-500 mt-1 mb-4">Structured tokens stay upgrade-safe; arbitrary CSS is intentionally not exposed.</p>
@@ -97,6 +107,13 @@
             <div class="preview-shell">
               <div class="preview-side"><img id="preview-mascot" src="/static/orange.svg"><div id="preview-app-name" class="preview-name">Orange</div><div id="preview-tagline" style="font-size:8px;text-align:center;color:var(--preview-muted)">AI Media Tools</div></div>
               <div class="preview-main"><div class="preview-label">Prompt</div><div class="preview-input"></div><button class="preview-button"><span id="preview-button-label">Generate</span></button></div>
+            </div>
+            <p class="preview-label mt-5 mb-2">Team sign-in preview</p>
+            <div class="preview-sign-in">
+              <span id="preview-sign-in-lock"><i data-lucide="lock"></i></span><img id="preview-sign-in-logo" alt="" hidden>
+              <strong id="preview-sign-in-title">Sign in to Orange</strong>
+              <p id="preview-sign-in-message" hidden></p>
+              <div id="preview-sign-in-button" class="preview-button">Sign in</div>
             </div>
           </div>
         </aside>
@@ -131,7 +148,7 @@
     container.classList.add('hidden');
   }
 
-  document.querySelectorAll('#tab-general,#tab-tools,#tab-analytics,#tab-gallery').forEach(other => {
+  document.querySelectorAll('#tab-general,#tab-tools,#tab-team,#tab-analytics,#tab-gallery').forEach(other => {
     other.addEventListener('click', () => container.classList.add('hidden'));
   });
   document.getElementById('logout-btn')?.addEventListener('click', () => container.classList.add('hidden'));
@@ -170,6 +187,16 @@
     document.getElementById('preview-tagline').textContent = document.getElementById('brand-tagline').value || '';
     const logo = state.brandingAssets?.logo || presets[selectedTheme]?.mascot || '/static/orange.svg';
     document.getElementById('preview-mascot').src = logo;
+    const signIn = collectSignIn();
+    document.getElementById('preview-sign-in-title').textContent = signIn.title || `Sign in to ${document.getElementById('preview-app-name').textContent}`;
+    const message = document.getElementById('preview-sign-in-message');
+    message.textContent = signIn.message;
+    message.hidden = !signIn.message;
+    document.getElementById('preview-sign-in-button').textContent = signIn.buttonText || 'Sign in';
+    document.getElementById('preview-sign-in-lock').hidden = signIn.mark !== 'lock';
+    const signInLogo = document.getElementById('preview-sign-in-logo');
+    signInLogo.src = logo;
+    signInLogo.hidden = signIn.mark !== 'logo';
     document.getElementById('custom-theme-section').classList.toggle('hidden', selectedTheme !== 'custom');
     document.getElementById('custom-radius-value').textContent = document.getElementById('custom-radius').value;
   }
@@ -193,6 +220,10 @@
     document.getElementById('brand-name').value = state.branding?.appName || 'Orange';
     document.getElementById('brand-tagline').value = state.branding?.tagline || '';
     document.getElementById('brand-footer').value = state.branding?.footerText || '';
+    document.getElementById('sign-in-title').value = state.signIn?.title || '';
+    document.getElementById('sign-in-message').value = state.signIn?.message || '';
+    document.getElementById('sign-in-button-text').value = state.signIn?.buttonText || '';
+    document.getElementById('sign-in-mark').value = state.signIn?.mark || 'lock';
     colorFields.forEach(([key]) => {
       const value = state.custom?.[key] || '#000000';
       document.getElementById(`custom-${key}`).value = value;
@@ -221,6 +252,15 @@
     state = await res.json(); hydrate();
   }
 
+  function collectSignIn() {
+    return {
+      title: document.getElementById('sign-in-title').value.trim(),
+      message: document.getElementById('sign-in-message').value.trim(),
+      buttonText: document.getElementById('sign-in-button-text').value.trim(),
+      mark: document.getElementById('sign-in-mark').value,
+    };
+  }
+
   function collect() {
     const custom = {};
     colorFields.forEach(([key]) => custom[key] = document.getElementById(`custom-${key}`).value);
@@ -233,6 +273,7 @@
         tagline: document.getElementById('brand-tagline').value.trim(),
         footerText: document.getElementById('brand-footer').value.trim()
       },
+      signIn: collectSignIn(),
       custom
     };
   }
@@ -270,7 +311,8 @@
     });
   });
 
-  ['brand-name', 'brand-tagline', 'brand-footer', 'custom-radius', 'custom-motion'].forEach(id => document.getElementById(id).addEventListener('input', updatePreview));
+  ['brand-name', 'brand-tagline', 'brand-footer', 'sign-in-title', 'sign-in-message', 'sign-in-button-text', 'sign-in-mark',
+    'custom-radius', 'custom-motion'].forEach(id => document.getElementById(id).addEventListener('input', updatePreview));
 
   if (window.lucide) lucide.createIcons();
 })();

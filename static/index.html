@@ -52,6 +52,14 @@
 
         <!-- Main Content Area -->
         <div class="flex-1 p-8 md:p-12 lg:p-16 flex flex-col justify-start relative overflow-y-auto">
+            <details id="generate-history" class="orange-generation-history" hidden>
+                <summary>My generation history</summary>
+                <div class="orange-history-toolbar">
+                    <p id="generate-history-feedback" role="status"></p>
+                    <button type="button" id="generate-history-refresh">Refresh</button>
+                </div>
+                <ul id="generate-history-list"></ul>
+            </details>
             
             <!-- Generation Form UI -->
             <div id="ui-container" class="max-w-2xl mx-auto my-auto w-full space-y-8 block animate-in fade-in zoom-in duration-300">
@@ -234,6 +242,10 @@
             </div>
         </div>
     </div>
+    <dialog id="team-result" class="orange-history-dialog" aria-labelledby="team-result-title">
+        <header><h2 id="team-result-title">Generation result</h2><form method="dialog"><button type="submit">Close</button></form></header>
+        <div id="team-result-content" aria-live="polite"></div>
+    </dialog>
             
     <!-- Futuristic Mesh Background -->
     <div class="mesh-container">
@@ -243,6 +255,6 @@
         <div class="mesh-overlay"></div>
     </div>
 
-    <script src="/static/app.js?v=17"></script>
+    <script src="/static/app.js?v=19"></script>
 </body>
 </html>

@@ -1,11 +1,12 @@
 """Authenticated provider management and semantic cloud submission."""
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from io import BytesIO
 from PIL import Image
 
 from app.api.admin import verify_admin
 from app.api.generate import MAX_UPLOAD_BYTES, _read_validated_image
+from app.core import access, team
 from app.core import media_provider_config as config
 from app.core.media_providers import ADAPTERS, ModelDiscovery, MediaRequest, ProviderError, provider_models, validate_api_tool
 from app.core.media_jobs import get_job, job_manager
@@ -14,7 +15,10 @@ router = APIRouter()
 
 
 @router.post('/api/jobs/{job_id}/retry-download', status_code=202)
-async def retry_download(job_id: str):
+async def retry_download(job_id: str, request: Request = None):
+    record = access.authorize_generation(request, job_id)
+    if record is not None and record["provider"] == "comfyui":
+        raise HTTPException(404, "Generation was not found.")
     job = get_job(job_id)
     if not job:
         raise HTTPException(404, 'Generation was not found.')
@@ -175,7 +179,11 @@ async def submit_api_tool(request, tool, prompt, aspect_ratio, resolution, durat
         if len(generation_prompt) > model.prompt_limit:
             raise ValueError(f'Prompt and tool instructions must fit within {model.prompt_limit} characters for this model.')
         semantic = MediaRequest(model.id, generation_prompt, ratio, resolution, seconds, images)
-        return job_manager.submit(provider, model, tool["id"], semantic, request.client.host if request.client else "unknown")
+        return job_manager.submit(
+            provider, model, tool["id"], semantic, request.client.host if request.client else "unknown",
+            guest=access.submitting_guest(request),
+            member_id=team.request_user(request)["id"] if access.is_team() else None, tool=tool,
+        )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from None
     except ProviderError as exc:

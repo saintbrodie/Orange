@@ -264,10 +264,18 @@ do not invent a numerical percentage when the provider supplies none.
   strips API headers and cookies, and enforces a 256 MiB streaming download limit.
   Signed output URLs are not persisted in the job ledger or usage history.
 
-Cloud generation uses Orange's existing trusted deployment model. Anyone who can
-reach Generate can run configured tools with the connected account's API keys.
-Keep access restricted to a trusted network and use provider-side spending limits
-where available. The local queue limit controls concurrent work, not spending.
+Local mode exposes configured cloud tools on the Orange host. Open LAN mode
+requires the owner's `ORANGE_LAN_TOOLS` list to include a cloud tool before guests
+can run it using the connected account's API key. Use provider-side spending
+limits where available. The Orange queue limit controls concurrent work.
+
+In Team mode, the owner sets a USD estimate per cloud generation tool and a
+monthly workspace limit. Orange reserves the estimate against the workspace
+and submitting account before scheduling work. OpenRouter image generation can
+provide a reported USD charge for reconciliation. Other cloud media jobs use the
+configured estimate when the provider omits a reported charge. If the provider
+may have accepted a failed or interrupted request, Orange keeps the estimate
+against the budget. Delivery retries reuse the original reservation.
 
 SQLite's `media_jobs` table stores the lifecycle, remote file handle, deadline,
 and local output manifest. Media is saved atomically under `runtime/media/`,

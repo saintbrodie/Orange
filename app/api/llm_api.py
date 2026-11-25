@@ -6,6 +6,7 @@ from app.api.admin import verify_admin
 from app.core.config import get_system_prompt, get_tool_settings, load_config
 from app.core.llm import LLMConfigError, LLMError, call_llm, list_llm_models
 from app.core.rate_limit import SlidingWindowRateLimiter
+from app.core.access import enhancement_allowed, is_team, tool_allowed
 
 router = APIRouter()
 
@@ -68,6 +69,11 @@ async def enhance_prompt(
     prompt: str = Form(...),
     tool_id: str = Form(...),
 ):
+    if not enhancement_allowed():
+        raise HTTPException(403, "Prompt enhancement is unavailable in Open LAN mode.")
+    tool = get_tool_settings(tool_id)
+    if (not tool and is_team()) or (tool and not tool_allowed(tool, request)):
+        raise HTTPException(403, "This tool is unavailable in the current access mode.")
     if len(prompt) > MAX_PROMPT_CHARS:
         raise HTTPException(status_code=413, detail=f"Prompt exceeds the {MAX_PROMPT_CHARS} character limit.")
 
@@ -83,6 +89,8 @@ async def enhance_prompt(
         )
 
     settings = _resolve_tool_llm(tool_id)
+    if is_team() and settings["provider"] != "managed":
+        raise HTTPException(403, "Team prompt enhancement uses Orange's managed local model.")
     print(
         f"Prompt enhancement request tool={tool_id} provider={settings['provider']} "
         f"model={settings['model']} base_url={settings['base_url']}"

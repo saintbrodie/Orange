@@ -1,0 +1,26 @@
+.orange-generation-history {
+    width: min(100%, 42rem);
+    margin: 0 auto 1rem;
+    flex: 0 0 auto;
+    padding: .65rem 1rem;
+    background: var(--orange-panel, #18181b);
+    color: var(--orange-text, #f4f4f5);
+    border: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 30%, transparent);
+    border-radius: min(var(--orange-radius, 24px), 1rem);
+}
+.orange-generation-history summary { cursor: pointer; font-size: .875rem; font-weight: 600; }
+.orange-history-toolbar { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin: .45rem 0; }
+.orange-generation-history p, .orange-generation-history time { font-size: .75rem; opacity: .8; }
+.orange-generation-history ul { max-height: 18rem; overflow-y: auto; }
+.orange-generation-history li { display: flex; align-items: center; gap: .55rem; padding: .55rem 0; border-top: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 26%, transparent); font-size: .8rem; }
+.orange-generation-history li div { flex: 1; min-width: 5rem; overflow-wrap: anywhere; }
+.orange-generation-history time { display: block; }
+.orange-generation-history button, .orange-history-dialog button { padding: .3rem .65rem; border-radius: .6rem; background: var(--orange-panel-2, #27272a); border: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 38%, transparent); font-size: .8rem; }
+.orange-history-dialog { width: min(42rem, calc(100% - 2rem)); max-height: 90dvh; margin: auto; padding: 1.25rem; overflow: auto; color: var(--orange-text, #f4f4f5); background: var(--orange-panel, #18181b); border: 1px solid color-mix(in srgb, var(--orange-muted, #71717a) 30%, transparent); border-radius: var(--orange-radius, 24px); }
+.orange-history-dialog::backdrop { background: #000a; }
+.orange-history-dialog header { display: flex; justify-content: space-between; align-items: center; gap: .5rem; overflow-wrap: anywhere; }
+#team-result-content { margin-top: 1rem; display: grid; gap: .75rem; }
+#team-result-content img, #team-result-content video { max-width: 100%; max-height: 60vh; object-fit: contain; border-radius: .6rem; }
+#team-result-content audio { max-width: 100%; }
+#team-result-content pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+#team-result-content a { color: var(--orange-accent, #f97316); text-decoration: underline; }

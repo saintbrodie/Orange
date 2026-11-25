@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Orange Team</title>
+    <link rel="icon" href="/static/orange-head.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/styles.css?v=9">
+    <link rel="stylesheet" href="/static/app-navigation.css?v=3">
+    <link rel="stylesheet" href="/static/team.css?v=10">
+    <link rel="stylesheet" href="/static/team-history.css?v=1">
+    <script src="/static/lucide.min.js" defer></script>
+    <script src="/static/team-history.js?v=1" defer></script>
+    <script src="/static/team.js?v=11" defer></script>
+</head>
+<body class="team-page">
+    <nav class="team-header" aria-label="Team navigation">
+        <a class="team-brand" href="/team">
+            <img src="/static/orange.svg" alt="" width="40" height="40">
+            <div><h1 id="team-brand-name" class="bg-gradient-to-br">Orange Team</h1></div>
+        </a>
+        <div id="team-nav" class="team-nav" hidden>
+            <a class="orange-page-link" href="/"><i data-lucide="wand-2" aria-hidden="true"></i> Generate</a>
+            <a id="team-admin" class="orange-page-link" href="/admin" hidden><i data-lucide="settings" aria-hidden="true"></i> Admin</a>
+            <button type="button" id="team-logout"><i data-lucide="log-out" aria-hidden="true"></i> Sign out</button>
+        </div>
+    </nav>
+    <main class="team-main">
+        <p id="team-error" class="team-error" role="alert" hidden></p>
+        <section id="team-auth" class="team-panel team-auth" hidden>
+            <div id="team-auth-lock"><i data-lucide="lock" class="team-auth-icon" aria-hidden="true"></i></div>
+            <img id="team-auth-logo" class="team-auth-logo" alt="" hidden>
+            <form id="team-login">
+                <h2 id="team-login-title">Sign in to Orange</h2>
+                <p id="team-login-message" class="team-muted team-login-message" hidden></p>
+                <label for="team-handle">Username</label>
+                <input id="team-handle" name="handle" required maxlength="64" autocomplete="username" autocapitalize="none">
+                <label for="team-password">Password</label>
+                <input id="team-password" name="password" type="password" required maxlength="256" autocomplete="current-password">
+                <button class="team-primary" type="submit" id="team-login-submit">Sign in</button>
+            </form>
+            <form id="team-accept" hidden>
+                <h2>Accept invitation</h2>
+                <label id="team-accept-handle-label" for="team-accept-handle" hidden>Choose a username</label>
+                <input id="team-accept-handle" name="handle" minlength="3" maxlength="64" autocomplete="username" autocapitalize="none" required disabled hidden>
+                <label for="team-new-password">Choose a password</label>
+                <input id="team-new-password" name="password" type="password" required minlength="12" maxlength="256" autocomplete="new-password" aria-describedby="team-password-help">
+                <p id="team-password-help" class="team-muted">Use at least 12 characters.</p>
+                <button class="team-primary" type="submit">Activate account</button>
+            </form>
+        </section>
+
+        <div id="team-account" hidden>
+            <header class="team-heading">
+                <div><h2 id="team-name"></h2><p id="team-role" class="team-muted"></p></div>
+            </header>
+
+            <section id="team-management" class="team-panel" aria-labelledby="team-management-title" hidden>
+                <div class="team-heading">
+                    <h2 id="team-management-title">Account Management</h2>
+                    <div class="team-actions">
+                        <button type="button" id="team-open-invite">Invite users</button>
+                        <button type="button" id="team-open-add" class="team-primary">Add user</button>
+                    </div>
+                </div>
+                <div class="team-directory-toolbar">
+                    <label>Username<input id="team-account-search" type="search" maxlength="64" placeholder="Search by username"></label>
+                    <label>Team<select id="team-account-team"><option value="">All teams</option><option value="unassigned">No team</option></select></label>
+                    <label>Role<select id="team-account-role"><option value="">All roles</option><option value="member">Member</option><option value="operator">Operator</option><option value="owner">Owner</option></select></label>
+                    <label>Status<select id="team-account-state"><option value="">All statuses</option><option value="active">Active</option><option value="disabled">Disabled</option><option value="pending">Pending password</option></select></label>
+                </div>
+                <div id="team-bulk-bar" class="team-actions team-bulk-bar" hidden>
+                    <span id="team-selected-count" class="team-muted" role="status"></span>
+                    <button type="button" id="team-open-memberships">Manage teams</button>
+                    <button type="button" id="team-select-matches" class="team-text-button">Select all matching users</button>
+                    <button type="button" id="team-clear-selection" class="team-text-button">Clear selection</button>
+                </div>
+                <p id="team-account-status" class="team-muted" role="status"></p>
+                <div class="team-table team-directory"><table>
+                    <thead><tr>
+                        <th scope="col" class="team-select-cell" id="team-select-heading"><input id="team-select-page" type="checkbox" aria-label="Select all users on this page"></th>
+                        <th scope="col" class="team-directory-user" aria-sort="ascending"><button type="button" data-sort="user">User</button></th>
+                        <th scope="col"><button type="button" data-sort="role">Role</button></th>
+                        <th scope="col"><button type="button" data-sort="status">Status</button></th>
+                        <th scope="col" class="team-directory-teams"><button type="button" data-sort="team" title="Sort by first team alphabetically">Teams</button></th>
+                        <th scope="col"><button type="button" data-sort="date">Date added</button></th>
+                        <th scope="col"><button type="button" data-sort="generations">Generations</button></th>
+                    </tr></thead>
+                    <tbody id="team-members"></tbody>
+                </table></div>
+                <div class="team-heading team-directory-footer">
+                    <p id="team-page-range" class="team-muted" role="status"></p>
+                    <div class="team-actions">
+                        <label for="team-page-size">Rows per page</label>
+                        <select id="team-page-size"><option>25</option><option>50</option><option>100</option></select>
+                        <button type="button" id="team-previous-page">Previous</button>
+                        <button type="button" id="team-next-page">Next</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="team-groups-panel" class="team-panel" aria-labelledby="team-groups-title" hidden>
+                <div class="team-heading"><h2 id="team-groups-title">Teams</h2><button type="button" id="team-new-group">New team</button></div>
+                <div class="team-table"><table>
+                    <thead><tr><th scope="col">Name</th><th scope="col">Members</th><th scope="col">Tool access</th></tr></thead>
+                    <tbody id="team-groups"></tbody>
+                </table></div>
+            </section>
+
+            <section class="team-panel" aria-labelledby="team-history-title">
+                <div class="team-heading"><h2 id="team-history-title">My generations</h2><button type="button" id="team-refresh">Refresh</button></div>
+                <div class="team-table"><table>
+                    <thead><tr><th scope="col">Tool</th><th scope="col">Submitted</th><th scope="col">Status</th><th scope="col">Result</th></tr></thead>
+                    <tbody id="team-history"></tbody>
+                </table></div>
+            </section>
+
+            <details class="team-panel team-disclosure">
+                <summary>API usage and budgets</summary>
+                <div class="team-heading"><h3>My API usage</h3><span class="team-muted" id="team-month"></span></div>
+                <dl class="team-metrics" id="team-own-totals"></dl>
+                <section id="team-workspace-usage" hidden>
+                    <div class="team-heading"><h3>Workspace API usage</h3><span id="team-workspace-month" class="team-muted"></span></div>
+                    <dl class="team-metrics" id="team-workspace-totals"></dl>
+                    <form id="team-workspace" class="team-inline" hidden>
+                        <label for="team-workspace-limit">Monthly workspace limit (USD)</label>
+                        <input id="team-workspace-limit" name="usd" inputmode="decimal" required maxlength="32">
+                        <button type="submit">Save limit</button>
+                    </form>
+                </section>
+                <section id="team-pricing" hidden>
+                    <h3>Cloud tool estimates</h3>
+                    <p class="team-muted">Set a USD estimate per generation that covers the tool’s highest-cost option. Orange requires an estimate before dispatching cloud work.</p>
+                    <div class="team-table"><table>
+                        <thead><tr><th scope="col">Tool</th><th scope="col">Provider and model</th><th scope="col">Estimate per generation (USD)</th></tr></thead>
+                        <tbody id="team-prices"></tbody>
+                    </table></div>
+                </section>
+            </details>
+        </div>
+
+        <div id="team-profile" hidden>
+            <a id="team-profile-back" class="team-back" href="/team#team-management">← Account Management</a>
+            <header class="team-heading team-profile-header">
+                <div class="team-profile-identity">
+                    <span id="team-profile-avatar" class="team-avatar" aria-hidden="true"></span>
+                    <div><h2 id="team-profile-name">User account</h2><div class="team-profile-badges"><span id="team-profile-role" class="team-muted"></span><span id="team-profile-status"></span><span id="team-profile-added" class="team-muted"></span></div></div>
+                </div>
+                <button type="button" id="team-profile-refresh">Refresh</button>
+            </header>
+            <div class="team-profile-grid" id="team-profile-data" hidden>
+                <section class="team-panel team-profile-history-panel" aria-labelledby="team-profile-history-title">
+                    <h2 id="team-profile-history-title">Generation history</h2>
+                    <div class="team-table"><table class="team-profile-history">
+                        <thead><tr><th scope="col">Tool</th><th scope="col">Submitted</th><th scope="col">Status</th></tr></thead>
+                        <tbody id="team-profile-history"></tbody>
+                    </table></div>
+                </section>
+                <section id="team-profile-settings" class="team-panel" aria-labelledby="team-profile-settings-title">
+                    <h2 id="team-profile-settings-title">Account settings</h2>
+                    <p id="team-profile-feedback" class="team-muted" role="status"></p>
+                    <p class="team-error" role="alert" hidden></p>
+                    <div class="team-settings-group">
+                        <h3>Tool access</h3>
+                        <p id="team-profile-teams" class="team-muted"></p>
+                        <div><button type="button" id="team-profile-tools">View tool access</button></div>
+                    </div>
+                    <form id="team-profile-role-form" class="team-settings-group" data-permission="role">
+                        <label for="team-profile-role-select">Role</label>
+                        <div class="team-actions"><select id="team-profile-role-select" name="role"><option value="member">Member</option><option value="operator">Operator</option><option value="owner">Owner</option></select><button type="submit">Save</button></div>
+                    </form>
+                    <div class="team-settings-group" id="team-profile-actions">
+                        <h3>Account access</h3>
+                        <div class="team-actions">
+                            <button type="button" id="team-profile-reset" data-permission="reset">Reset password</button>
+                            <button type="button" id="team-profile-enable" data-permission="enable">Disable account</button>
+                            <button type="button" id="team-profile-remove" class="team-remove" data-permission="remove">Remove account</button>
+                        </div>
+                    </div>
+                    <details class="team-settings-group team-disclosure" data-permission="budget">
+                        <summary>Monthly API budget</summary>
+                        <form id="team-profile-budget" class="team-stack-form">
+                            <label for="team-profile-limit">Monthly limit (USD)</label>
+                            <div class="team-actions"><input id="team-profile-limit" name="usd" inputmode="decimal" maxlength="32" placeholder="Workspace limit" aria-describedby="team-profile-budget-help"><button type="submit">Save</button></div>
+                            <p id="team-profile-budget-help" class="team-muted">Leave blank to use the workspace limit.</p>
+                        </form>
+                    </details>
+                </section>
+                <details class="team-panel team-profile-usage-panel team-disclosure">
+                    <summary>API usage <span id="team-profile-month" class="team-muted"></span></summary>
+                    <dl id="team-profile-usage" class="team-metrics"></dl>
+                </details>
+            </div>
+        </div>
+    </main>
+    <dialog id="team-group-dialog" class="team-panel" aria-labelledby="team-group-title">
+        <div class="team-heading"><h2 id="team-group-title">New team</h2><form method="dialog"><button type="submit">Close</button></form></div>
+        <p class="team-error" role="alert" hidden></p>
+        <form id="team-group-form" class="team-stack-form">
+            <label for="team-group-name">Team name</label>
+            <input id="team-group-name" name="name" required maxlength="80" autofocus>
+            <label for="team-group-policy">Tool access</label>
+            <select id="team-group-policy" name="policy"><option value="all">All tools available in Team Generate</option><option value="selected">Selected tools only</option></select>
+            <p class="team-muted">Members can use tools from all their teams. Accounts without a team inherit all tools available in Team Generate.</p>
+            <fieldset id="team-group-tool-field" hidden><legend>Tools</legend><div id="team-group-tools" class="team-checklist"></div></fieldset>
+            <div class="team-heading"><button type="button" id="team-remove-group" class="team-remove">Delete team</button><button type="submit" class="team-primary">Save team</button></div>
+        </form>
+    </dialog>
+    <dialog id="team-memberships-dialog" class="team-panel team-form-dialog" aria-labelledby="team-memberships-title">
+        <div class="team-heading"><h2 id="team-memberships-title">Manage teams</h2><form method="dialog"><button type="submit">Close</button></form></div>
+        <p class="team-error" role="alert" hidden></p>
+        <form id="team-memberships-form" class="team-stack-form">
+            <p id="team-memberships-count" class="team-muted"></p>
+            <label for="team-memberships-action">Action</label>
+            <select id="team-memberships-action" name="action"><option value="add">Add to team</option><option value="remove">Remove from team</option><option value="move">Move between teams</option></select>
+            <label id="team-memberships-source-label" for="team-memberships-source" hidden>From team</label>
+            <select id="team-memberships-source" name="source_team_id" required disabled hidden></select>
+            <label id="team-memberships-target-label" for="team-memberships-target">Team</label>
+            <select id="team-memberships-target" name="team_id" required></select>
+            <button type="submit" class="team-primary">Apply</button>
+        </form>
+    </dialog>
+    <dialog id="team-user-tools-dialog" class="team-panel" aria-labelledby="team-user-tools-title">
+        <div class="team-heading"><h2 id="team-user-tools-title">Tool access</h2><form method="dialog"><button type="submit">Close</button></form></div>
+        <p class="team-error" role="alert" hidden></p>
+        <form id="team-user-tools-form" class="team-stack-form">
+            <p class="team-muted">Access is inherited from teams. Account overrides take priority. Tools turned off in Admin stay unavailable.</p>
+            <div class="team-table team-policy-table"><table>
+                <thead><tr><th scope="col">Tool</th><th scope="col">Current access</th><th scope="col">Override</th></tr></thead>
+                <tbody id="team-user-tools"></tbody>
+            </table></div>
+            <button type="submit" class="team-primary" id="team-save-user-tools">Save overrides</button>
+        </form>
+    </dialog>
+    <dialog id="team-add-dialog" class="team-panel team-form-dialog" aria-labelledby="team-add-title">
+        <div class="team-heading"><h2 id="team-add-title">Add user</h2><form method="dialog"><button type="submit">Close</button></form></div>
+        <p class="team-error" role="alert" hidden></p>
+        <form id="team-add-user" class="team-stack-form">
+            <label for="team-add-handle">Username</label>
+            <input id="team-add-handle" name="handle" required minlength="3" maxlength="64" autocomplete="off" autocapitalize="none" autofocus>
+            <label for="team-add-password">Password</label>
+            <input id="team-add-password" name="password" type="password" required minlength="12" maxlength="256" autocomplete="new-password" aria-describedby="team-add-password-help">
+            <p id="team-add-password-help" class="team-muted">Use at least 12 characters.</p>
+            <label id="team-add-role-label" for="team-add-role">Role</label>
+            <select id="team-add-role" name="role"><option value="member">Member</option><option value="operator">Operator</option><option value="owner">Owner</option></select>
+            <button type="submit" class="team-primary">Add user</button>
+        </form>
+    </dialog>
+    <dialog id="team-invite-dialog" class="team-panel team-form-dialog" aria-labelledby="team-invite-title">
+        <div class="team-heading"><h2 id="team-invite-title">Invite users</h2><form method="dialog"><button type="submit">Close</button></form></div>
+        <p class="team-error" role="alert" hidden></p>
+        <form id="team-invite" class="team-stack-form">
+            <label id="team-invite-role-label" for="team-invite-role">Role</label>
+            <select id="team-invite-role" name="role"><option value="member">Member</option><option value="operator">Operator</option><option value="owner">Owner</option></select>
+            <label for="team-invite-expiry">Expires at</label>
+            <input id="team-invite-expiry" name="expires" type="datetime-local" required autofocus>
+            <p class="team-muted">Anyone with the link can choose a username and password before it expires.</p>
+            <button type="submit" class="team-primary">Create invite link</button>
+        </form>
+    </dialog>
+    <dialog id="team-link-dialog" class="team-panel team-form-dialog" aria-labelledby="team-link-title">
+        <div class="team-heading"><h2 id="team-link-title">Invite link</h2><form method="dialog"><button type="submit">Close</button></form></div>
+        <p class="team-error" role="alert" hidden></p>
+        <div class="team-inline team-share-link"><input id="team-invitation-link" aria-labelledby="team-link-title" readonly><button type="button" id="team-copy">Copy link</button></div>
+        <p id="team-invitation-expires" class="team-muted"></p>
+    </dialog>
+    <dialog id="team-result" class="orange-history-dialog" aria-labelledby="team-result-title">
+        <header><h2 id="team-result-title">Generation result</h2><form method="dialog"><button type="submit">Close</button></form></header>
+        <div id="team-result-content" aria-live="polite"></div>
+    </dialog>
+    <div class="mesh-container" aria-hidden="true">
+        <div class="mesh-blob mesh-1"></div>
+        <div class="mesh-blob mesh-2"></div>
+        <div class="mesh-blob mesh-3"></div>
+        <div class="mesh-overlay"></div>
+    </div>
+</body>
+</html>

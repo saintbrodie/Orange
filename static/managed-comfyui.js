@@ -155,11 +155,12 @@
     async function loadStatus() {
         const card = ensureCard();
         const key = localStorage.getItem('orange_admin_key');
-        if (!card || !key) return;
+        const teamMode = document.documentElement.dataset.orangeMode === 'team';
+        if (!card || (!key && !teamMode)) return;
 
         try {
             const response = await fetch('/api/admin/system/comfyui', {
-                headers: { Authorization: `Bearer ${key}` },
+                headers: teamMode ? {} : { Authorization: `Bearer ${key}` },
                 cache: 'no-store'
             });
             if (!response.ok) return;

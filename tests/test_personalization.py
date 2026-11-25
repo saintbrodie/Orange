@@ -73,6 +73,7 @@ class PersonalizationTests(unittest.TestCase):
                     {
                         "theme": "midnight",
                         "branding": {"appName": "Night Lab", "tagline": "", "footerText": ""},
+                        "signIn": {"title": " Welcome to Night Lab ", "message": "One line.\nThen another.", "buttonText": "Enter", "mark": "logo"},
                         "custom": personalization.DEFAULT_PERSONALIZATION["custom"],
                     }
                 )
@@ -80,6 +81,12 @@ class PersonalizationTests(unittest.TestCase):
             self.assertEqual(saved, loaded)
             self.assertEqual(loaded["theme"], "midnight")
             self.assertEqual(loaded["branding"]["appName"], "Night Lab")
+            self.assertEqual(loaded["signIn"], {"title": "Welcome to Night Lab", "message": "One line.\nThen another.", "buttonText": "Enter", "mark": "logo"})
+
+    def test_invalid_sign_in_configuration_is_rejected(self):
+        for sign_in in ({"message": "x" * 401}, {"title": ["text"]}, {"mark": "unknown"}):
+            with self.subTest(sign_in=sign_in), self.assertRaises(ValueError):
+                personalization.validate_personalization({"signIn": sign_in})
 
     def test_load_migrates_saved_botanical_theme(self):
         with tempfile.TemporaryDirectory() as temp_dir:

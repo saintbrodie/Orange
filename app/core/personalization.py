@@ -20,6 +20,7 @@ DEFAULT_PERSONALIZATION = {
         "tagline": "AI Media Tools",
         "footerText": "",
     },
+    "signIn": {"title": "", "message": "", "buttonText": "", "mark": "lock"},
     "custom": {
         "accent": "#f97316",
         "accentSecondary": "#ea580c",
@@ -83,6 +84,20 @@ def validate_personalization(data: dict) -> dict:
     if len(footer) > 160:
         raise ValueError("Footer text must be 160 characters or fewer.")
 
+    sign_in = data.get("signIn", {})
+    if not isinstance(sign_in, dict):
+        raise ValueError("Team sign-in settings must be an object.")
+    normalized_sign_in = {}
+    for key, label, limit in (("title", "Title", 80), ("message", "Welcome message", 400), ("buttonText", "Button label", 32)):
+        value = sign_in.get(key, "")
+        if not isinstance(value, str) or len(value.strip()) > limit:
+            raise ValueError(f"Team sign-in {label.lower()} must be text of at most {limit} characters.")
+        normalized_sign_in[key] = value.strip()
+    mark = sign_in.get("mark", "lock")
+    if mark not in ("lock", "logo", "none"):
+        raise ValueError("Choose a lock, app logo, or no icon for Team sign-in.")
+    normalized_sign_in["mark"] = mark
+
     custom = data.get("custom", {})
     if not isinstance(custom, dict):
         raise ValueError("Custom theme settings must be an object.")
@@ -114,6 +129,7 @@ def validate_personalization(data: dict) -> dict:
             "tagline": tagline,
             "footerText": footer,
         },
+        "signIn": normalized_sign_in,
         "custom": normalized_custom,
     }
 

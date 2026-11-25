@@ -4,7 +4,7 @@
   function authFetch(url, options = {}) {
     const key = localStorage.getItem('orange_admin_key');
     options.headers = options.headers || {};
-    options.headers.Authorization = `Bearer ${key || ''}`;
+    if (document.documentElement.dataset.orangeMode !== 'team') options.headers.Authorization = `Bearer ${key || ''}`;
     return fetch(url, options);
   }
 
@@ -131,7 +131,7 @@
 
   async function refreshStatus() {
     if (document.getElementById('setting-llm-provider')?.value !== 'managed') return;
-    if (!localStorage.getItem('orange_admin_key')) return;
+    if (document.documentElement.dataset.orangeMode !== 'team' && !localStorage.getItem('orange_admin_key')) return;
     try {
       const response = await authFetch('/api/admin/prompt-enhancer/managed/status');
       if (!response.ok) return;

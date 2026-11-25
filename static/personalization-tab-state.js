@@ -13,7 +13,7 @@
     container.classList.add('hidden');
   }
 
-  document.querySelectorAll('#tab-general,#tab-tools,#tab-analytics,#tab-gallery').forEach(other => {
+  document.querySelectorAll('#tab-general,#tab-tools,#tab-team,#tab-analytics,#tab-gallery').forEach(other => {
     other.addEventListener('click', deactivate);
   });
   document.getElementById('logout-btn')?.addEventListener('click', deactivate);

@@ -377,8 +377,9 @@
             ['tab-tools', 'wrench'],
             ['tab-personalization', 'palette'],
             ['tab-analytics', 'bar-chart-2'],
-            ['tab-gallery', 'image'],
         ];
+        if (document.documentElement.dataset.orangeMode === 'team') items.splice(2, 0, ['tab-team', 'users']);
+        else items.push(['tab-gallery', 'image']);
         adminOriginals = items
             .map(([id, icon]) => [document.getElementById(id), icon])
             .filter(([element]) => !!element);

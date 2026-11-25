@@ -299,6 +299,11 @@ html[data-orange-effect="midnight"] body::before {
 #personalization-preview .preview-label { color: var(--preview-muted); font-size: 9px; text-transform: uppercase; letter-spacing: .12em; }
 #personalization-preview .preview-input { height: 66px; border-radius: calc(var(--preview-radius) * .6); background: var(--preview-bg); border: 1px solid color-mix(in srgb, var(--preview-muted) 30%, transparent); }
 #personalization-preview .preview-button { border: 0; border-radius: calc(var(--preview-radius) * .6); background: linear-gradient(90deg, var(--preview-accent-2), var(--preview-accent)); color: white; padding: 11px; font-weight: 700; }
+#personalization-preview .preview-sign-in { display: grid; justify-items: center; gap: .5rem; text-align: center; padding: .9rem; background: var(--preview-panel); border-radius: var(--preview-radius); color: var(--preview-text); overflow-wrap: anywhere; }
+#personalization-preview .preview-sign-in img { width: 4rem; height: 2.5rem; object-fit: contain; }
+#personalization-preview .preview-sign-in svg { width: 1.25rem; height: 1.25rem; color: var(--preview-accent); }
+#personalization-preview .preview-sign-in p { color: var(--preview-muted); font-size: .75rem; white-space: pre-wrap; }
+#personalization-preview .preview-sign-in .preview-button { font-size: .75rem; }
 
 @media (max-width: 900px) {
   #personalization-grid { grid-template-columns: 1fr !important; }

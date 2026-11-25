@@ -146,7 +146,7 @@ A genuinely fresh install is marked setup-pending and redirects `/` and `/admin`
 
 Existing installations are migrated as already configured so upgrading Orange does not unexpectedly replace active configuration or force the administrator through onboarding again.
 
-Fresh setup is localhost-only by default. `ORANGE_ALLOW_REMOTE_SETUP=1` can explicitly allow remote first-run setup when required.
+Fresh setup is localhost-only by default. `ORANGE_ALLOW_REMOTE_SETUP=1` can allow the setup API from a trusted Open LAN deployment. The launcher binds to loopback in Local mode and to the LAN in `ORANGE_ACCESS_MODE=open-lan`.
 
 The wizard:
 
@@ -391,7 +391,7 @@ The generator remains intentionally small even as Admin/operations code grows.
 2. create the Orange virtual environment on first run
 3. hash `requirements.txt`
 4. resync dependencies only when that hash changes
-5. launch Uvicorn on port `7070`
+5. launch Uvicorn using the saved access mode and port, with Local mode on port `7070` by default
 6. watch `RESTART_REQUIRED` so an Admin-triggered restart can relaunch cleanly
 
 They no longer run a separate terminal model-downloader prompt. Fresh model/tool onboarding happens in the browser wizard.

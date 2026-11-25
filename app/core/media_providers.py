@@ -160,6 +160,7 @@ class ProviderResult:
     media: list = field(default_factory=list)
     remote_id: str | None = None  # opaque, server-only file/interaction handle
     usage: dict = field(default_factory=dict)
+    reported_cost_micros: int | None = None
 
 
 class ProviderError(Exception):

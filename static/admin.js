@@ -1,4 +1,5 @@
 lucide.createIcons();
+const orangeTeamMode = document.documentElement.dataset.orangeMode === 'team';
 
         window.roundTo16 = function(el) {
             let val = parseInt(el.value);
@@ -148,10 +149,10 @@ lucide.createIcons();
         const adminMenu = document.getElementById('admin-menu');
         const adminKeyInput = document.getElementById('admin-key');
         const loginError = document.getElementById('login-error');
+        const loginErrorMessage = document.getElementById('login-error-message');
 
-        let currentKey = localStorage.getItem('orange_admin_key');
+        let currentKey = orangeTeamMode ? null : localStorage.getItem('orange_admin_key');
         let currentPeriod = 'all';
-        let currentAnalyticsLogs = [];
         
         let activeFetchedModels = [];
 
@@ -163,13 +164,18 @@ lucide.createIcons();
                 });
                 e.target.className = "period-btn px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-800 text-zinc-100 shadow-sm transition-colors";
                 currentPeriod = e.target.getAttribute('data-period');
-                if (currentKey) {
+                if (currentKey || orangeTeamMode) {
                     fetchData(currentKey);
                 }
             });
         });
 
-        if (currentKey) {
+        if (orangeTeamMode) {
+            localStorage.removeItem('orange_admin_key');
+            localStorage.removeItem('orange_setup_recovery_key');
+        }
+
+        if (currentKey || orangeTeamMode) {
             fetchData(currentKey);
         }
 
@@ -185,8 +191,19 @@ lucide.createIcons();
             }
         });
 
-        logoutBtn.addEventListener('click', () => {
+        logoutBtn.addEventListener('click', async () => {
+            if (orangeTeamMode) {
+                try {
+                    const response = await fetch('/api/team/logout', { method: 'POST' });
+                    if (!response.ok && response.status !== 401) throw new Error();
+                    location.replace('/team');
+                } catch {
+                    alert('Could not sign out. Try again.');
+                }
+                return;
+            }
             localStorage.removeItem('orange_admin_key');
+            fetch('/api/admin/media/session', { method: 'DELETE' }).catch(() => {});
             currentKey = null;
             dashboardContainer.classList.add('hidden');
             settingsContainer.classList.add('hidden');
@@ -205,16 +222,28 @@ lucide.createIcons();
             lucide.createIcons();
 
             try {
-                const res = await fetch('/api/admin/usage?period=' + currentPeriod, {
-                    headers: { 'Authorization': 'Bearer ' + key }
-                });
-                if (res.status === 401) {
-                    throw new Error("Unauthorized");
+                const headers = orangeTeamMode ? {} : { Authorization: 'Bearer ' + key };
+                const res = await fetch('/api/admin/usage?period=' + currentPeriod, { headers });
+                if (orangeTeamMode && (res.status === 401 || res.status === 403)) {
+                    location.replace('/team');
+                    return;
+                }
+                if (!res.ok) {
+                    const error = await res.json().catch(() => ({}));
+                    if (res.status === 401) {
+                        currentKey = null;
+                        localStorage.removeItem('orange_admin_key');
+                    }
+                    loginErrorMessage.textContent = res.status === 401 ? 'Invalid Admin Key'
+                        : res.status === 403 && typeof error.detail === 'string' ? error.detail
+                        : 'Orange could not load Admin. Try again.';
+                    loginError.classList.remove('hidden');
+                    return;
                 }
                 const data = await res.json();
 
                 // Login Success
-                localStorage.setItem('orange_admin_key', key);
+                if (!orangeTeamMode) localStorage.setItem('orange_admin_key', key);
                 currentKey = key;
                 loginError.classList.add('hidden');
 
@@ -224,66 +253,62 @@ lucide.createIcons();
                     adminMenu.classList.remove('hidden');
                     adminMenu.classList.add('flex');
                     const savedTab = localStorage.getItem('orange_admin_tab') || 'general';
-                    const tabMap = { general: tabGeneral, tools: tabTools, analytics: tabAnalytics, gallery: document.getElementById('tab-gallery') };
+                    const tabMap = { general: tabGeneral, tools: tabTools, analytics: tabAnalytics };
+                    if (orangeTeamMode) tabMap.team = tabTeam;
+                    if (!orangeTeamMode) tabMap.gallery = document.getElementById('tab-gallery');
                     (tabMap[savedTab] || tabGeneral).click();
                 }
 
                 renderDashboard(data);
-            } catch (e) {
+            } catch {
+                loginErrorMessage.textContent = 'Orange could not load Admin. Check the connection and try again.';
                 loginError.classList.remove('hidden');
-                localStorage.removeItem('orange_admin_key');
             } finally {
                 loginBtn.innerHTML = originalBtnText;
                 lucide.createIcons();
             }
         }
 
+        function renderBreakdown(elementId, records, field) {
+            const list = document.getElementById(elementId);
+            list.replaceChildren();
+            for (const record of records) {
+                const item = document.createElement('li');
+                item.className = 'flex justify-between items-center gap-2 py-2 border-b border-zinc-800/50 last:border-0';
+                const label = document.createElement('span');
+                label.className = 'text-zinc-300 font-medium break-all';
+                const value = record[field] || 'Unknown';
+                label.textContent = field === 'status' ? value.replaceAll('_', ' ') : value;
+                const count = document.createElement('strong');
+                count.className = 'bg-zinc-800/50 text-orange-400 border border-zinc-700/50 px-2 py-1 rounded-md text-xs';
+                count.textContent = record.count;
+                item.append(label, count);
+                list.append(item);
+            }
+        }
+
         function renderDashboard(data) {
-            const { logs, tools_summary, ip_summary } = data;
-            currentAnalyticsLogs = logs;
+            document.getElementById('total-count').textContent = data.total;
+            renderBreakdown('tools-list', data.tools_summary, 'tool_id');
+            renderBreakdown('provider-list', data.provider_summary, 'provider');
+            renderBreakdown('status-list', data.status_summary, 'status');
 
-            // Total Gen
-            const total = tools_summary.reduce((acc, curr) => acc + curr.count, 0);
-            document.getElementById('total-count').innerText = total;
-
-            // Tools list
-            const toolsList = document.getElementById('tools-list');
-            toolsList.innerHTML = '';
-            tools_summary.sort((a, b) => b.count - a.count).forEach(t => {
-                toolsList.innerHTML += `<li class="flex justify-between items-center py-2 border-b border-zinc-800/50 last:border-0"><span class="text-zinc-300 font-medium">${t.tool_id}</span> <strong class="bg-zinc-800/50 text-orange-400 border border-zinc-700/50 px-2 py-1 rounded-md text-xs">${t.count}</strong></li>`;
-            });
-
-            // IP list
-            const ipList = document.getElementById('ip-list');
-            ipList.innerHTML = '';
-            ip_summary.sort((a, b) => b.count - a.count).forEach(ip => {
-                ipList.innerHTML += `<li class="flex justify-between items-center py-2 border-b border-zinc-800/50 last:border-0"><span class="text-zinc-300 font-mono text-sm">${ip.client_ip}</span> <strong class="bg-zinc-800/50 text-orange-400 border border-zinc-700/50 px-2 py-1 rounded-md text-xs">${ip.count}</strong></li>`;
-            });
-
-            // Logs
             const logsBody = document.getElementById('logs-body');
-            logsBody.innerHTML = '';
-            logs.forEach(log => {
-                let localTime = 'Unknown Time';
-                try {
-                    let ds = log.timestamp.endsWith('Z') ? log.timestamp : log.timestamp + "Z";
-                    const d = new Date(ds);
-                    localTime = d.toLocaleString();
-                } catch (e) { }
-
-                const promptSnippet = log.prompt ? log.prompt : '<em class="text-zinc-600">None</em>';
-                logsBody.innerHTML += `
-                    <tr class="hover:bg-zinc-800/30 transition-colors">
-                        <td class="px-6 py-3 text-zinc-500 font-mono">#${log.id}</td>
-                        <td class="px-6 py-3 text-zinc-400">${localTime}</td>
-                        <td class="px-6 py-3 font-mono text-zinc-300">${log.client_ip}</td>
-                        <td class="px-6 py-3 font-medium text-orange-400">${log.tool_id}</td>
-                        <td class="px-6 py-3 text-zinc-400">${log.provider || 'comfyui'}${log.model ? `<br><span class="text-xs">${log.model}</span>` : ''}</td>
-                        <td class="px-6 py-3 text-zinc-400">${log.status || 'queued'}</td>
-                        <td class="px-6 py-3 text-zinc-400 max-w-xs truncate" title="${log.prompt || ''}">${promptSnippet}</td>
-                    </tr>
-                `;
-            });
+            logsBody.replaceChildren();
+            for (const log of data.logs) {
+                const date = new Date(`${log.timestamp?.replace(' ', 'T').replace(/Z$/, '')}Z`);
+                const time = Number.isNaN(date.getTime()) ? 'Unknown time' : date.toLocaleString();
+                const provider = log.model ? `${log.provider} / ${log.model}` : log.provider;
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-zinc-800/30 transition-colors';
+                for (const value of [`#${log.id}`, time, log.tool_id, provider, log.status.replaceAll('_', ' ')]) {
+                    const cell = document.createElement('td');
+                    cell.className = 'px-6 py-3 text-zinc-300';
+                    cell.textContent = value || 'Unknown';
+                    row.append(cell);
+                }
+                logsBody.append(row);
+            }
         }
 
 
@@ -304,12 +329,13 @@ lucide.createIcons();
                     return;
                 }
 
-                const headers = ['ID', 'Timestamp', 'Client IP', 'Tool ID', 'Prompt', 'Provider', 'Model', 'Status'];
+                const headers = ['ID', 'Timestamp', 'Tool ID', 'Provider', 'Model', 'Status'];
 
                 const escapeCSV = (str) => {
                     if (str === null || str === undefined) return '';
-                    const stringified = String(str);
-                    if (stringified.includes(',') || stringified.includes('"') || stringified.includes('\n')) {
+                    const text = String(str);
+                    const stringified = /^\s*[=+@-]|^[\t\r\n]/.test(text) ? "'" + text : text;
+                    if (/[,"\r\n]/.test(stringified)) {
                         return '"' + stringified.replace(/"/g, '""') + '"';
                     }
                     return stringified;
@@ -318,10 +344,8 @@ lucide.createIcons();
                 const rows = logsToExport.map(log => [
                     escapeCSV(log.id),
                     escapeCSV(log.timestamp),
-                    escapeCSV(log.client_ip),
                     escapeCSV(log.tool_id),
-                    escapeCSV(log.prompt),
-                    escapeCSV(log.provider || 'comfyui'),
+                    escapeCSV(log.provider),
                     escapeCSV(log.model),
                     escapeCSV(log.status)
                 ]);
@@ -338,6 +362,7 @@ lucide.createIcons();
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+                URL.revokeObjectURL(url);
             } catch (e) {
                 alert('Export failed: ' + e);
             } finally {
@@ -350,7 +375,7 @@ lucide.createIcons();
         // Helper for authenticated fetches
         function adminFetch(url, options = {}) {
             options.headers = options.headers || {};
-            options.headers['Authorization'] = 'Bearer ' + currentKey;
+            if (!orangeTeamMode) options.headers['Authorization'] = 'Bearer ' + currentKey;
             return fetch(url, options);
         }
 
@@ -556,6 +581,9 @@ lucide.createIcons();
         const tabGeneral = document.getElementById('tab-general');
         const tabAnalytics = document.getElementById('tab-analytics');
         const tabTools = document.getElementById('tab-tools');
+        const tabTeam = document.getElementById('tab-team');
+        const teamContainer = document.getElementById('admin-team-container');
+        const teamFrame = document.getElementById('admin-team-frame');
         const tabGallery = document.getElementById('tab-gallery');
         const settingsContainer = document.getElementById('settings-container');
         const toolsContainer = document.getElementById('tools-container');
@@ -584,6 +612,7 @@ lucide.createIcons();
         const galleryLoadingSentinel = document.getElementById('gallery-loading-sentinel');
 
         let appConfig = null;
+        let teamToolVisibility = null;
         let availableWorkflowFiles = [];
         let editingToolIndex = -1;
         let parsedNodes = {}; // Cache of nodes from currently selected workflow json
@@ -593,11 +622,13 @@ lucide.createIcons();
             const defaultClass = "admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition";
             tabGeneral.className = defaultClass;
             tabTools.className = defaultClass;
+            tabTeam.className = defaultClass;
             tabAnalytics.className = defaultClass;
             if(tabGallery) tabGallery.className = defaultClass;
 
             settingsContainer.classList.add('hidden');
             toolsContainer.classList.add('hidden');
+            teamContainer.classList.add('hidden');
             dashboardContainer.classList.add('hidden');
             if(galleryContainer) {
                 galleryContainer.classList.add('hidden');
@@ -612,7 +643,7 @@ lucide.createIcons();
             tabGeneral.className = activeClass;
             settingsContainer.classList.remove('hidden');
             localStorage.setItem('orange_admin_tab', 'general');
-            await loadEditorData();
+            await Promise.all([loadEditorData(), loadListenerSettings()]);
         }
         tabGeneral.addEventListener('click', openGeneralSettings);
 
@@ -622,6 +653,22 @@ lucide.createIcons();
             toolsContainer.classList.remove('hidden');
             localStorage.setItem('orange_admin_tab', 'tools');
             await loadEditorData();
+        });
+
+        tabTeam.addEventListener('click', () => {
+            if (!orangeTeamMode) return;
+            resetTabs();
+            tabTeam.className = activeClass;
+            teamContainer.classList.remove('hidden');
+            localStorage.setItem('orange_admin_tab', 'team');
+            if (!teamFrame.hasAttribute('src')) teamFrame.src = '/team?embedded=1';
+        });
+
+        teamFrame.addEventListener('load', () => {
+            const embeddedPage = teamFrame.contentDocument;
+            if (embeddedPage?.getElementById('team-login') && !embeddedPage.body.hasAttribute('data-team-embedded')) {
+                location.replace('/team');
+            }
         });
 
         tabAnalytics.addEventListener('click', () => {
@@ -712,7 +759,7 @@ lucide.createIcons();
         function renderSelectionStates() {
             // Find all gallery items and update their visual state
             document.querySelectorAll('[data-prompt-id]').forEach(el => {
-                const pid = el.getAttribute('data-prompt-id');
+                const pid = decodeURIComponent(el.dataset.promptId);
                 const checkbox = el.querySelector('.gallery-item-checkbox');
                 if (selectedPromptIds.has(pid)) {
                     el.classList.add('border-orange-500', 'bg-orange-500/10');
@@ -879,7 +926,10 @@ lucide.createIcons();
                 
                 group.items.forEach(item => {
                     let mediaEl = '';
-                    const url = `/api/output?prompt_id=${item.prompt_id}&type=${item.type}`;
+                    const url = `/api/output?prompt_id=${encodeURIComponent(item.prompt_id)}&type=${encodeURIComponent(item.type)}`;
+                    const filename = document.createElement('span');
+                    filename.className = 'text-[10px] font-mono text-zinc-300 truncate';
+                    filename.textContent = item.filename || item.prompt_id;
                     
                     if (item.type === 'video') {
                         mediaEl = `<video src="${url}" class="w-full h-full object-cover rounded-xl" autoplay loop muted playsinline></video>`;
@@ -896,7 +946,7 @@ lucide.createIcons();
                     const isSelected = selectedPromptIds.has(item.prompt_id);
                     groupHtml += `
                         <div class="aspect-square relative group overflow-hidden rounded-xl bg-zinc-900 border ${isSelected ? 'border-orange-500 bg-orange-500/10' : 'border-zinc-800'} hover:border-orange-500/50 transition-colors cursor-pointer" 
-                             data-prompt-id="${item.prompt_id}"
+                             data-prompt-id="${encodeURIComponent(item.prompt_id)}"
                              onclick="openGalleryModal(${item.globalIndex})">
                             ${mediaEl}
                             
@@ -908,7 +958,7 @@ lucide.createIcons();
                             </div>
 
                             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 pointer-events-none">
-                                <span class="text-[10px] font-mono text-zinc-300 truncate">${item.filename || item.prompt_id}</span>
+                                ${filename.outerHTML}
                             </div>
                         </div>
                     `;
@@ -948,7 +998,7 @@ lucide.createIcons();
             if (index < 0 || index >= filteredGalleryItems.length) return;
             currentGalleryIndex = index;
             const item = filteredGalleryItems[index];
-            const url = `/api/output?prompt_id=${item.prompt_id}&type=${item.type}`;
+            const url = `/api/output?prompt_id=${encodeURIComponent(item.prompt_id)}&type=${encodeURIComponent(item.type)}`;
             
             let mediaEl = '';
             if (item.type === 'video') {
@@ -1042,7 +1092,7 @@ lucide.createIcons();
                 lucide.createIcons();
 
                 try {
-                    const res = await adminFetch(`/api/admin/media/${item.prompt_id}`, { method: 'DELETE' });
+                    const res = await adminFetch(`/api/admin/media/${encodeURIComponent(item.prompt_id)}`, { method: 'DELETE' });
                     if (res.ok) {
                         closeGalleryModal();
                         loadGallery(); // Refresh gallery
@@ -1113,6 +1163,7 @@ lucide.createIcons();
                 const cRes = await adminFetch('/api/admin/config');
                 if (cRes.ok) {
                     appConfig = await cRes.json();
+                    if (orangeTeamMode) await loadTeamToolVisibility();
                     document.getElementById("setting-scrub-metadata").checked = appConfig.scrubMetadata !== false;
                     if (window.OrangeMediaAdmin) await OrangeMediaAdmin.refreshProviders();
                     if (window.OrangeCredentials) await OrangeCredentials.refresh();
@@ -1299,6 +1350,48 @@ lucide.createIcons();
             syncToolsOrder();
         }
 
+        async function loadTeamToolVisibility() {
+            const status = document.getElementById('team-tool-availability-status');
+            try {
+                const response = await adminFetch('/api/team/tools');
+                if (!response.ok) throw new Error('Could not load Team tool availability.');
+                const { tools } = await response.json();
+                teamToolVisibility = new Map(tools.map(tool => [tool.id, tool.enabled]));
+                status.hidden = true;
+            } catch (error) {
+                status.textContent = error.message;
+                status.hidden = false;
+            }
+        }
+
+        async function toggleTeamTool(event, index) {
+            event.stopPropagation();
+            const button = event.currentTarget;
+            const toolId = appConfig.tools[index].id;
+            const enabled = teamToolVisibility.get(toolId) === false;
+            const status = document.getElementById('team-tool-availability-status');
+            button.disabled = true;
+            status.hidden = true;
+            try {
+                const response = await adminFetch(`/api/team/tools/${encodeURIComponent(toolId)}`, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled }),
+                });
+                if (!response.ok) throw new Error((await response.json()).detail || 'Could not update Team tool availability.');
+                teamToolVisibility.set(toolId, enabled);
+                if (button.isConnected) {
+                    button.textContent = enabled ? 'Team on' : 'Team off';
+                    button.setAttribute('aria-pressed', String(enabled));
+                } else {
+                    renderToolsList();
+                }
+            } catch (error) {
+                status.textContent = error.message;
+                status.hidden = false;
+            } finally {
+                button.disabled = false;
+            }
+        }
+
         function renderToolsList() {
             const list = document.getElementById('admin-tools-list');
             list.innerHTML = '';
@@ -1310,6 +1403,7 @@ lucide.createIcons();
                 const isDragging = index === draggedItemIndex;
                 const activeClass = isSelected ? 'bg-orange-600/20 border-orange-600/50 text-orange-200' : 'bg-zinc-800/40 border-zinc-700 text-zinc-300 hover:bg-zinc-800';
                 const draggingClass = isDragging ? 'opacity-10 pointer-events-none' : '';
+                const teamEnabled = teamToolVisibility?.get(tool.id);
 
                 list.innerHTML += `
                     <div class="p-3 rounded-xl border ${activeClass} transition flex items-center gap-3 group" 
@@ -1327,10 +1421,14 @@ lucide.createIcons();
                             <span class="font-medium text-sm">${tool.name}</span>
                             <span class="text-xs opacity-60 font-mono">${tool.id}</span>
                         </div>
+                        ${teamEnabled === undefined ? '' : `<button type="button" data-team-tool-index="${index}" aria-label="Available in Team Generate" aria-pressed="${teamEnabled}" class="shrink-0 rounded-lg border border-zinc-700 px-2 py-1 text-xs">${teamEnabled ? 'Team on' : 'Team off'}</button>`}
                         <i data-lucide="terminal" class="w-4 h-4 opacity-30"></i>
                     </div>
                 `;
             });
+            for (const button of list.querySelectorAll('[data-team-tool-index]')) {
+                button.addEventListener('click', event => toggleTeamTool(event, Number(button.dataset.teamToolIndex)));
+            }
             lucide.createIcons();
         }
 
@@ -1760,6 +1858,14 @@ lucide.createIcons();
 
         document.getElementById('save-settings-btn').addEventListener('click', async () => {
             if (!appConfig) return;
+            if (listenerSettings && !listenerPort.reportValidity()) return;
+            const createOwner = needsTeamOwner();
+            if (createOwner && (!teamOwnerHandle.reportValidity() || !teamOwnerPassword.reportValidity() || !teamOwnerConfirm.reportValidity())) return;
+            if (createOwner && teamOwnerPassword.value !== teamOwnerConfirm.value) {
+                teamOwnerConfirm.setCustomValidity('The passwords do not match.');
+                teamOwnerConfirm.reportValidity();
+                return;
+            }
 
             appConfig.scrubMetadata = document.getElementById("setting-scrub-metadata").checked;
             appConfig.adminKey = document.getElementById('setting-admin-key').value.trim();
@@ -1806,8 +1912,17 @@ lucide.createIcons();
                 delete appConfig.modifyTool;
             }
 
-            const originalText = document.getElementById('save-settings-btn').innerHTML;
-            document.getElementById('save-settings-btn').innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
+            const settings = { ...appConfig };
+            if (listenerHasEdits() || createOwner) {
+                settings.listenerSettings = { mode: listenerMode.value, port: listenerPort.valueAsNumber };
+                if (listenerSupportsLanHttp()) settings.listenerSettings.allow_lan_http = listenerLanHttp.checked;
+            }
+            if (createOwner) {
+                settings.teamOwner = { handle: teamOwnerHandle.value.trim(), password: teamOwnerPassword.value };
+            }
+            const originalText = saveSettingsButton.innerHTML;
+            saveSettingsButton.disabled = true;
+            saveSettingsButton.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
 
             try {
                 // Save global system prompt first
@@ -1820,25 +1935,39 @@ lucide.createIcons();
                     throw new Error('Failed to save global system prompt.');
                 }
 
-                const res = await adminFetch('/api/admin/config', {
+                const endpoint = createOwner ? '/api/admin/system/team-setup' : '/api/admin/config';
+                const res = await adminFetch(endpoint, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentKey },
-                    body: JSON.stringify(appConfig)
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
                 });
-
+                const result = await res.json();
                 if (res.ok) {
+                    if (!orangeTeamMode) {
+                        currentKey = appConfig.adminKey;
+                        localStorage.setItem('orange_admin_key', currentKey);
+                    }
+                    if (settings.listenerSettings?.allow_lan_http !== undefined
+                        && result.listenerSettings?.pending.allow_lan_http !== settings.listenerSettings.allow_lan_http) {
+                        throw new Error('LAN HTTP was not saved. Restart Orange to load LAN HTTP support.');
+                    }
+                    if (createOwner && result.listenerSettings?.team_owner_exists !== true) {
+                        throw new Error('Team owner setup needs the updated Orange server. Restart Orange and try again.');
+                    }
+                    if (result.listenerSettings) showListenerSettings(result.listenerSettings);
+                    if (createOwner) listenerStatus.textContent = `Team owner created. ${listenerStatus.textContent}`;
                     const st = document.getElementById('settings-save-status');
                     st.classList.remove('hidden');
                     setTimeout(() => st.classList.add('hidden'), 3000);
-                    currentKey = appConfig.adminKey; // update key in case it changed
                 } else {
-                    alert('Error saving config.');
+                    throw new Error(result.detail || 'Error saving settings.');
                 }
             } catch (e) {
                 alert('Save failed: ' + e.message);
             }
 
-            document.getElementById('save-settings-btn').innerHTML = originalText;
+            saveSettingsButton.innerHTML = originalText;
+            saveSettingsButton.disabled = false;
             lucide.createIcons();
         });
 
@@ -1846,7 +1975,7 @@ lucide.createIcons();
             try {
                 const res = await adminFetch('/api/admin/config', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentKey },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(appConfig)
                 });
 
@@ -1870,7 +1999,7 @@ lucide.createIcons();
                 document.getElementById('save-tool-btn').innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
                 const res = await adminFetch('/api/admin/config', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentKey },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(appConfig)
                 });
 
@@ -2049,25 +2178,140 @@ lucide.createIcons();
             }
         });
 
-        document.getElementById('restart-server-btn').addEventListener('click', async () => {
-            if (!confirm("Restart the server? This will temporarily disconnect you.")) return;
-            
-            const btn = document.getElementById('restart-server-btn');
-            btn.disabled = true;
-            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Restarting...';
-            lucide.createIcons();
+        const listenerMode = document.getElementById('listener-mode');
+        const listenerPort = document.getElementById('listener-port');
+        const listenerLanHttp = document.getElementById('listener-lan-http');
+        const teamOwnerSetup = document.getElementById('team-owner-setup');
+        const teamOwnerHandle = document.getElementById('team-owner-handle');
+        const teamOwnerPassword = document.getElementById('team-owner-password');
+        const teamOwnerConfirm = document.getElementById('team-owner-confirm');
+        const saveSettingsButton = document.getElementById('save-settings-btn');
+        const listenerStatus = document.getElementById('listener-status');
+        const restartButton = document.getElementById('restart-server-btn');
+        const modeLabels = { local: 'Local', 'open-lan': 'Open LAN', team: 'Team' };
+        let listenerSettings;
 
+        async function listenerRequest(path, options) {
+            const response = await adminFetch(`/api/admin/system/${path}`, options);
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.detail || 'Orange could not complete the request.');
+            return result;
+        }
+
+        function showListenerSettings(settings) {
+            listenerSettings = settings;
+            const { active, pending, managed } = settings;
+            listenerMode.value = pending.mode;
+            listenerPort.value = pending.port;
+            listenerLanHttp.checked = pending.allow_lan_http === true;
+            listenerMode.disabled = false;
+            listenerPort.disabled = false;
+            updateLanHttpInput();
+            updateTeamOwnerSetup();
+            restartButton.disabled = !managed || settings.needs_launcher_relaunch;
+            const current = `Running in ${modeLabels[active.mode]} mode on port ${active.port}.${active.allow_lan_http ? ' LAN HTTP is enabled.' : ''}`;
+            const changed = active.mode !== pending.mode || active.port !== pending.port || active.allow_lan_http !== pending.allow_lan_http;
+            const next = settings.needs_launcher_relaunch
+                ? 'Stop and relaunch Orange to apply Team mode with LAN HTTP.'
+                : managed ? 'Restart Server to apply.' : 'Restart using the Orange launcher to apply.';
+            const messages = [current];
+            if (changed || !managed) messages.push(next);
+            if (!listenerSupportsLanHttp()) {
+                messages.push(managed ? 'Restart Server to load LAN HTTP support.' : 'Restart Orange to load LAN HTTP support.');
+            }
+            listenerStatus.textContent = messages.join(' ');
+        }
+
+        async function loadListenerSettings() {
             try {
-                // We don't await the response fully because the server will die
-                fetch('/api/admin/system/restart', { 
-                    method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + currentKey }
-                });
-                
-                setTimeout(() => {
-                    location.reload();
-                }, 5000);
-            } catch (e) {
-                // Fail silently as server is likely already restarting
+                showListenerSettings(await listenerRequest('listener'));
+            } catch (error) {
+                listenerStatus.textContent = error.message;
+            }
+        }
+
+        function listenerHasEdits() {
+            return listenerSettings && (listenerMode.value !== listenerSettings.pending.mode
+                || listenerPort.valueAsNumber !== listenerSettings.pending.port
+                || (listenerSupportsLanHttp() && listenerLanHttp.checked !== listenerSettings.pending.allow_lan_http));
+        }
+
+        function listenerSupportsLanHttp() {
+            return typeof listenerSettings?.pending.allow_lan_http === 'boolean';
+        }
+
+        function updateLanHttpInput() {
+            listenerLanHttp.disabled = listenerMode.value === 'local' || !listenerSupportsLanHttp();
+            if (listenerMode.value === 'local') listenerLanHttp.checked = false;
+        }
+
+        function needsTeamOwner() {
+            return listenerMode.value === 'team' && listenerSettings?.team_owner_exists === false;
+        }
+
+        function updateTeamOwnerSetup() {
+            const visible = needsTeamOwner();
+            teamOwnerSetup.classList.toggle('hidden', !visible);
+            if (!visible) {
+                teamOwnerPassword.value = '';
+                teamOwnerConfirm.value = '';
+                teamOwnerConfirm.setCustomValidity('');
+            }
+        }
+
+        listenerMode.addEventListener('change', () => {
+            updateLanHttpInput();
+            updateTeamOwnerSetup();
+        });
+        for (const input of [teamOwnerPassword, teamOwnerConfirm]) {
+            input.addEventListener('input', () => teamOwnerConfirm.setCustomValidity(''));
+        }
+
+        restartButton.addEventListener('click', async () => {
+            if (saveSettingsButton.disabled) return;
+            if (listenerHasEdits()) {
+                listenerStatus.textContent = 'Click Save Settings before restarting.';
+                return;
+            }
+            const opensLan = listenerSettings?.pending.mode === 'open-lan' && listenerSettings.active.mode !== 'open-lan';
+            const enablesLanHttp = listenerSettings?.pending.allow_lan_http && !listenerSettings.active.allow_lan_http;
+            const confirmation = ['Restart Orange? This will temporarily disconnect everyone using it.'];
+            if (opensLan) confirmation.push('Open LAN lets devices on your private network use Generate without signing in.');
+            if (enablesLanHttp) confirmation.push('With LAN HTTP enabled, passwords and sessions can be read by anyone who can monitor network traffic.');
+            if (enablesLanHttp && listenerSettings.pending.mode === 'open-lan' && appConfig?.adminKey === 'orangeadmin') {
+                confirmation.push('Anyone who knows the factory Admin Key can sign in to Admin from the LAN.');
+            }
+            if (!confirm(confirmation.join('\n\n'))) return;
+            restartButton.disabled = true;
+            saveSettingsButton.disabled = true;
+            const status = document.getElementById('listener-reconnect');
+            status.classList.remove('hidden');
+            status.textContent = 'Requesting restart…';
+            try {
+                const { pending } = await listenerRequest('restart', { method: 'POST' });
+                const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+                const currentPort = Number(location.port || (location.protocol === 'https:' ? 443 : 80));
+                const direct = location.protocol === 'http:' && currentPort === listenerSettings?.active.port;
+                status.textContent = `Orange is restarting in ${modeLabels[pending.mode]} mode on port ${pending.port}. `;
+                if (!loopback && (pending.mode === 'local' || (direct && !pending.allow_lan_http))) {
+                    status.append(`On the Orange host, open http://localhost:${pending.port}/ when the launcher is ready.`);
+                } else if (direct) {
+                    const next = new URL('/admin', location.href);
+                    next.port = pending.port;
+                    const link = document.createElement('a');
+                    link.href = next.href;
+                    link.className = 'underline';
+                    link.textContent = 'Open Orange after restart';
+                    status.append(link);
+                } else if (opensLan) {
+                    status.append(`Open Generate using the Orange host's LAN address on port ${pending.port}.`);
+                } else {
+                    status.append('Update your reverse proxy upstream if the port changed, then reopen Orange.');
+                }
+                setTimeout(() => { restartButton.disabled = false; saveSettingsButton.disabled = false; }, 8000);
+            } catch (error) {
+                status.textContent = error.message;
+                restartButton.disabled = false;
+                saveSettingsButton.disabled = false;
             }
         });

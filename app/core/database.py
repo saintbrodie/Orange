@@ -73,8 +73,10 @@ def init_db():
             id TEXT PRIMARY KEY, provider TEXT NOT NULL, model TEXT NOT NULL,
             output_type TEXT NOT NULL, status TEXT NOT NULL, created REAL NOT NULL,
             updated REAL NOT NULL, timeout REAL NOT NULL, remote_id TEXT,
-            outputs TEXT NOT NULL DEFAULT '[]', error TEXT
+            outputs TEXT NOT NULL DEFAULT '[]', error TEXT, budget_managed INTEGER NOT NULL DEFAULT 0
         )""")
+        if "budget_managed" not in {column[1] for column in conn.execute("PRAGMA table_info(media_jobs)")}:
+            conn.execute("ALTER TABLE media_jobs ADD COLUMN budget_managed INTEGER NOT NULL DEFAULT 0")
 
         retention_days = _usage_retention_days()
         if retention_days > 0:
@@ -109,15 +111,16 @@ def log_usage(
     backend_url: str = None,
     status: str = "queued",
     error: str = None,
+    user_id: str = None,
 ):
     technical_error = error[:8000] if isinstance(error, str) else error
 
     def action():
         with _connect() as conn:
             conn.execute(
-                "INSERT INTO usage (client_ip, tool_id, prompt, prompt_id, backend_url, status, error) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (client_ip, tool_id, prompt, prompt_id, backend_url, status, technical_error),
+                "INSERT INTO usage (client_ip, tool_id, prompt, prompt_id, backend_url, status, error, user_id) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (client_ip, tool_id, prompt, prompt_id, backend_url, status, technical_error, user_id),
             )
 
     _run_with_schema_retry(action, "logging usage")

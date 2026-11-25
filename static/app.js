@@ -59,9 +59,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const retryDownloadBtn = document.getElementById('retry-download-btn');
 
     // Init
-    fetch(configUrl).then(res => res.json()).then(data => {
+    generateBtn.disabled = true;
+    fetch(configUrl).then(res => {
+        if (!res.ok) throw new Error('Could not load tools.');
+        return res.json();
+    }).then(data => {
         config = data;
         renderTools();
+        if (!config.tools.length) {
+            aiStatusText.innerText = 'No tools available';
+            generateBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            showError('No generation tools are available.');
+            return;
+        }
         selectTool(config.tools[0].id);
     }).catch(err => {
         showError("Failed to load tools.");
@@ -477,6 +487,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await res.json();
             const promptId = data.prompt_id;
             const clientId = data.client_id;
+            document.dispatchEvent(new Event('orange:generation-history-changed'));
 
             // Update status with the actual server that was selected (no race condition)
             if (data.server_priority) {
@@ -550,9 +561,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 
             } else if (data.status === 'completed') {
                 evtSource.close();
+                document.dispatchEvent(new Event('orange:generation-history-changed'));
                 fetchAndShowResult(promptId);
             } else if (data.status === 'error') {
                 evtSource.close();
+                document.dispatchEvent(new Event('orange:generation-history-changed'));
                 showGenerationError(data.detail || "An error occurred during generation.");
                 if (data.retry_delivery && selectedToolId === toolId) {
                     offerDownloadRetry(promptId, clientId, toolId);
@@ -823,6 +836,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const aiStatusText = document.getElementById('ai-status-text');
 
     async function checkAiStatus() {
+        if (!selectedToolId) return;
         const vramWarning = document.getElementById('vram-warning');
         try {
             const checkingTool = selectedToolId;

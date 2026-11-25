@@ -14,10 +14,11 @@ from collections import deque
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RESTART_FILE = ROOT / "RESTART_REQUIRED"
+sys.path.insert(0, str(ROOT))
+from app.core.listener import RESTART_PATH as RESTART_FILE, configured_settings, save_settings
+
 LOG_DIR = ROOT / "runtime" / "logs"
 LOG_FILE = LOG_DIR / "orange.log"
-ORANGE_URL = "http://127.0.0.1:7070"
 VERBOSE = str(os.environ.get("ORANGE_VERBOSE_LOGS", "")).lower() in {"1", "true", "yes"}
 COLOR = not os.environ.get("NO_COLOR") and str(os.environ.get("ORANGE_COLOR", "1")).lower() not in {"0", "false", "no"}
 EVENT_PREFIX = "ORANGE_EVENT "
@@ -132,14 +133,14 @@ def drain_output(output_queue: queue.Queue[tuple[str, str]]) -> None:
             print(f"  {paint(f'[{label}]', 'red')} {text}", flush=True)
 
 
-def wait_for_ready(proc: subprocess.Popen[str], output_queue: queue.Queue[tuple[str, str]], timeout: float = 90.0) -> bool:
+def wait_for_ready(proc: subprocess.Popen[str], output_queue: queue.Queue[tuple[str, str]], url: str, timeout: float = 90.0) -> bool:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         drain_output(output_queue)
         if proc.poll() is not None:
             return False
         try:
-            with urllib.request.urlopen(ORANGE_URL + "/", timeout=1.0) as response:
+            with urllib.request.urlopen(url + "/", timeout=1.0) as response:
                 if response.status < 500:
                     return True
         except (urllib.error.URLError, TimeoutError, OSError):
@@ -176,25 +177,34 @@ def show_failure_tail(recent: deque[str]) -> None:
     print(f"\n  Full log: {LOG_FILE.relative_to(ROOT)}", flush=True)
 
 
-def run_once(log_handle) -> tuple[int, bool]:
+def run_once(log_handle, settings) -> tuple[int, bool, bool]:
     recent: deque[str] = deque(maxlen=40)
     output_queue: queue.Queue[tuple[str, str]] = queue.Queue()
+    mode = settings.mode
+    url = f"http://127.0.0.1:{settings.port}"
     args = [
         sys.executable,
         "-m",
         "uvicorn",
         "app.main:app",
         "--host",
-        "0.0.0.0",
+        settings.host,
         "--port",
-        "7070",
+        str(settings.port),
     ]
+    trusted_proxies = os.environ.get("ORANGE_TEAM_PROXY_IPS", "").strip()
+    if mode == "team" and trusted_proxies and "*" not in trusted_proxies:
+        args.extend(["--proxy-headers", "--forwarded-allow-ips", trusted_proxies])
+    else:
+        args.append("--no-proxy-headers")
     if not VERBOSE:
         args.extend(["--no-access-log", "--log-level", "warning"])
 
     proc = subprocess.Popen(
         args,
         cwd=ROOT,
+        env={**os.environ, "ORANGE_RUNNING_ACCESS_MODE": mode, "ORANGE_RUNNING_PORT": str(settings.port),
+             "ORANGE_RUNNING_LAN_HTTP": "1" if settings.allow_lan_http else "0"},
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -212,7 +222,7 @@ def run_once(log_handle) -> tuple[int, bool]:
     )
     reader.start()
 
-    if not wait_for_ready(proc, output_queue):
+    if not wait_for_ready(proc, output_queue, url):
         code = proc.poll()
         if code is None:
             status("Orange", "failed to become ready")
@@ -222,20 +232,24 @@ def run_once(log_handle) -> tuple[int, bool]:
             status("Orange", f"stopped before ready (exit {code})")
         finish_reader(reader, output_queue)
         show_failure_tail(recent)
-        return int(code or 1), False
+        return int(code or 1), False, False
 
-    status("Orange", f"ready   {ORANGE_URL}")
+    status("Orange", f"ready   {url}")
 
     try:
         while proc.poll() is None:
             drain_output(output_queue)
+            if RESTART_FILE.exists():
+                time.sleep(0.5)
+                terminate(proc)
+                break
             time.sleep(0.2)
     except KeyboardInterrupt:
         print()
         status("Orange", "stopping...")
         terminate(proc)
         finish_reader(reader, output_queue)
-        return 0, False
+        return 0, False, True
 
     finish_reader(reader, output_queue)
     code = int(proc.returncode or 0)
@@ -245,7 +259,7 @@ def run_once(log_handle) -> tuple[int, bool]:
             RESTART_FILE.unlink()
         except OSError:
             pass
-    return code, restart
+    return code, restart, True
 
 
 def main() -> int:
@@ -263,12 +277,23 @@ def main() -> int:
     print()
 
     with LOG_FILE.open("w", encoding="utf-8", buffering=1) as log_handle:
+        last_ready = None
         while True:
-            code, restart = run_once(log_handle)
+            try:
+                settings = configured_settings()
+            except (OSError, ValueError, KeyError, TypeError) as error:
+                status("Orange", f"invalid listener settings: {error}")
+                return 1
+            code, restart, ready = run_once(log_handle, settings)
+            if not ready and last_ready and settings != last_ready:
+                status("Orange", f"new listener failed; reopening port {last_ready.port} with {last_ready.mode} access")
+                save_settings(last_ready)
+                continue
             if not restart:
                 if code:
                     status("Orange", f"stopped (exit {code})")
                 return code
+            last_ready = settings
             status("Orange", "restarting...")
             time.sleep(1)
 

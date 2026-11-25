@@ -7,11 +7,13 @@ import time
 from urllib.parse import urlencode, urlparse, urlunparse
 
 import websockets
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
 from app.core.backends import get_backend_client
+from app.core import access, team
+from app.core.access import authorize_generation, tool_allowed
 from app.core.config import get_base_workflow, get_comfy_servers, get_tool_settings
 from app.core.database import get_backend_for_prompt, update_usage_status
 from app.core.terminal_events import emit_terminal_event_once
@@ -122,10 +124,13 @@ def _record_failure(prompt_id: str, target_url: str, status: str, technical_erro
     technical_error = technical_error or "No technical details were provided by ComfyUI."
     print(f"ComfyUI job {prompt_id} on {target_url} ended with {status}: {technical_error}")
     update_usage_status(prompt_id, status, technical_error)
+    access.update_owned_comfy_status(prompt_id, target_url, status)
 
 
-def _record_completion(prompt_id: str, announce: bool = True) -> None:
+def _record_completion(prompt_id: str, announce: bool = True, *, target_url=None) -> None:
     update_usage_status(prompt_id, "completed")
+    if target_url:
+        access.update_owned_comfy_status(prompt_id, target_url, "completed")
     if announce:
         emit_terminal_event_once(
             f"generation-complete:{prompt_id}",
@@ -136,9 +141,11 @@ def _record_completion(prompt_id: str, announce: bool = True) -> None:
 
 
 @router.get("/api/health")
-async def get_health(tool_id: str = None):
+async def get_health(tool_id: str = None, request: Request = None):
     if isinstance(tool_id, str) and tool_id:
         tool = get_tool_settings(tool_id)
+        if tool and not tool_allowed(tool, request):
+            return JSONResponse(status_code=403, content={"status": "offline"})
         if tool and tool.get("provider", "comfyui") != "comfyui":
             from app.core.media_provider_config import ready
             if ready(tool["provider"], tool.get("model")):
@@ -179,7 +186,7 @@ async def get_health(tool_id: str = None):
     return JSONResponse(status_code=503, content={"status": "offline"})
 
 
-async def status_generator(request: Request, prompt_id: str, client_id: str, tool_id: str = None):
+async def status_generator(request: Request, prompt_id: str, client_id: str, tool_id: str = None, *, target_url=None):
     queue = asyncio.Queue()
     monitoring_started = time.monotonic()
 
@@ -223,7 +230,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
         "SaveAudio": "Saving Audio...",
     }
 
-    target_url = (get_backend_for_prompt(prompt_id) or get_comfy_url()).rstrip("/")
+    target_url = (target_url or get_backend_for_prompt(prompt_id) or get_comfy_url()).rstrip("/")
     client = await get_backend_client()
 
     async def get_history_state():
@@ -239,7 +246,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
 
     initial_state, initial_error = await get_history_state()
     if initial_state == "completed":
-        _record_completion(prompt_id, announce=False)
+        _record_completion(prompt_id, announce=False, target_url=target_url)
         yield json.dumps({"status": "completed"})
         return
     if initial_state in {"error", "interrupted"}:
@@ -265,6 +272,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
                             if isinstance(running_item, (list, tuple)) and len(running_item) > 1 and running_item[1] == prompt_id:
                                 found_running = True
                                 update_usage_status(prompt_id, "running")
+                                access.update_owned_comfy_status(prompt_id, target_url, "running")
                                 await queue.put({"status": "generating"})
                                 break
 
@@ -277,7 +285,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
 
                 history_state, technical_error = await get_history_state()
                 if history_state == "completed":
-                    _record_completion(prompt_id)
+                    _record_completion(prompt_id, target_url=target_url)
                     await queue.put({"status": "completed"})
                     return
                 if history_state in {"error", "interrupted"}:
@@ -320,7 +328,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
                     if event_type == "executing":
                         node_id = event_data.get("node")
                         if node_id is None:
-                            _record_completion(prompt_id)
+                            _record_completion(prompt_id, target_url=target_url)
                             await queue.put({"status": "completed"})
                             return
                         class_type = node_map.get(str(node_id))
@@ -337,6 +345,7 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
                         )
                     elif event_type == "execution_start":
                         update_usage_status(prompt_id, "running")
+                        access.update_owned_comfy_status(prompt_id, target_url, "running")
                         await queue.put({"status": "generating"})
                     elif event_type == "execution_error":
                         technical_error = _technical_execution_error(event_data)
@@ -391,6 +400,15 @@ async def status_generator(request: Request, prompt_id: str, client_id: str, too
 @router.get("/api/status")
 async def get_status(request: Request, prompt_id: str, client_id: str, tool_id: str = None):
     from app.core.media_jobs import get_job, status_events
-    if get_job(prompt_id):
-        return EventSourceResponse(status_events(request, prompt_id))
-    return EventSourceResponse(status_generator(request, prompt_id, client_id, tool_id))
+    record = authorize_generation(request, prompt_id)
+    if record is not None and record["provider"] == "comfyui":
+        events = status_generator(
+            request, record["prompt_id"], record["client_id"], record["tool_id"], target_url=record["backend_url"],
+        )
+    elif get_job(prompt_id):
+        events = status_events(request, prompt_id)
+    elif record is not None:
+        raise HTTPException(404, "Generation was not found.")
+    else:
+        events = status_generator(request, prompt_id, client_id, tool_id)
+    return EventSourceResponse(team.guard_events(request, events) if access.is_team() else events)

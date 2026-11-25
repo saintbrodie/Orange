@@ -4,6 +4,7 @@ from io import BytesIO
 
 from PIL import Image
 
+from app.core.budgets import usd_micros
 from app.core.media_providers import Model, ModelDiscovery, Media, ProviderResult, ProviderError, _request, _json, _decode, _usage, model_for, valid_model_id
 
 RATIOS = ("1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9")
@@ -32,7 +33,13 @@ def raster_result(payload):
             media.append(Media(_decode(item['b64_json']), mime))
     if not media:
         raise ProviderError('Provider returned no raster image. The request may have been filtered.')
-    return ProviderResult(media=media, usage=_usage(payload.get('usage')))
+    usage = payload.get('usage')
+    reported_cost = mapping(usage).get('cost')
+    try:
+        reported_micros = usd_micros(reported_cost, round_up=True) if type(reported_cost) in {int, float} else None
+    except ValueError:
+        reported_micros = None
+    return ProviderResult(media=media, usage=_usage(usage), reported_cost_micros=reported_micros)
 
 
 class OpenRouterAdapter:

@@ -41,7 +41,7 @@
   function authFetch(url, options = {}) {
     const key = localStorage.getItem('orange_admin_key');
     options.headers = options.headers || {};
-    options.headers.Authorization = `Bearer ${key || ''}`;
+    if (document.documentElement.dataset.orangeMode !== 'team') options.headers.Authorization = `Bearer ${key || ''}`;
     return fetch(url, options);
   }
 
@@ -699,7 +699,7 @@
 
   async function refreshJobs() {
     const serverUrl = document.getElementById('curated-server')?.value;
-    if (!serverUrl || !localStorage.getItem('orange_admin_key')) {
+    if (!serverUrl || (document.documentElement.dataset.orangeMode !== 'team' && !localStorage.getItem('orange_admin_key'))) {
       jobByKey = new Map();
       renderCatalog();
       return [];
@@ -776,7 +776,7 @@
   async function refreshCatalog(options = {}) {
     setupToolsWorkspace();
     const serverSelect = document.getElementById('curated-server');
-    if (!localStorage.getItem('orange_admin_key')) return;
+    if (document.documentElement.dataset.orangeMode !== 'team' && !localStorage.getItem('orange_admin_key')) return;
     const previousUrl = serverSelect?.value || '';
     setLibraryStatus('Loading curated tools…', 'working');
     try {

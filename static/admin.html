@@ -11,6 +11,15 @@
     <link rel="stylesheet" href="/static/styles.css?v=9">
     <link rel="stylesheet" href="/static/app-navigation.css?v=3">
     <style>
+        [data-orange-mode="team"] #login-container,
+        [data-orange-mode="team"] #tab-gallery,
+        [data-orange-mode="team"] #legacy-admin-key,
+        [data-orange-mode="team"] #legacy-db-controls {
+            display: none !important;
+        }
+        html:not([data-orange-mode="team"]) #tab-team { display: none !important; }
+        #admin-team-frame { display: block; width: 100%; height: calc(100dvh - 12rem); min-height: min(28rem, 75dvh); border: 0; }
+
         /* Hide number input arrows */
         input[type="number"]::-webkit-inner-spin-button,
         input[type="number"]::-webkit-outer-spin-button {
@@ -60,6 +69,10 @@
                     class="admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition">
                     <i data-lucide="wrench" class="w-4 h-4"></i> Tools
                 </button>
+                <button id="tab-team" type="button" aria-controls="admin-team-container"
+                    class="admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i data-lucide="users" class="w-4 h-4"></i> Team
+                </button>
                 <button id="tab-analytics"
                     class="admin-tab flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium transition">
                     <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Analytics
@@ -80,6 +93,9 @@
 
     <!-- Main Content Area -->
     <main class="flex-1 flex flex-col items-center relative w-full pt-16 pb-10 px-4 z-10">
+        <section id="admin-team-container" class="hidden w-full max-w-7xl mx-auto" aria-label="Team administration">
+            <iframe id="admin-team-frame" title="Team administration"></iframe>
+        </section>
 
         <!-- Login Form UI -->
         <div id="login-container"
@@ -101,7 +117,7 @@
                 <div id="login-error"
                     class="hidden bg-red-950/50 border border-red-900 text-red-200 px-4 py-3 rounded-xl text-sm flex items-start gap-3">
                     <i data-lucide="alert-circle" class="w-5 h-5 shrink-0 mt-0.5"></i>
-                    <span>Invalid Admin Key</span>
+                    <span id="login-error-message" role="alert">Invalid Admin Key</span>
                 </div>
 
                 <button id="login-btn"
@@ -148,20 +164,24 @@
             </div>
 
             <!-- Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
                 <div class="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6 shadow-xl">
                     <h3 class="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-4">Top Tools Used</h3>
                     <ul class="space-y-3 overflow-y-auto max-h-72 pr-2" id="tools-list"></ul>
                 </div>
                 <div
                     class="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col items-center justify-center text-center">
-                    <h3 class="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-2">Total Generations</h3>
+                    <h3 class="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-2">Generation Attempts</h3>
                     <div class="text-6xl font-bold bg-gradient-to-br from-orange-400 to-orange-600 text-transparent bg-clip-text"
                         id="total-count">0</div>
                 </div>
                 <div class="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6 shadow-xl">
-                    <h3 class="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-4">Top Users (IP)</h3>
-                    <ul class="space-y-3 overflow-y-auto max-h-72 pr-2" id="ip-list"></ul>
+                    <h3 class="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-4">Providers</h3>
+                    <ul class="space-y-3 overflow-y-auto max-h-72 pr-2" id="provider-list"></ul>
+                </div>
+                <div class="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6 shadow-xl">
+                    <h3 class="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-4">Job Outcomes</h3>
+                    <ul class="space-y-3 overflow-y-auto max-h-72 pr-2" id="status-list"></ul>
                 </div>
             </div>
 
@@ -179,11 +199,9 @@
                             <tr>
                                 <th class="px-6 py-4 font-medium">ID</th>
                                 <th class="px-6 py-4 font-medium">Time (Local)</th>
-                                <th class="px-6 py-4 font-medium">IP Address</th>
                                 <th class="px-6 py-4 font-medium">Tool ID</th>
                                 <th class="px-6 py-4 font-medium">Provider / Model</th>
                                 <th class="px-6 py-4 font-medium">Status</th>
-                                <th class="px-6 py-4 font-medium w-full">Prompt Snippet</th>
                             </tr>
                         </thead>
                         <tbody id="logs-body" class="divide-y divide-zinc-800/50">
@@ -213,7 +231,7 @@
                             <!-- Injected by JS -->
                         </div>
                     </div>
-                    <div>
+                    <div id="legacy-admin-key">
                         <label class="text-xs text-zinc-500 font-bold uppercase tracking-wider mb-2 block">Admin
                             Key</label>
                         <input type="text" id="setting-admin-key"
@@ -466,7 +484,7 @@
                         </details>
                     </section>
 
-                    <div class="pt-4 border-t border-zinc-800/50">
+                    <div id="legacy-db-controls" class="pt-4 border-t border-zinc-800/50">
                         <h3 class="text-sm font-semibold text-zinc-300 mb-4">Database Management</h3>
                         <div class="flex gap-4">
                             <button id="backup-db-btn"
@@ -484,6 +502,51 @@
 
                     <div class="pt-4 border-t border-zinc-800/50">
                         <h3 class="text-sm font-semibold text-zinc-300 mb-4">System Management</h3>
+                        <div class="mb-4 space-y-3">
+                            <div class="flex flex-wrap items-end gap-3">
+                                <label class="space-y-1 text-sm text-zinc-300">
+                                    <span class="block">Access mode</span>
+                                    <select id="listener-mode" class="bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2" required disabled>
+                                        <option value="local">Local</option>
+                                        <option value="open-lan">Open LAN</option>
+                                        <option value="team">Team</option>
+                                    </select>
+                                </label>
+                                <label class="space-y-1 text-sm text-zinc-300">
+                                    <span class="block">Port</span>
+                                    <input id="listener-port" type="number" min="1" max="65535" step="1" required disabled class="w-28 bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2">
+                                </label>
+                            </div>
+                            <label class="flex items-center gap-2 text-sm text-zinc-300">
+                                <input id="listener-lan-http" type="checkbox" aria-describedby="listener-lan-http-help" disabled>
+                                Allow HTTP access from the private LAN
+                            </label>
+                            <p id="listener-lan-http-help" class="ml-5 max-w-md text-xs leading-relaxed text-zinc-400">
+                                <span class="block">Allows remote Admin in Open LAN and remote access in Team.</span>
+                                <span class="block">HTTP sends passwords and session cookies unencrypted.</span>
+                            </p>
+                            <fieldset id="team-owner-setup" class="hidden max-w-md space-y-3 rounded-xl border border-zinc-800 px-4 pb-4">
+                                <legend class="px-2 text-sm font-medium text-zinc-200">First Team owner</legend>
+                                <p class="text-xs leading-relaxed text-zinc-400">Use this account to sign in after switching to Team mode.</p>
+                                <div class="grid gap-3">
+                                    <label class="space-y-1 text-sm text-zinc-300">
+                                        <span class="block">Username</span>
+                                        <input id="team-owner-handle" type="text" autocomplete="username" autocapitalize="none" minlength="3" maxlength="64" required class="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2">
+                                    </label>
+                                    <label class="space-y-1 text-sm text-zinc-300">
+                                        <span class="block">Password</span>
+                                        <input id="team-owner-password" type="password" autocomplete="new-password" minlength="12" maxlength="256" required aria-describedby="team-owner-password-help" class="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2">
+                                        <span id="team-owner-password-help" class="block text-xs text-zinc-400">Use at least 12 characters.</span>
+                                    </label>
+                                    <label class="space-y-1 text-sm text-zinc-300">
+                                        <span class="block">Confirm password</span>
+                                        <input id="team-owner-confirm" type="password" autocomplete="new-password" maxlength="256" required class="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2">
+                                    </label>
+                                </div>
+                            </fieldset>
+                            <p id="listener-status" class="pt-3 text-sm text-zinc-400" role="status">Loading listener settings…</p>
+                        </div>
+                        <p id="listener-reconnect" class="hidden mb-4 text-sm text-zinc-400" role="status"></p>
                         <div class="flex flex-wrap gap-4 items-center">
                             <button id="check-update-btn"
                                 class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 border border-zinc-700 shadow-sm">
@@ -532,6 +595,7 @@
                 <div class="flex-1 overflow-y-auto pr-2 space-y-2 relative" id="admin-tools-list" ondragover="event.preventDefault()">
                     <!-- Tools list -->
                 </div>
+                <p id="team-tool-availability-status" class="mt-2 text-sm text-red-400" role="alert" hidden></p>
                 <div class="mt-6 pt-4 border-t border-zinc-800/50">
                     <input type="file" id="workflow-upload-input" accept=".json" class="hidden">
                     <button id="add-api-tool-btn" class="w-full mb-3 bg-zinc-800 text-orange-400 py-3 rounded-xl border border-zinc-700">Create API Tool</button>
@@ -723,8 +787,8 @@
 
     <!-- Script -->
     <script src="/static/tool-input-editor.js?v=4"></script>
-    <script src="/static/admin.js?v=7"></script>
-    <script src="/static/workflow-pack-library.js?v=9"></script>
+    <script src="/static/admin.js?v=18"></script>
+    <script src="/static/workflow-pack-library.js?v=10"></script>
     <script src="/static/tool-config-layout.js?v=4"></script>
 </body>
 

@@ -3,6 +3,7 @@ import copy
 import mimetypes
 import os
 import random
+import sqlite3
 import uuid
 import httpx
 from app.core.model_bindings import backend_inventory, invalidate_inventory, resolve_models
@@ -10,6 +11,7 @@ from app.core.model_bindings import backend_inventory, invalidate_inventory, res
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from app.api.generate import MAX_PROMPT_CHARS, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, _read_validated_image
+from app.core import access, team, team_tools
 from app.core.backends import (
     decrement_active,
     get_backend_client,
@@ -85,6 +87,8 @@ async def generate_v2(
     tool = get_tool_settings(tool_id)
     if not tool:
         raise HTTPException(status_code=400, detail="Invalid tool ID")
+    if not access.tool_allowed(tool, request):
+        raise HTTPException(403, "This tool is unavailable in the current access mode.")
     if prompt and len(prompt) > MAX_PROMPT_CHARS:
         raise HTTPException(status_code=413, detail=f"Prompt exceeds the {MAX_PROMPT_CHARS} character limit.")
     try:
@@ -106,6 +110,7 @@ async def generate_comfy(
     duration=None,
 ):
     client_ip = request.client.host if request.client else "unknown"
+    member_id = team.request_user(request)["id"] if access.is_team() else None
 
     if prompt and len(prompt) > MAX_PROMPT_CHARS:
         raise HTTPException(status_code=413, detail=f"Prompt exceeds the {MAX_PROMPT_CHARS} character limit.")
@@ -126,6 +131,7 @@ async def generate_comfy(
             prompt,
             status="submission_failed",
             error=f"Workflow load failure: {type(exc).__name__}: {exc}",
+            user_id=member_id,
         )
         raise HTTPException(status_code=500, detail="This tool's workflow could not be loaded. Check it in the admin dashboard.")
 
@@ -160,6 +166,7 @@ async def generate_comfy(
             prompt,
             status="submission_failed",
             error=f"Workflow asset preparation failure: {type(exc).__name__}: {exc}",
+            user_id=member_id,
         )
         raise HTTPException(status_code=500, detail="This tool's fixed workflow assets could not be prepared.")
 
@@ -175,10 +182,20 @@ async def generate_comfy(
         generated_seed = random.randint(1, 1125899906)
 
     client_id = str(uuid.uuid4())
+    guest = access.submitting_guest(request)
+    job_id = str(uuid.uuid4()) if guest or member_id else None
     exclude_urls = []
     last_failure = None
     retry_target = None
     refreshed_rejections = set()
+    if member_id:
+        with access.job_db() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            team.require_active(connection, member_id)
+            team_tools.require_tool_enabled(connection, member_id, tool_id)
+            access.insert_owned_generation(connection, job_id, member_id, tool_id, "comfyui", tool.get("outputType", "image"), client_id=client_id)
+    elif guest:
+        access.reserve_generation(job_id, guest, tool_id, "comfyui", client_id=client_id)
 
     while True:
         target_url = retry_target or await get_best_backend(
@@ -195,7 +212,10 @@ async def generate_comfy(
                 backend_url=exclude_urls[-1] if exclude_urls else None,
                 status="submission_failed",
                 error=technical,
+                user_id=member_id,
             )
+            if member_id:
+                access.fail_unconfirmed_generation(job_id, "submission_failed")
             detail = (
                 last_failure.public_message
                 if last_failure
@@ -304,7 +324,10 @@ async def generate_comfy(
                 backend_url=target_url,
                 status="submission_failed",
                 error=exc.technical_message,
+                user_id=member_id,
             )
+            if member_id:
+                access.fail_unconfirmed_generation(job_id, "submission_unconfirmed")
             raise HTTPException(status_code=exc.status_code, detail=exc.public_message)
         except Exception as exc:
             technical = f"Local workflow preparation failure: {type(exc).__name__}: {exc}"
@@ -315,7 +338,10 @@ async def generate_comfy(
                 backend_url=target_url,
                 status="submission_failed",
                 error=technical,
+                user_id=member_id,
             )
+            if member_id:
+                access.fail_unconfirmed_generation(job_id, "submission_failed")
             raise HTTPException(
                 status_code=422,
                 detail="Orange could not prepare this workflow. Run Workflow Preflight or check the tool mappings.",
@@ -335,10 +361,17 @@ async def generate_comfy(
         1,
     )
     prompt_id = data.get("prompt_id")
-    log_usage(client_ip, tool_id, prompt, prompt_id=prompt_id, backend_url=target_url)
+    log_usage(client_ip, tool_id, prompt, prompt_id=prompt_id, backend_url=target_url, user_id=member_id)
+    if job_id:
+        try:
+            access.attach_comfy_generation(job_id, prompt_id, target_url)
+        except (sqlite3.Error, RuntimeError) as exc:
+            raise HTTPException(
+                503, "The backend accepted the generation, but Orange could not save its access record. Check the backend before trying again.",
+            ) from exc
 
     return {
-        "prompt_id": prompt_id,
-        "client_id": client_id,
+        "prompt_id": job_id or prompt_id,
+        "client_id": job_id or client_id,
         "server_priority": server_priority,
     }

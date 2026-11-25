@@ -3,18 +3,24 @@ import html
 import json
 import os
 import re
+import secrets
 import shutil
 import sqlite3
 import subprocess
+from collections import Counter
+from contextlib import closing
+from dataclasses import asdict
 
 import httpx
-from fastapi import APIRouter, Depends, File, Header, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
+from starlette.concurrency import run_in_threadpool
 
 from app.core.config import PROJECT_ROOT, get_comfy_servers, get_system_prompt, load_config, restore_defaults, save_config
 from app.core.database import delete_usage, get_backend_for_prompt, get_db_path
 from app.core.outputs import collect_media_outputs
 from app.core import huggingface
+from app.core import access, listener, team
 
 router = APIRouter()
 
@@ -22,12 +28,24 @@ MAX_WORKFLOW_UPLOAD_BYTES = 5 * 1024 * 1024
 MAX_DB_RESTORE_BYTES = 250 * 1024 * 1024
 
 
-async def verify_admin(authorization: str = Header(None)):
+async def verify_admin(authorization: str = Header(None), request: Request = None):
+    if access.is_team():
+        return team.request_user(request, "owner")
     config = load_config()
     expected_key = config.get("adminKey", "orangeadmin")
-    if not authorization or authorization != f"Bearer {expected_key}":
+    if access.is_open_lan() and expected_key == "orangeadmin" and request is not None:
+        peer = request.client.host if request.client else None
+        if peer not in {"127.0.0.1", "::1"} and not access.allows_direct_lan_http(request):
+            raise HTTPException(403, "Use localhost with the factory Admin Key, or enable LAN HTTP on the Orange host for direct private-LAN access.")
+    if not authorization or not secrets.compare_digest(authorization.encode(), f"Bearer {expected_key}".encode()):
         raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin key")
     return True
+
+
+async def verify_analytics(authorization: str = Header(None), request: Request = None):
+    if access.is_team():
+        return team.request_user(request, "owner", "operator")
+    return await verify_admin(authorization, request)
 
 
 async def _read_limited_upload(file: UploadFile, limit_bytes: int, label: str) -> bytes:
@@ -89,17 +107,81 @@ def apply_update(_=Depends(verify_admin)):
 
 
 @router.post("/api/admin/system/restart")
-def restart_server(_=Depends(verify_admin)):
+def restart_server(request: Request, _=Depends(verify_admin)):
+    if not os.environ.get("ORANGE_RUNNING_PORT"):
+        raise HTTPException(409, "Restart Orange with its launcher or your service manager.")
     try:
-        with open(os.path.join(PROJECT_ROOT, "RESTART_REQUIRED"), "w", encoding="utf-8") as f:
-            f.write("1")
-        os._exit(0)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to restart: {exc}")
+        settings = listener.configured_settings()
+        _validate_listener_change(settings, _active_listener(request))
+        if listener.needs_launcher_relaunch(settings):
+            raise HTTPException(409, "Stop and relaunch Orange to apply Team mode with LAN HTTP. The running launcher predates Team LAN access.")
+        listener.RESTART_PATH.touch()
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        raise HTTPException(500, "Orange could not request a restart. Check the launcher settings and logs.") from exc
+    return {"status": "restarting", "pending": asdict(settings)}
+
+
+def _active_listener(request):
+    server = request.scope.get("server") or (None, 7070)
+    mode = access.access_mode()
+    return listener.ListenerSettings(mode, int(os.environ.get("ORANGE_RUNNING_PORT") or server[1] or 7070),
+                                     mode != "local" and listener.lan_http_requested())
+
+
+def _validate_listener_change(settings, active, *, creating_owner=False):
+    if settings.mode == "team" and active.mode != "team" and not creating_owner and not team.has_active_owner():
+        raise HTTPException(409, "Create a Team owner in System Management before switching to Team mode.")
+    if settings.port != active.port:
+        try:
+            listener.check_port(settings)
+        except OSError as exc:
+            raise HTTPException(409, f"Port {settings.port} is unavailable on the Orange host.") from exc
+
+
+@router.get("/api/admin/system/listener")
+def get_listener_settings(request: Request, _=Depends(verify_admin)):
+    try:
+        active = _active_listener(request)
+        pending = listener.configured_settings(fallback=active)
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        raise HTTPException(500, "Orange could not read the listener settings.") from exc
+    return _listener_status(pending, active)
+
+
+def _listener_status(pending, active):
+    return {"active": asdict(active), "pending": asdict(pending), "managed": bool(os.environ.get("ORANGE_RUNNING_PORT")),
+            "team_owner_exists": team.has_active_owner(), "needs_launcher_relaunch": listener.needs_launcher_relaunch(pending)}
+
+
+def _parse_listener_change(payload, request, *, creating_owner=False):
+    if not isinstance(payload, dict):
+        raise HTTPException(422, "Provide an access mode and port.")
+    active = _active_listener(request)
+    mode = payload.get("mode")
+    try:
+        settings = listener.ListenerSettings(mode, payload.get("port"),
+                                             payload.get("allow_lan_http", mode != "local" and active.allow_lan_http))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    _validate_listener_change(settings, active, creating_owner=creating_owner)
+    return settings, active
+
+
+def _save_listener_change(settings, active):
+    try:
+        listener.save_settings(settings)
+    except OSError as exc:
+        raise HTTPException(500, "Orange could not save the listener settings.") from exc
+    return _listener_status(settings, active)
+
+
+@router.put("/api/admin/system/listener")
+def update_listener_settings(payload: dict, request: Request, _=Depends(verify_admin)):
+    return _save_listener_change(*_parse_listener_change(payload, request))
 
 
 @router.get("/api/admin/media")
-async def get_admin_media(_=Depends(verify_admin)):
+async def get_admin_media(_=Depends(verify_admin), request: Request = None, response: Response = None):
     servers = get_comfy_servers()
 
     async def fetch_history(url: str):
@@ -159,34 +241,54 @@ async def get_admin_media(_=Depends(verify_admin)):
         if items:
             media_items.append({"prompt_id": row["prompt_id"], "filename": items[0]["filename"], "type": row["type"], "analytics": _html_safe_log(row)})
     media_items.sort(key=lambda item: (item.get("analytics") or {}).get("timestamp", ""), reverse=True)
+    if access.is_open_lan() and request is not None and response is not None:
+        access.grant_gallery_access(response, request)
     return {"media": media_items}
 
 
+@router.delete("/api/admin/media/session")
+def clear_gallery_session(response: Response):
+    response.delete_cookie(access.GALLERY_COOKIE, path="/api")
+    return {"status": "ok"}
+
+
 @router.get("/api/admin/usage")
-def get_admin_usage(period: str = "all", export: bool = False, _=Depends(verify_admin)):
+def get_admin_usage(period: str = "all", export: bool = False, _=Depends(verify_analytics)):
     date_filter = PERIOD_FILTERS.get(period)
     if date_filter is None:
         raise HTTPException(status_code=400, detail=f"Invalid period: {period}. Valid: {', '.join(PERIOD_FILTERS.keys())}")
+    aggregate_only = isinstance(_, dict) and _["role"] == "operator"
+    if export and aggregate_only:
+        raise HTTPException(403, "Usage exports are available to owners.")
 
+    generations = f"""WITH generations AS (
+        SELECT id, timestamp, tool_id, COALESCE(provider, 'comfyui') AS provider,
+            model, COALESCE(status, 'queued') AS status
+        FROM usage {date_filter or 'WHERE 1 = 1'}
+          AND (prompt_id IS NULL OR id IN (
+            SELECT MAX(id) FROM usage WHERE prompt_id IS NOT NULL GROUP BY prompt_id
+          ))
+    )"""
     try:
-        with sqlite3.connect(get_db_path()) as conn:
+        with closing(sqlite3.connect(get_db_path())) as conn:
             conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            if export:
-                cursor.execute(f"SELECT * FROM usage {date_filter} ORDER BY timestamp DESC")
-            else:
-                cursor.execute(f"SELECT * FROM usage {date_filter} ORDER BY timestamp DESC LIMIT 500")
-            rows = [dict(row) for row in cursor.fetchall()]
-            if not export:
-                rows = [_html_safe_log(row) for row in rows]
+            conn.execute("BEGIN")
+            limit = "" if export else "LIMIT 500"
+            rows = [] if aggregate_only else [dict(row) for row in conn.execute(
+                f"{generations} SELECT * FROM generations ORDER BY timestamp DESC, id DESC {limit}",
+            )]
+            groups = conn.execute(f"""{generations}
+                SELECT tool_id, provider, status, COUNT(*) AS count
+                FROM generations GROUP BY tool_id, provider, status
+            """).fetchall()
 
-            cursor.execute(f"SELECT tool_id, COUNT(*) as count FROM usage {date_filter} GROUP BY tool_id")
-            tools_summary = [dict(row) for row in cursor.fetchall()]
-
-            cursor.execute(f"SELECT client_ip, COUNT(*) as count FROM usage {date_filter} GROUP BY client_ip")
-            ip_summary = [dict(row) for row in cursor.fetchall()]
-
-        return {"logs": rows, "tools_summary": tools_summary, "ip_summary": ip_summary}
+        summary = {"logs": rows, "total": sum(row["count"] for row in groups)}
+        for column, name in (("tool_id", "tools_summary"), ("provider", "provider_summary"), ("status", "status_summary")):
+            counts = Counter()
+            for row in groups:
+                counts[row[column]] += row["count"]
+            summary[name] = [{column: value, "count": count} for value, count in counts.most_common()]
+        return summary
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -224,14 +326,61 @@ def get_admin_config(_=Depends(verify_admin)):
     return load_config()
 
 
-@router.post("/api/admin/config")
-async def update_admin_config(request: Request, _=Depends(verify_admin)):
+def _parse_team_owner(payload, listener_change):
+    if listener_change is None or listener_change[0].mode != "team" or listener_change[1].mode == "team":
+        raise HTTPException(400, "Choose Team mode to create its first owner.")
+    if team.has_active_owner():
+        raise HTTPException(409, "A Team owner already exists. Reopen General Settings to continue.")
+    if not isinstance(payload, dict) or not isinstance(payload.get("handle"), str) or not isinstance(payload.get("password"), str):
+        raise HTTPException(400, "Enter a username and password for the Team owner.")
+    handle = team.normalize_handle(payload["handle"])
+    password = payload["password"]
+    team.validate_password(password)
+    return handle, password
+
+
+def _create_first_team_owner(handle, password):
+    team.init_team()
+    team.bootstrap_owner(handle, password)
+
+
+async def _save_admin_settings(request, *, creating_owner=False):
     try:
         new_config = await request.json()
+        if not isinstance(new_config, dict):
+            raise HTTPException(400, "Provide an Orange settings object.")
+        listener_change = None
+        owner_credentials = None
+        if "teamOwner" in new_config and not creating_owner:
+            raise HTTPException(400, "Use Team setup to create an owner.")
+        if "listenerSettings" in new_config:
+            listener_change = _parse_listener_change(new_config.pop("listenerSettings"), request, creating_owner=creating_owner)
+        if creating_owner:
+            owner_credentials = _parse_team_owner(new_config.pop("teamOwner", None), listener_change)
         save_config(new_config)
-        return {"status": "success"}
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    if owner_credentials:
+        try:
+            await run_in_threadpool(_create_first_team_owner, *owner_credentials)
+        except (OSError, sqlite3.Error) as exc:
+            raise HTTPException(500, "Orange could not save the Team owner.") from exc
+    result = {"status": "success"}
+    if listener_change:
+        result["listenerSettings"] = _save_listener_change(*listener_change)
+    return result
+
+
+@router.post("/api/admin/config")
+async def update_admin_config(request: Request, _=Depends(verify_admin)):
+    return await _save_admin_settings(request)
+
+
+@router.post("/api/admin/system/team-setup")
+async def setup_team_owner(request: Request, _=Depends(verify_admin)):
+    return await _save_admin_settings(request, creating_owner=True)
 
 
 @router.get("/api/admin/workflows")
